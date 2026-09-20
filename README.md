@@ -105,7 +105,7 @@ rebuilt, and its chart was the 420px on-screen canvas scaled *up*.
 It is rendered by this repo's own generator:
 
 ```
-python scripts\make_og_card.py --shot media\og-shot.png --out site\og-card.png
+python scripts/make_og_card.py
 ```
 
 The fleet has a shared generator at `evo.scripts\make_og_card.py` and most
@@ -116,12 +116,7 @@ text and insets the shot beside it, which suits a card whose picture is
 supporting evidence — here the picture *is* the product, and the leftover
 column made it smaller than in any earlier version.
 
-`media/og-shot.png` is the chart it draws — 1260x1260, produced by this app's
-own `drawSkyChart` rather than screenshotted, and brought *down* to 470px on
-the card. The generator refuses a shot smaller than that rather than stretching
-it: upscaling a 420px canvas is exactly what made the first three cards soft.
-It lives outside `site/` because the deploy ships `site/` only; it is an input,
-not a served asset.
+The chart is drawn from `site/src/data/stars.json` — the same catalogue the app ships — at three times final size and downsampled once, so the stars resolve as points rather than aliased squares. There is no screenshot step and nothing to capture by hand.
 
 Two things to get right when regenerating it:
 
