@@ -44,27 +44,51 @@
       <label>Longitude <span class="hint">degrees, + east</span>
         <input id="inLon" type="number" step="0.0001" inputmode="decimal" placeholder="-71.0589">
       </label>
-      <label>Altitude <span class="hint">metres above sea level</span>
+      <label>Altitude <span class="hint">metres above sea level — optional</span>
         <input id="inAlt" type="number" step="1" inputmode="decimal" placeholder="10">
       </label>
+      <button id="lookupAlt" class="big-btn ghost">Look up altitude for me</button>
+      <p class="hint" id="lookupAltNote">Sends only these coordinates to
+        open-meteo.com. Nothing else in this app touches the network.</p>
       <button id="manualApply" class="big-btn primary">Use these numbers</button>
     </div>
   </section>
 
   <!-- 2 ---------------------------------------------------------------- -->
+  <section class="card" id="northCard" aria-labelledby="h-north" hidden>
+    <h2 id="h-north"><span class="step">2</span> Which way is true north?</h2>
+
+    <p class="status">Your mount points at <strong>true</strong> north, not
+      magnetic north. Any one of these gets you there — and the first two need
+      no instrument at all.</p>
+
+    <div class="figure">
+      <div class="fig-label">At night — easiest, and exact</div>
+      <div class="fig-value small">Polaris <em>is</em> true north</div>
+      <div class="fig-note" id="outNorthStar">—</div>
+    </div>
+
+    <div class="figure">
+      <div class="fig-label">In daylight — a shadow, no instrument</div>
+      <div class="fig-value small" id="outSolarNoon">—</div>
+      <div class="fig-note" id="outSunNow">—</div>
+    </div>
+
+    <div class="figure">
+      <div class="fig-label">With a magnetic compass</div>
+      <div class="fig-value small" id="outCompass">—</div>
+      <div class="fig-note" id="outDeclination">—</div>
+    </div>
+  </section>
+
+  <!-- 3 ---------------------------------------------------------------- -->
   <section class="card" id="settingsCard" aria-labelledby="h-set" hidden>
-    <h2 id="h-set"><span class="step">2</span> Set your tracker</h2>
+    <h2 id="h-set"><span class="step">3</span> Set your tracker</h2>
 
     <div class="figure big-figure">
       <div class="fig-label">Latitude / altitude knob</div>
       <div class="fig-value" id="outLatKnob">—</div>
       <div class="fig-note">Set the mount's latitude scale to this.</div>
-    </div>
-
-    <div class="figure big-figure">
-      <div class="fig-label">Point the mount at this compass bearing</div>
-      <div class="fig-value" id="outCompass">—</div>
-      <div class="fig-note" id="outDeclination">—</div>
     </div>
 
     <div class="figure big-figure accent">
@@ -85,9 +109,9 @@
     <button id="speakBtn" class="big-btn">Read these out loud</button>
   </section>
 
-  <!-- 3 ---------------------------------------------------------------- -->
+  <!-- 4 ---------------------------------------------------------------- -->
   <section class="card" id="findCard" aria-labelledby="h-find" hidden>
-    <h2 id="h-find"><span class="step">3</span> Find Polaris in the sky</h2>
+    <h2 id="h-find"><span class="step">4</span> Find Polaris in the sky</h2>
 
     <div class="guide" id="guideBox" role="status" aria-live="polite">
       <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>

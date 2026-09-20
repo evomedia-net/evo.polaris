@@ -162,6 +162,55 @@ export function alignmentSolution(date, site, declinationDeg) {
 }
 
 /**
+ * Low-precision solar position (Astronomical Almanac), good to about 0.01 deg
+ * through 2050 -- far better than needed to find north from a shadow.
+ */
+export function sunPosition(date) {
+  const n = julianDay(date) - 2451545.0;
+  const L = (280.460 + 0.9856474 * n) % 360;
+  const g = ((357.528 + 0.9856003 * n) % 360) * DEG;
+  const lambda = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * DEG;
+  const eps = (23.439 - 0.0000004 * n) * DEG;
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda)) * RAD;
+  return {
+    ra: ((ra % 360) + 360) % 360,
+    dec: Math.asin(Math.sin(eps) * Math.sin(lambda)) * RAD,
+  };
+}
+
+/**
+ * The moment the Sun crosses the local meridian -- the one instant in the day
+ * when a vertical shadow points exactly true north (or true south, south of
+ * the tropics). No compass, no instrument, no declination correction.
+ *
+ * Solved by iterating the Sun's hour angle to zero, which reuses the same
+ * sidereal-time code the rest of the app is tested on.
+ */
+export function solarNoon(date, lonDeg) {
+  // Start from an estimate of local noon, so we converge on the right day.
+  let t = new Date(Date.UTC(
+    date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 12,
+  ) - (lonDeg / 15) * 3600000);
+
+  for (let i = 0; i < 5; i++) {
+    const { ra } = sunPosition(t);
+    let ha = ((lstHours(julianDay(t), lonDeg) - ra / 15) % 24 + 24) % 24;
+    if (ha > 12) ha -= 24;                       // signed, -12..12 hours
+    t = new Date(t.getTime() - ha * 3600000 * 0.9972695663);  // sidereal -> solar
+  }
+  return t;
+}
+
+/** Where the Sun is now, and where a vertical object's shadow falls. */
+export function sunNow(date, latDeg, lonDeg) {
+  const { ra, dec } = sunPosition(date);
+  const { alt, az } = equatorialToHorizontal(
+    ra, dec, lstHours(julianDay(date), lonDeg), latDeg,
+  );
+  return { alt, az, shadowAz: (az + 180) % 360, up: alt > -0.833 };
+}
+
+/**
  * Project about the north celestial pole for a chart you hold up while facing
  * north: up is the zenith, down is the horizon, and -- because you are facing
  * north rather than reading a map -- WEST is on the left and east on the right.

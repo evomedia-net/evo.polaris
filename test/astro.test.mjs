@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   julianDay, gmstHours, lstHours, precessFromJ2000, equatorialToHorizontal,
-  polarisReticle, POLARIS, refraction, projectAroundPole,
+  polarisReticle, POLARIS, refraction, projectAroundPole, sunPosition, solarNoon, sunNow,
 } from '../src/astro.js';
 
 // --- independent anchors, so the chain is verified before the app relies on it
@@ -103,6 +103,49 @@ test('dial hours are 30 degrees each, not 15', () => {
   const b = polarisReticle(later, 42.5, -71.1);
   let d = ((a.dialDecimal - b.dialDecimal) % 12 + 12) % 12;
   assert.ok(Math.abs(d - 1) < 0.02, `moved ${d.toFixed(3)} dial-hours, expected 1`);
+});
+
+// --- the Sun, used to find true north without any instrument ---------------
+
+test('solar declination tracks the seasons', () => {
+  const dec = (iso) => sunPosition(new Date(iso)).dec;
+  assert.ok(Math.abs(dec('2026-06-21T12:00:00Z') - 23.44) < 0.2, 'June solstice');
+  assert.ok(Math.abs(dec('2026-12-21T12:00:00Z') + 23.44) < 0.2, 'Dec solstice');
+  assert.ok(Math.abs(dec('2026-03-20T12:00:00Z')) < 0.6, 'March equinox');
+  assert.ok(Math.abs(dec('2026-09-22T12:00:00Z')) < 0.6, 'Sept equinox');
+});
+
+test('solar noon puts the Sun on the meridian', () => {
+  for (const [lat, lon] of [[42.5, -71.1], [51.5, -0.13], [-33.9, 151.2], [0, 100]]) {
+    const noon = solarNoon(new Date('2026-09-19T00:00:00Z'), lon);
+    const { az, alt } = sunNow(noon, lat, lon);
+    // On the meridian the Sun is due south or due north, never in between.
+    const offMeridian = Math.min(
+      Math.abs(((az - 180 + 540) % 360) - 180),
+      Math.abs(((az - 0 + 540) % 360) - 180),
+    );
+    assert.ok(offMeridian < 0.2,
+      `lat ${lat} lon ${lon}: Sun at az ${az.toFixed(2)} at solar noon`);
+    assert.ok(alt > 0, `Sun should be up at solar noon (alt ${alt.toFixed(1)})`);
+  }
+});
+
+test('solar noon lands near local clock noon', () => {
+  // Greenwich: solar noon must be within ~17 min of 12:00 UTC (equation of time).
+  const noon = solarNoon(new Date('2026-09-19T00:00:00Z'), 0);
+  const minsOff = (noon.getTime() - Date.UTC(2026, 8, 19, 12)) / 60000;
+  assert.ok(Math.abs(minsOff) < 20, `solar noon ${minsOff.toFixed(1)} min from 12:00 UTC`);
+});
+
+test('a shadow falls opposite the Sun', () => {
+  for (const iso of ['2026-09-19T16:00:00Z', '2026-09-19T21:00:00Z',
+                     '2026-06-21T10:00:00Z']) {
+    const s = sunNow(new Date(iso), 42.5, -71.1);
+    // Normalised to +/-180, "exactly opposite" is 180, not 0.
+    const sep = Math.abs(((s.shadowAz - s.az + 540) % 360) - 180);
+    assert.ok(Math.abs(sep - 180) < 1e-9,
+      `${iso}: sun ${s.az.toFixed(1)}, shadow ${s.shadowAz.toFixed(1)}`);
+  }
 });
 
 // A chart that is rotated or mirrored still looks like a star chart, so the

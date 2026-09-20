@@ -208,6 +208,9 @@ main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
   letter-spacing: -0.01em;
 }
 .figure.accent .fig-value { color: var(--accent); }
+/* For values that are a short sentence rather than a number. */
+.fig-value.small { font-size: 1.35rem; line-height: 1.3; margin: 0.15rem 0 0.25rem; }
+.fig-value em { font-style: normal; color: var(--accent); }
 .fig-note { color: var(--ink-dim); font-size: 0.92rem; }
 
 .canvas-wrap { margin: 1rem 0 0; }
