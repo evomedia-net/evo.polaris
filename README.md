@@ -128,9 +128,11 @@ Two things to get right when regenerating it:
 - **Render the chart at a northern latitude.** The card says *find Polaris*,
   and Polaris is not visible from the southern hemisphere. A southern chart
   contradicts the words beside it, which shipped once.
-- **Re-scrape after deploying.** LinkedIn and X cache a preview against its
-  image URL. Changing the filename bypasses that; changing only the bytes does
-  not.
+- **Bump the `?v=` on `og:image` whenever the card changes.** LinkedIn and X
+  cache the image against its URL, separately from the page metadata. Clicking
+  Inspect re-reads the tags but still serves the picture they already hold, so
+  replacing `og-card.png` in place changes nothing they show — this was watched
+  happen. The query string makes it a URL they have not seen. Then re-scrape.
 
 PNG, not JPEG: the card is flat colour and text on a dark ground, which is what
 PNG keeps sharp and what JPEG's chroma subsampling smears.
