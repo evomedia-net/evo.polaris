@@ -110,14 +110,24 @@ shared. It is generated, not hand-made — the previous card was a JPEG
 committed with nothing behind it, so it could only be re-encoded, never
 rebuilt, and its chart was the 420px on-screen canvas scaled up.
 
-It is rendered by the fleet card generator from a spec named polaris:
+It is rendered by this repo's own generator:
 
-    python ..\scripts\make_og_card.py polaris --shot media\og-shot.png --out site\og-card.png
+    python scripts\make_og_card.py --shot media\og-shot.png --out site\og-card.png
 
-media/og-shot.png is the chart it insets — 800x1260, drawn by this app's own
-drawSkyChart at 740px rather than screenshotted, so the stars are pinpoints
-instead of blobs. It lives outside site/ because the deploy ships site/
-only; it is an input, not a served asset.
+The fleet has a shared generator at evo.scripts\make_og_card.py and most
+sites should use it. This one does not, for the reason that file's header gives
+for evo.ehs: a card built around a product image is a different layout and
+belongs with the image it depends on. The shared layout reserves w - 400 for
+text and insets the shot beside it, which suits a card whose picture is
+supporting evidence — here the picture is the product, and the leftover
+column made it smaller than in any earlier version.
+
+media/og-shot.png is the chart it draws — 1260x1260, produced by this app's
+own drawSkyChart rather than screenshotted, and brought down to 470px on
+the card. The generator refuses a shot smaller than that rather than stretching
+it: upscaling a 420px canvas is exactly what made the first three cards soft.
+It lives outside site/ because the deploy ships site/ only; it is an input,
+not a served asset.
 
 Two things to get right when regenerating it:
 
