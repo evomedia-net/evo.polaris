@@ -199,6 +199,42 @@ Which way the noon shadow falls is read off the computed azimuth, not
 assumed from hemisphere: inside the tropics the Sun passes north of the zenith
 for part of the year and the shadow flips with it.
 
+The ISS, and the one thing that needs the network
+-------------------------------------------------
+
+Everything else in this app works with the radio off. Stars are fixed for
+centuries and the magnetic model is good for five years, so both ship inside
+it. The ISS cannot be bundled — it is somewhere different every second, and
+its orbit is nudged by atmospheric drag and by reboosts, so its position has to
+be asked for. That is stated in the interface rather than discovered in a
+field.
+
+Look angles are computed on the WGS-84 ellipsoid: both positions to
+Earth-centred coordinates, the difference rotated into the observer's
+east/north/up frame. Tested against the ellipsoid's own defining numbers
+(equatorial radius 6378.137 km, polar 6356.752), against overhead reading
+exactly 90°, and against the four cardinal directions.
+
+A negative altitude is reported, never clamped. Most of the time the
+station is on the other side of the planet, and an app that draws it anyway is
+inventing a sighting someone then goes outside to look for. It is only marked
+on the sky when it is genuinely above the horizon.
+
+The same goes for sunlight. The station shines only by reflected sunlight, so
+one that is overhead but inside the Earth's shadow is invisible — a completely
+different answer to "can I see it" than one that is overhead and lit. The
+marker is hollow when eclipsed and filled when sunlit, and the sentence says
+which.
+
+What it does not do
+~~~~~~~~~~~~~~~~~~~
+
+Pass prediction. "It rises in the north-west at 21:04 for four minutes"
+is the genuinely useful thing for photography, and it needs SGP4 propagation
+from a fresh orbital element set — an orbital-mechanics library's worth of
+code, and elements that go stale within days. Showing where it is right now is
+a fraction of that work, and the app is honest about being the smaller thing.
+
 Still open
 ----------
 

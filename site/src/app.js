@@ -9,6 +9,7 @@ import { buildSkyVectors, smoothAngle, buildMilkyWay } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
 import { mountEvomediaChrome } from './evomedia-chrome.js';
+import { fetchIss, lookAngles, describePass } from './iss.js';
 import { drawSkyView } from './skydraw.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
@@ -56,6 +57,7 @@ let skyAim = { az: 0, alt: 45 };
 let skyConstellations = true;
 let skyMilkyWay = true;
 let milkyWay = null;
+let issMark = null;          // {alt, az, sunlit} once asked for, else null
 // Smoothed copies. Raw orientation readings jitter by a degree or two even on
 // a still phone, and at a 65 degree field that is several pixels of shake on
 // every star -- enough to make the view look broken rather than alive.
@@ -704,6 +706,7 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     milkyWay: skyMilkyWay ? milkyWay : null,
+    iss: issMark,
   });
 }
 
@@ -814,6 +817,32 @@ $('liveSkyBtn').onclick = () => {
 };
 
 // Zoom by button. Pinching is a two-finger gesture and this app uses none.
+// The one networked feature, so it is a button rather than something that
+// happens on its own -- and it says what it talked to.
+$('issBtn').onclick = async () => {
+  if (!site) { $('issOut').textContent = 'Set your position first.'; return; }
+  $('issOut').textContent = 'Asking where the station is…';
+  try {
+    const iss = await fetchIss();
+    const look = lookAngles(
+      { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
+      iss);
+    // Only mark it on the sky when it is actually up there. Drawing a marker
+    // below the horizon would be drawing the inside of the Earth.
+    issMark = look.aboveHorizon
+      ? { alt: look.alt, az: look.az, sunlit: iss.sunlit } : null;
+    $('issOut').textContent = `${describePass(look, iss)} Position read at `
+      + `${iss.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}; `
+      + 'it moves about 7 km a second, so this goes stale fast.';
+    if (skyOn) drawLiveSky();
+  } catch (err) {
+    issMark = null;
+    $('issOut').textContent =
+      `Could not reach the station tracker (${err.message}). Everything else `
+      + 'in this app works without the network.';
+  }
+};
+
 $('skyConst').onclick = () => {
   skyConstellations = !skyConstellations;
   $('skyConst').textContent = `Constellations: ${skyConstellations ? 'on' : 'off'}`;

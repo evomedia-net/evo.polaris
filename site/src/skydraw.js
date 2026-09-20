@@ -198,6 +198,27 @@ export function drawSkyView(ctx, o) {
     ctx.fillText(targetName, x, y - h / 11);
   }
 
+  // The ISS, if it has been asked for and is above the horizon.
+  if (o.iss) {
+    const ip = projectToScreen(altAzToVector(o.iss.alt, o.iss.az), basis, focal);
+    if (ip) {
+      const x = cx + ip.x, y = cy + ip.y;
+      // Hollow when eclipsed, filled when sunlit: up-but-invisible and
+      // up-and-shining are completely different answers to "can I see it".
+      const col = night ? '#ff0000' : (o.iss.sunlit ? '#ffe26a' : '#6b7793');
+      ctx.strokeStyle = col;
+      ctx.fillStyle = col;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, h / 46, 0, Math.PI * 2);
+      if (o.iss.sunlit) ctx.fill(); else ctx.stroke();
+      ctx.font = `600 ${Math.round(h / 30)}px system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(o.iss.sunlit ? 'ISS' : 'ISS (in shadow)', x + h / 34, y);
+      ctx.textAlign = 'center';
+    }
+  }
+
   // Off-screen pointer, so the target is never simply absent with no hint
   // which way to move. An empty sky and a wrong sky look identical.
   if (!onScreen) {
