@@ -1,6 +1,9 @@
 // evo.polaris -- app wiring.
 
-import { alignmentSolution, julianDay, lstHours, solarNoon, sunNow } from './astro.js';
+import {
+  alignmentSolution, julianDay, lstHours, solarNoon, sunNow,
+  equatorialToHorizontal,
+} from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
@@ -10,7 +13,8 @@ import { buildSkyVectors, smoothAngle, buildMilkyWay } from './skyview.js';
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
 import { mountEvomediaChrome } from './evomedia-chrome.js';
 import { fetchIss, lookAngles, describePass } from './iss.js';
-import { drawSkyView } from './skydraw.js';
+import { drawSkyView, drawMoonDisc } from './skydraw.js';
+import { moonPhase, describeMoon } from './moon.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 
@@ -492,6 +496,17 @@ function render() {
     : `Polaris sits ${latAbs.toFixed(0)}° above the horizon, due true north. `
       + 'The two stars at the front of the Big Dipper’s bowl point at it: '
       + 'follow that line about five times the gap between them.';
+
+  // --- the Moon, the brightest thing that will ruin an exposure --------------
+  const moon = moonPhase(now);
+  const moonHz = equatorialToHorizontal(moon.ra, moon.dec, solution.lst, site.lat);
+  $('moonText').textContent =
+    `${describeMoon(moon, moonHz.alt)} Bearing ${moonHz.az.toFixed(0)}°, `
+    + `${Math.round(moon.distanceKm).toLocaleString()} km away.`;
+  const md = $('moonDisc');
+  drawMoonDisc(md.getContext('2d'), {
+    illuminated: moon.illuminated, waxing: moon.waxing, size: md.width, night,
+  });
 
   updateGuide();
 }

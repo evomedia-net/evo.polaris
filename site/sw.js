@@ -9,7 +9,7 @@
 //   * Bundled data (stars, magnetic coefficients) -> CACHE first. It is 350 KB,
 //     it changes roughly never, and re-fetching it on every load is rude to a
 //     phone on a hotspot.
-const VERSION = '0.0.0.1.3';
+const VERSION = '0.0.0.1.4';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [
@@ -17,7 +17,7 @@ const ASSETS = [
   './src/style.css', './src/app.js', './src/astro.js',
   './src/geomag.js', './src/chart.js', './src/guide.js', './src/words.js',
   './src/skyview.js', './src/skydraw.js', './src/evomedia-chrome.js',
-  './src/coords.js', './src/briefing.js', './src/iss.js',
+  './src/coords.js', './src/briefing.js', './src/iss.js', './src/moon.js',
   './src/data/constellations.js', './src/data/stars.json', './src/data/wmm2025.js', './src/data/icon.svg',
 ];
 

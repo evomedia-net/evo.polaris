@@ -241,3 +241,51 @@ export function drawSkyView(ctx, o) {
 
   return { aimedAlt: aimed.alt, aimedAz: aimed.az, targetOnScreen: onScreen };
 }
+
+/**
+ * The Moon as a disc, lit from the correct side.
+ *
+ * The terminator is an ellipse, not a straight edge: you are looking at a
+ * sphere, so the boundary between lit and unlit is a circle seen at an angle.
+ * Drawing it straight gives a shape nobody has ever seen in the sky.
+ */
+export function drawMoonDisc(ctx, { illuminated, waxing, size, night = false }) {
+  const r = size / 2 - 3;
+  const cx = size / 2, cy = size / 2;
+  ctx.clearRect(0, 0, size, size);
+
+  const lit = night ? '#ff3a2a' : '#e8e4d8';
+  const dark = night ? '#2a0000' : '#23283a';
+
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // k is how far the terminator has swept across the face, 0..1.
+  const k = Math.max(0, Math.min(1, illuminated));
+  if (k > 0.001) {
+    ctx.save();
+    ctx.fillStyle = lit;
+    ctx.beginPath();
+    // Half the disc is always a plain semicircle; the other half is the
+    // terminator ellipse, which bulges one way before half phase and the other
+    // way after. Waxing lights the right-hand limb from the northern
+    // hemisphere, which is the convention every almanac prints.
+    const start = waxing ? -Math.PI / 2 : Math.PI / 2;
+    ctx.arc(cx, cy, r, start, start + Math.PI, false);
+    const bulge = r * (2 * k - 1);
+    ctx.ellipse(cx, cy, Math.abs(bulge), r, 0,
+                start + Math.PI, start,
+                waxing ? bulge < 0 : bulge > 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.strokeStyle = night ? '#7a0000' : '#3a4356';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+}

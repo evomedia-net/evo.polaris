@@ -187,6 +187,48 @@ Which way the noon shadow falls is read off the computed azimuth, **not**
 assumed from hemisphere: inside the tropics the Sun passes north of the zenith
 for part of the year and the shadow flips with it.
 
+## The Moon
+
+The Moon matters here more than it looks: it is the brightest thing that will
+ruin a deep-sky exposure, so *is it up, and how full is it* decides whether
+tonight is worth setting up for at all.
+
+**Computed, not fetched.** Unlike the ISS, the Moon's motion is known centuries
+ahead, so this needs no network and works with the radio off — which is the
+rest of the app's promise.
+
+It is the truncated lunar theory: the largest periodic terms out of the
+hundreds in the full series, including evection and variation, which are the
+two corrections that dominate what is left and without which the error triples.
+Good to roughly **a quarter of a degree** — about half the Moon's own width.
+Ample for *"look south-east, forty degrees up"*; useless for predicting an
+occultation, and the app does not claim otherwise.
+
+The illuminated fraction is far better than the position, because it depends on
+the Sun–Moon angle rather than on either body's exact place.
+
+### How it is checked
+
+The reference lunation — the new Moon of 2000 January 6 at 18:14 UT, the epoch
+the lunation tables are quoted from — plus invariants that need no quoted date
+at all:
+
+- successive new Moons found by search are **29.53 days** apart
+- the phase repeats on the **synodic** month and explicitly *not* on the
+  sidereal one; the position does the opposite
+- ecliptic latitude peaks near **5.2°**, the orbit's inclination
+- distance stays between perigee and apogee
+- declination never exceeds about 28.7°, obliquity plus inclination
+
+**Four dates in the first version of that test were written from memory and
+labelled "published".** One was wrong by a fortnight and the test caught it.
+They are gone: a reference value that cannot be vouched for is worse than no
+reference value, because it looks like corroboration.
+
+The drawn disc uses an **elliptical terminator**, not a straight edge — you are
+looking at a sphere, so the boundary between lit and unlit is a circle seen at
+an angle, and a straight one is a shape nobody has ever seen in the sky.
+
 ## The ISS, and the one thing that needs the network
 
 Everything else in this app works with the radio off. Stars are fixed for
