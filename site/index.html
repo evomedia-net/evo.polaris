@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#080b14">
 <title>evo.polaris — polar alignment</title>
+<link rel="icon" href="src/data/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="src/data/icon.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="src/style.css">
 </head>
@@ -15,7 +17,8 @@
   <div class="bar-actions">
     <button id="textSmaller" class="icon-btn" aria-label="Smaller text">A−</button>
     <button id="textBigger" class="icon-btn" aria-label="Larger text">A+</button>
-    <button id="nightToggle" class="icon-btn" aria-pressed="false">Night</button>
+    <button id="nightToggle" class="icon-btn" aria-pressed="false"
+            title="Pure red on black, outlines only — preserves dark adaptation">Night Mode</button>
   </div>
 </header>
 
@@ -88,6 +91,7 @@
     <div class="figure big-figure">
       <div class="fig-label">Latitude / altitude knob</div>
       <div class="fig-value" id="outLatKnob">—</div>
+      <div class="fig-spelled" id="outLatWords">—</div>
       <div class="fig-note">Set the mount's latitude scale to this.</div>
     </div>
 
@@ -104,6 +108,22 @@
         Polar scope reticle with Polaris marked.
       </figcaption>
     </figure>
+
+    <h3 class="sub">Everything to dial in</h3>
+    <dl class="readout settings" id="mountSettings">
+      <div><dt>Altitude axis</dt><dd id="setAlt">—</dd></div>
+      <div><dt>Azimuth axis</dt><dd id="setAz">—</dd></div>
+      <div><dt>Azimuth on a compass</dt><dd id="setAzMag">—</dd></div>
+      <div><dt>Latitude</dt><dd id="setLat">—</dd></div>
+      <div><dt>Longitude</dt><dd id="setLon">—</dd></div>
+      <div><dt>Elevation</dt><dd id="setElev">—</dd></div>
+      <div><dt>UTC offset</dt><dd id="setUtc">—</dd></div>
+      <div><dt>Local sidereal time</dt><dd id="setLst">—</dd></div>
+    </dl>
+    <p class="hint" id="settingsNote"></p>
+
+    <h3 class="sub">The order to do it in</h3>
+    <ol class="steps" id="procedure"></ol>
 
     <p class="status" id="timeNote" aria-live="polite"></p>
     <button id="speakBtn" class="big-btn">Read these out loud</button>

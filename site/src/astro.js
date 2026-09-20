@@ -183,6 +183,50 @@ export const polarisReticle = (date, latDeg, lonDeg) =>
   poleStarReticle(date, Math.abs(latDeg), lonDeg);
 
 /**
+ * Degrees as degrees-and-decimal-minutes, which is the form mount hand
+ * controllers and setting circles actually ask for. Returns e.g.
+ * {deg: 42, min: 30.5, hemi: 'N', text: "42° 30.5' N"}.
+ */
+export function toDM(valueDeg, positive, negative) {
+  const hemi = valueDeg < 0 ? negative : positive;
+  const abs = Math.abs(valueDeg);
+  let deg = Math.floor(abs);
+  let min = (abs - deg) * 60;
+  if (min >= 59.95) { min = 0; deg += 1; }        // carry, so 42 59.96' is 43 00.0'
+  const pad = negative === 'W' ? 3 : 2;           // longitude runs to 180
+  return {
+    deg, min, hemi,
+    text: `${String(deg).padStart(pad, '0')}° ${min.toFixed(1).padStart(4, '0')}' ${hemi}`,
+  };
+}
+
+/** Hours as h/m/s, for a sidereal clock or an RA setting circle. */
+export function toHMS(hours) {
+  let h = Math.floor(hours);
+  let m = Math.floor((hours - h) * 60);
+  let s = Math.round((((hours - h) * 60) - m) * 60);
+  if (s === 60) { s = 0; m += 1; }
+  if (m === 60) { m = 0; h += 1; }
+  return {
+    h: h % 24, m, s,
+    text: `${String(h % 24).padStart(2, '0')}h ${String(m).padStart(2, '0')}m `
+      + `${String(s).padStart(2, '0')}s`,
+  };
+}
+
+/** The device's UTC offset for a moment, as hand controllers want it. */
+export function utcOffset(date) {
+  const mins = -date.getTimezoneOffset();          // JS reports it inverted
+  const sign = mins < 0 ? '-' : '+';
+  const a = Math.abs(mins);
+  return {
+    minutes: mins,
+    text: `${sign}${String(Math.floor(a / 60)).padStart(2, '0')}:`
+      + `${String(a % 60).padStart(2, '0')}`,
+  };
+}
+
+/**
  * The full set of numbers to dial into the mount.
  * @param {Date} date
  * @param {{lat:number, lon:number, altitude:number}} site  altitude in metres
@@ -218,6 +262,31 @@ export function alignmentSolution(date, site, declinationDeg) {
       (((south ? 180 : 0) - declinationDeg) % 360 + 360) % 360,
     declination: declinationDeg,
     lst,
+
+    // --- the numbers you physically set, in the units the mount asks for ----
+    //
+    // Hand controllers and setting circles want degrees-and-minutes and
+    // sidereal hours, not decimal degrees. Making someone convert 42.5078 into
+    // 42 30.5 by hand, in the dark, is exactly the kind of avoidable work this
+    // app exists to remove.
+    settings: {
+      // Altitude axis: the unsigned latitude. This is the scale on the wedge.
+      altitudeAxis: toDM(Math.abs(site.lat), 'N', 'S'),
+      altitudeAxisDeg: poleAltitude,
+      // Azimuth axis: swing the mount to this TRUE bearing. Exactly 0 or 180 --
+      // the pole is on the meridian by definition, which is why azimuth is a
+      // fixed number and only the compass reading moves with declination.
+      azimuthTrue: south ? 180 : 0,
+      azimuthOnCompass: (((south ? 180 : 0) - declinationDeg) % 360 + 360) % 360,
+      // For a GoTo hand controller's site setup.
+      latitude: toDM(site.lat, 'N', 'S'),
+      longitude: toDM(site.lon, 'E', 'W'),
+      elevationM: Math.round(site.altitude || 0),
+      utcOffset: utcOffset(date),
+      // Local sidereal time: what an RA setting circle is zeroed against, and
+      // the one clock that tells you which way the sky is turned right now.
+      localSiderealTime: toHMS(lst),
+    },
   };
 }
 

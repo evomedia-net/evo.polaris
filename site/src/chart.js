@@ -90,11 +90,11 @@ export function drawSkyChart(ctx, opts) {
   const limitMag = opts.limitMag ?? (south ? 5.6 : 5.2);
   const R = size / 2 - 8;
   const cx = size / 2, cy = size / 2;
-  const ink = night ? '#ff4a3a' : '#e8ecf4';
-  const dim = night ? '#7a1e18' : '#3a4356';
+  const ink = night ? '#ff0000' : '#e8ecf4';
+  const dim = night ? '#600000' : '#3a4356';
 
   ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = night ? '#0a0000' : '#080b14';
+  ctx.fillStyle = night ? '#000000' : '#080b14';
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.fill();
@@ -121,8 +121,11 @@ export function drawSkyChart(ctx, opts) {
     const p = place(s);
     if (!p) continue;
     byHr.set(s[4], { ...p, star: s });
+    // Stars stay filled even in night mode. They are one to three pixels
+    // across, an outline at that size is invisible, and a point of light is
+    // what a star actually is -- so the intensity comes down instead.
     ctx.beginPath();
-    ctx.fillStyle = night ? '#ff4a3a' : starColour(s[3]);
+    ctx.fillStyle = night ? '#cc0000' : starColour(s[3]);
     ctx.arc(p.x, p.y, starRadius(s[2], size / 420), 0, Math.PI * 2);
     ctx.fill();
   }
@@ -163,7 +166,7 @@ export function drawSkyChart(ctx, opts) {
     ctx.lineTo(to.x, to.y);
     ctx.stroke();
     ctx.restore();
-    arrowHead(ctx, from, to, amber, size / 46);
+    arrowHead(ctx, from, to, amber, size / 46, night);
   }
 
   // The Pointers' perpendicular bisector -- the SECOND southern method, and
@@ -233,17 +236,19 @@ export function drawSkyChart(ctx, opts) {
   ctx.globalAlpha = 1;
 }
 
-function arrowHead(ctx, from, to, colour, len) {
+function arrowHead(ctx, from, to, colour, len, night = false) {
   const a = Math.atan2(to.y - from.y, to.x - from.x);
   const tipX = to.x - Math.cos(a) * len * 1.5;
   const tipY = to.y - Math.sin(a) * len * 1.5;
   ctx.fillStyle = colour;
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(tipX + Math.cos(a) * len, tipY + Math.sin(a) * len);
   ctx.lineTo(tipX + Math.cos(a + 2.5) * len * 0.6, tipY + Math.sin(a + 2.5) * len * 0.6);
   ctx.lineTo(tipX + Math.cos(a - 2.5) * len * 0.6, tipY + Math.sin(a - 2.5) * len * 0.6);
   ctx.closePath();
-  ctx.fill();
+  if (night) ctx.stroke(); else ctx.fill();
 }
 
 /**
@@ -267,7 +272,7 @@ export function drawReticle(ctx, {
   const faint = night ? '#7a0000' : '#46506a';
 
   ctx.clearRect(0, 0, size, size);
-  ctx.fillStyle = night ? '#0a0000' : '#080b14';
+  ctx.fillStyle = night ? '#000000' : '#080b14';
   ctx.beginPath();
   ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.fill();
@@ -318,7 +323,7 @@ export function drawReticle(ctx, {
   const rr = ringR(Math.max(innerMin, Math.min(outerMin, radiusArcmin)));
   const px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr;
 
-  ctx.strokeStyle = night ? '#ffb0a0' : '#7CFFB2';
+  ctx.strokeStyle = night ? '#ff0000' : '#7CFFB2';
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
@@ -326,19 +331,37 @@ export function drawReticle(ctx, {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.fillStyle = night ? '#ffb0a0' : '#7CFFB2';
+  // Outline in night mode, filled otherwise -- a solid disc is a lot of light
+  // for a marker whose whole job is "put the star here".
   ctx.beginPath();
   ctx.arc(px, py, Math.max(5, size / 40), 0, Math.PI * 2);
-  ctx.fill();
+  if (night) {
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#7CFFB2';
+    ctx.fill();
+  }
   ctx.beginPath();
   ctx.arc(px, py, Math.max(11, size / 19), 0, Math.PI * 2);
-  ctx.strokeStyle = night ? '#ffb0a0' : '#7CFFB2';
+  ctx.strokeStyle = night ? '#ff0000' : '#7CFFB2';
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // pole at the centre
+  // pole at the centre -- a cross rather than a dot in night mode, which reads
+  // as precisely at a point while emitting almost nothing.
+  ctx.strokeStyle = ink;
   ctx.fillStyle = ink;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-  ctx.fill();
+  if (night) {
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, cy); ctx.lineTo(cx + 5, cy);
+    ctx.moveTo(cx, cy - 5); ctx.lineTo(cx, cy + 5);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }

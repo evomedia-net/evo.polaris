@@ -3,6 +3,7 @@
 import { alignmentSolution, julianDay, lstHours, solarNoon, sunNow } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
+import { spellAngle } from './words.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -165,8 +166,12 @@ function render() {
   solution = alignmentSolution(now, site, dec);
 
   const latAbs = Math.abs(solution.latitudeSetting);
-  $('outLatKnob').textContent =
-    `${latAbs.toFixed(2)}°`;
+  $('outLatKnob').textContent = `${latAbs.toFixed(2)}°`;
+  // Spelled out underneath. This is the one number that, set wrong, quietly
+  // ruins every exposure of the night, and 42 vs 24 is one glance apart.
+  $('outLatWords').textContent =
+    spellAngle(solution.settings.altitudeAxis)
+      .replace(/ (north|south)$/, '');
 
   const compass = solution.trueNorthOnCompass;
   const poleName = solution.poleName;                 // "true north" | "true south"
@@ -256,6 +261,60 @@ function render() {
   $('outRadius').textContent =
     `On the 12-hour dial, at radius ${solution.radiusArcmin.toFixed(1)}′. ` +
     hemisphereNote();
+
+  // --- everything to physically set, in the units the mount asks for -------
+  const set = solution.settings;
+  $('setAlt').textContent = `${set.altitudeAxis.text}  (${set.altitudeAxisDeg.toFixed(2)}°)`;
+  $('setAz').textContent = `${set.azimuthTrue}° — ${poleName}`;
+  $('setAzMag').textContent = `${set.azimuthOnCompass.toFixed(1)}°`;
+  $('setLat').textContent = set.latitude.text;
+  $('setLon').textContent = set.longitude.text;
+  $('setElev').textContent = `${set.elevationM} m`;
+  $('setUtc').textContent = set.utcOffset.text;
+  $('setLst').textContent = set.localSiderealTime.text;
+  $('settingsNote').textContent =
+    'Degrees and minutes, because that is what hand controllers and setting '
+    + 'circles ask for. Sidereal time is what an RA setting circle is zeroed '
+    + 'against — it is not clock time and drifts about 4 minutes a day.';
+
+  // --- the order to do it in -----------------------------------------------
+  // Levelling comes first and is the step most often skipped. On an unlevel
+  // tripod the altitude and azimuth adjustments stop being independent: moving
+  // one drags the other, and you chase the pole around without converging.
+  const roughStep = isSouth
+    ? 'Rough-point the mount at the south pole — run the long axis of the '
+      + 'Southern Cross out about 4.5 times its length — and get that patch of '
+      + 'sky into the polar scope.'
+    : 'Rough-point the mount at Polaris. The two front stars of the Big '
+      + 'Dipper’s bowl, Merak and Dubhe, point straight at it. Get it into the '
+      + 'polar scope’s field of view.';
+  const steps = [
+    ['Level the tripod.', 'Everything after this assumes it. On an unlevel '
+      + 'tripod the altitude and azimuth adjustments stop being independent — '
+      + 'moving one drags the other and you never quite converge.'],
+    [`Set the altitude axis to ${set.altitudeAxis.text}.`,
+      'The bolt and scale at the back of the base.'],
+    [`Swing the azimuth to ${set.azimuthTrue}° (${poleName}).`,
+      `On a magnetic compass here that reads ${set.azimuthOnCompass.toFixed(0)}°.`],
+    [roughStep, ''],
+    ['Loosen the azimuth and altitude locks a little.',
+      'Just enough that the mount moves smoothly under the fine knobs.'],
+    [`Bring ${solution.star.short} to ${solution.dialHour}:`
+      + `${String(Math.round(solution.dialMinute)).padStart(2, '0')} `
+      + `at ${solution.radiusArcmin.toFixed(1)}′.`,
+      'Use the fine altitude and azimuth knobs only — not the tripod.'],
+    ['Lock everything down gently, then look again.',
+      'Tightening can nudge the mount off. Re-check before you trust it.'],
+  ];
+  const ol = $('procedure');
+  ol.replaceChildren(...steps.map(([head, detail]) => {
+    const li = document.createElement('li');
+    const b = document.createElement('strong');
+    b.textContent = head;
+    li.append(b);
+    if (detail) li.append(' ', detail);
+    return li;
+  }));
 
   $('timeNote').textContent =
     `Good for ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. ` +
@@ -371,7 +430,7 @@ $('speakBtn').onclick = () => {
   if (!solution || !window.speechSynthesis) return;
   const dec = solution.declination;
   const say =
-    `Set the latitude to ${Math.abs(solution.latitudeSetting).toFixed(1)} degrees. ` +
+    `Set the altitude axis to ${spellAngle(solution.settings.altitudeAxis)}. ` +
     `Point the mount at ${solution.trueNorthOnCompass.toFixed(0)} degrees on your compass, ` +
     `which is ${Math.abs(dec).toFixed(0)} degrees ${dec >= 0 ? 'east' : 'west'} declination. ` +
     `Put Polaris at ${solution.dialHour} o'clock ` +

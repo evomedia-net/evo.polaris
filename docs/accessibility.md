@@ -25,15 +25,83 @@ Assume the least capable input, not the most:
 
 - **Text scales 0.8×–1.8×** from two permanent buttons in the header, and the
   choice persists.
-- **Red night mode.** White light destroys dark adaptation, which takes twenty
-  minutes to recover. An app you cannot use twice in one night without ruining
-  your own observing is not usable. The whole surface shifts to red on black and
-  dims, rather than merely recolouring the text.
+- **Night Mode: pure red on black, outlines only.** See below — it is a
+  measurable property, not a vibe.
 - **The numbers are the interface.** The reticle drawing and the sky chart are
   support, never the only source of anything. Each canvas carries a text
   alternative that states the same values in words, so the app is fully usable
   by someone who cannot see either graphic.
 - **Prefers-reduced-motion** is honoured.
+
+## Night Mode, and why it is measured
+
+Rod cells are effectively blind above about **620 nm**. That is the whole basis
+of the century-old astronomy convention: deep red lets you read without
+bleaching rhodopsin, and dark adaptation takes **20–30 minutes** to rebuild
+once it is lost. Green is the worst thing you can put on the screen — rods peak
+around 500–550 nm — so **any green in a "red" theme is actively undoing the
+thing the theme exists for**.
+
+The first version of this app failed that test. Its night palette used
+`#ff5544` and `#ff4a3a`, which read as red and are not: `0x55` of green and
+`0x44` of blue is a lot of light landing exactly where rods are most sensitive.
+
+Night Mode is now **pure red channel** — every colour is `#RR0000`, so the only
+variable is intensity — and that is checkable rather than a matter of taste:
+
+```
+179 CSS colour properties audited  ->  0 leaking green or blue
+sky chart canvas                   ->  0 green/blue pixels, 10,838 red
+reticle canvas                     ->  0 green/blue pixels, 12,088 red
+```
+
+**Nothing is filled.** A filled button is a solid block of emitted light; the
+same button as an outline is a thin line of it. On a phone at arm's length in a
+dark field that is the difference between a lantern and a marker — and it is
+not only your own night vision at stake, it is everyone standing near you. So
+buttons, step badges, cards and figures all become transparent shapes with a
+red border. The only solid thing left is the black background, which emits
+nothing.
+
+Two deliberate exceptions:
+
+- **Stars stay filled.** They are one to three pixels across; an outline at
+  that size is invisible, and a point of light is what a star *is*. The
+  intensity comes down instead.
+- **Secondary text is brighter than strictly necessary** (`#cc0000`, not
+  `#a00000`). Behind the 0.7 brightness filter the darker value lands near
+  `#700000` and stops being readable — and an accessible app you cannot read
+  has optimised the wrong thing.
+
+The green default layout is untouched and remains the default; Night Mode is a
+second theme, not a replacement.
+
+## The numbers, in the units the mount asks for
+
+Hand controllers and setting circles want **degrees and decimal minutes**, not
+decimal degrees. Making someone convert 42.5078 into 42° 30.5′ by hand, in the
+dark, is exactly the avoidable work this app exists to remove. So the app
+publishes the whole set: altitude axis, azimuth (true *and* as a compass
+bearing), latitude and longitude in DM, elevation, UTC offset, and local
+sidereal time for an RA setting circle.
+
+**The latitude is also spelled out in words** — "forty-two degrees, thirty
+point five minutes". That is not decoration. It is the one number that, set
+wrong, quietly ruins every exposure of the night, and it is read off a screen
+while your hands and attention are on a knob. `42` and `24` are one glance
+apart and transpose easily; *forty-two* does not. It also gives screen readers
+and the speech button something unambiguous to say, since `42° 30.5′ N` is
+voiced very differently by different engines and some drop the units entirely.
+
+## The order to do it in
+
+The app now carries the procedure itself, with your numbers already in the
+steps, because reconstructing a sequence from a page of figures is work.
+
+The first step is **level the tripod**, which is the one most often skipped and
+the one everything else depends on: on an unlevel tripod the altitude and
+azimuth adjustments stop being independent, so moving one drags the other and
+you chase the pole around without converging.
 
 ## Hearing it
 

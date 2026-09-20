@@ -25,15 +25,32 @@
 }
 
 html[data-night='on'] {
-  --bg: #0a0000;
-  --card: #170303;
-  --ink: #ff5544;
-  --ink-dim: #b33327;
-  --line: #4a0f0a;
-  --accent: #ff9e8e;
-  --accent-ink: #2a0500;
-  --warn: #ff8a3a;
-  --focus: #ff8a7a;
+  /* Pure red channel: R only, G and B exactly zero.
+   *
+   * Rods are effectively blind above ~620nm, which is why astronomy has used
+   * red light for a century -- it lets you read without bleaching rhodopsin,
+   * and dark adaptation takes 20-30 minutes to rebuild once lost. Green is the
+   * worst offender (rods peak near 500-550nm), so any green in a "red" theme
+   * is actively undoing the thing the theme exists for.
+   *
+   * The first version of this palette used #ff5544 and #ff4a3a. Those read as
+   * red and are not: 0x55 of green and 0x44 of blue is a lot of light landing
+   * exactly where rods are most sensitive. Everything here is now #RR0000, so
+   * the only variable is intensity.
+   */
+  --bg: #000000;
+  --card: #0a0000;
+  --ink: #ff0000;
+  /* Secondary text has to stay readable. #a00000 behind the 0.7 brightness
+   * filter lands near #700000, which is technically emitting less light and
+   * practically unreadable -- and an accessible app that you cannot read has
+   * optimised the wrong thing. Still pure red, just enough of it. */
+  --ink-dim: #cc0000;
+  --line: #800000;
+  --accent: #ff0000;
+  --accent-ink: #ff0000;      /* outlined, never filled -- see below */
+  --focus: #ff0000;
+  --warn: #ff0000;
 }
 
 * { box-sizing: border-box; }
@@ -52,8 +69,38 @@ body {
   line-height: 1.55;
 }
 
-/* night mode dims the whole surface rather than just recolouring it */
-html[data-night='on'] body { filter: brightness(0.82); }
+/* Dim the whole surface. Brightness matters as much as hue: a bright pure-red
+ * screen still floods the eye, and this is used in the dark beside other
+ * people's dark-adapted eyes. */
+html[data-night='on'] body { filter: brightness(0.7); }
+
+/* NOTHING IS FILLED IN NIGHT MODE.
+ *
+ * A filled button is a solid block of emitted light; the same button as an
+ * outline is a thin line of it. On a phone held at arm's length in a dark
+ * field that is the difference between a lantern and a marker. So every solid
+ * surface becomes a transparent shape with a red border, and the only thing
+ * that stays solid is the black background. */
+html[data-night='on'] .big-btn,
+html[data-night='on'] .big-btn.primary,
+html[data-night='on'] .icon-btn,
+html[data-night='on'] .icon-btn[aria-pressed='true'],
+html[data-night='on'] .step {
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+}
+html[data-night='on'] .icon-btn[aria-pressed='true'] {
+  /* The pressed state can no longer be a fill, so say it with weight. */
+  border-width: 3px;
+}
+html[data-night='on'] .card,
+html[data-night='on'] .figure,
+html[data-night='on'] .guide,
+html[data-night='on'] .manual input {
+  background: transparent;
+}
+html[data-night='on'] .figure.accent { border-color: var(--ink); }
 
 .bar {
   position: sticky;
@@ -212,6 +259,38 @@ main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
 .fig-value.small { font-size: 1.35rem; line-height: 1.3; margin: 0.15rem 0 0.25rem; }
 .fig-value em { font-style: normal; color: var(--accent); }
 .fig-note { color: var(--ink-dim); font-size: 0.92rem; }
+/* The same figure in words. Not decoration: digits transpose when you are
+   reading a screen and feeling for a knob at the same time, and this is the
+   line you check yourself against. */
+.fig-spelled {
+  margin: 0.1rem 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.01em;
+}
+html[data-night='on'] .fig-spelled { color: var(--ink); }
+
+.sub {
+  margin: 1.4rem 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--ink);
+}
+/* Tabular numerals and a monospace-ish feel: these get read off one at a time
+   while looking away at a knob, so digits must not shift position. */
+.settings dd { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.settings dt { font-size: 0.95rem; }
+
+.steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.5rem;
+  display: grid;
+  gap: 0.7rem;               /* generous: this is read one line at a time */
+}
+.steps li { padding-left: 0.2rem; }
+.steps strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+html[data-night='on'] .steps strong { color: var(--ink); }
 
 .canvas-wrap { margin: 1rem 0 0; }
 canvas {
