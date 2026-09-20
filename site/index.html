@@ -56,15 +56,15 @@
 
   <!-- 2 ---------------------------------------------------------------- -->
   <section class="card" id="northCard" aria-labelledby="h-north" hidden>
-    <h2 id="h-north"><span class="step">2</span> Which way is true north?</h2>
+    <h2 id="h-north"><span class="step">2</span> Which way is <span id="poleWord2">true north</span>?</h2>
 
-    <p class="status">Your mount points at <strong>true</strong> north, not
-      magnetic north. Any one of these gets you there — and the first two need
-      no instrument at all.</p>
+    <p class="status" id="northIntro">Your mount points at <strong>true</strong>
+      north, not magnetic north. Any one of these gets you there — and the first
+      two need no instrument at all.</p>
 
     <div class="figure">
       <div class="fig-label">At night — easiest, and exact</div>
-      <div class="fig-value small">Polaris <em>is</em> true north</div>
+      <div class="fig-value small" id="poleStarClaim">Polaris <em>is</em> true north</div>
       <div class="fig-note" id="outNorthStar">—</div>
     </div>
 
@@ -92,7 +92,7 @@
     </div>
 
     <div class="figure big-figure accent">
-      <div class="fig-label">Put Polaris here in the polar scope</div>
+      <div class="fig-label" id="dialLabel">Put Polaris here in the polar scope</div>
       <div class="fig-value" id="outDial">—</div>
       <div class="fig-note" id="outRadius">—</div>
     </div>
@@ -111,7 +111,7 @@
 
   <!-- 4 ---------------------------------------------------------------- -->
   <section class="card" id="findCard" aria-labelledby="h-find" hidden>
-    <h2 id="h-find"><span class="step">4</span> Find Polaris in the sky</h2>
+    <h2 id="h-find"><span class="step">4</span> Find <span id="poleWord4">Polaris</span> in the sky</h2>
 
     <div class="guide" id="guideBox" role="status" aria-live="polite">
       <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>
@@ -125,8 +125,7 @@
       <canvas id="sky" width="420" height="420"
               role="img" aria-labelledby="skyDesc"></canvas>
       <figcaption id="skyDesc" class="caption">
-        The sky around the pole right now. Follow the two front stars of the
-        Big Dipper's bowl — the amber arrow — straight to Polaris.
+        The sky around the pole right now, with the star-hop drawn on it.
       </figcaption>
     </figure>
 

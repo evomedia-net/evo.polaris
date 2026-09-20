@@ -6,15 +6,45 @@
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
 
-// Polaris (alpha UMi) ICRS J2000 from Hipparcos. The Bright Star Catalog we
-// ship for the chart rounds positions to 0.1s / 1", which is fine for drawing
-// dots and NOT fine for alignment, so alignment uses these values instead.
+// Pole stars, ICRS J2000 from Hipparcos. The Bright Star Catalog we ship for
+// the chart rounds positions to 0.1s / 1", which is fine for drawing dots and
+// NOT fine for alignment, so alignment uses these values instead.
 export const POLARIS = {
   raJ2000: (2 + 31 / 60 + 49.09 / 3600) * 15,   // degrees
   decJ2000: 89 + 15 / 60 + 50.8 / 3600,         // degrees
   pmRaCosDec: 44.48,                            // mas/yr
   pmDec: -11.85,                                // mas/yr
 };
+
+// Sigma Octantis, the southern pole star -- and it is a far worse one. At
+// magnitude 5.47 it is roughly 25x fainter than Polaris (2.02) and sits about
+// 63' from the pole rather than 38'. It is genuinely hard to see in a polar
+// scope under anything but a dark sky, which is why southern alignment leans
+// on the Southern Cross star-hop rather than on "just point at the pole star".
+export const SIGMA_OCTANTIS = {
+  raJ2000: (21 + 8 / 60 + 46.86 / 3600) * 15,
+  decJ2000: -(88 + 57 / 60 + 23.4 / 3600),
+  pmRaCosDec: 26.02,
+  pmDec: 5.42,
+};
+
+/** Which pole an observer at this latitude aligns on. */
+export function hemisphereOf(latDeg) {
+  return latDeg < 0 ? 'south' : 'north';
+}
+
+/**
+ * The pole star for a latitude, with the reticle ring range iOptron engraves
+ * for it. The AccuAlign dial carries two groups of circles: 36'-44' for
+ * Polaris and 60'-70' for Sigma Octantis.
+ */
+export function poleStarFor(latDeg) {
+  return latDeg < 0
+    ? { ...SIGMA_OCTANTIS, name: 'Sigma Octantis', short: 'σ Oct',
+        hemisphere: 'south', magnitude: 5.47, rings: [60, 70] }
+    : { ...POLARIS, name: 'Polaris', short: 'Polaris',
+        hemisphere: 'north', magnitude: 2.02, rings: [36, 44] };
+}
 
 export function julianDay(date) {
   return date.getTime() / 86400000 + 2440587.5;
@@ -105,29 +135,52 @@ export function refraction(altDeg, pressureMbar = 1010, tempC = 10) {
  * @returns {{dialHour:number, dialMinute:number, dialDecimal:number,
  *            radiusArcmin:number, hourAngleHours:number, positionAngleDeg:number}}
  */
-export function polarisReticle(date, latDeg, lonDeg) {
+export function poleStarReticle(date, latDeg, lonDeg) {
+  const star = poleStarFor(latDeg);
+  const south = star.hemisphere === 'south';
   const jd = julianDay(date);
   const { ra, dec } = precessFromJ2000(
-    POLARIS.raJ2000, POLARIS.decJ2000, jd, POLARIS.pmRaCosDec, POLARIS.pmDec,
+    star.raJ2000, star.decJ2000, jd, star.pmRaCosDec, star.pmDec,
   );
   const lst = lstHours(jd, lonDeg);
   const haHours = ((lst - ra / 15) % 24 + 24) % 24;
 
   // Position angle around the pole, measured from the 12 o'clock mark.
-  const positionAngle = ((180 - haHours * 15) % 360 + 360) % 360;
+  //
+  // The two hemispheres run in OPPOSITE directions. Looking north, the sky
+  // turns anticlockwise about the NCP; looking south it turns clockwise about
+  // the SCP. The polar scope inverts both identically, so the inversion
+  // cancels out of the comparison and the dial simply runs the other way.
+  //
+  // HONESTY NOTE: the northern form is validated against iOptron's own
+  // published worked example (see test/astro.test.mjs). The southern form is
+  // NOT -- iOptron publish no southern vector, so it rests on the reasoning
+  // above. The test pins the two as exact mirrors, which is the claim actually
+  // being made. Confirm against Stellarium before trusting it in the field.
+  const positionAngle = south
+    ? ((180 + haHours * 15) % 360 + 360) % 360
+    : ((180 - haHours * 15) % 360 + 360) % 360;
   const dialDecimal = positionAngle / 30;
 
   return {
     dialHour: Math.floor(dialDecimal),
     dialMinute: (dialDecimal - Math.floor(dialDecimal)) * 60,
     dialDecimal,
-    radiusArcmin: (90 - dec) * 60,
+    // Distance from the pole: 90 - dec in the north, 90 + dec in the south,
+    // since a southern pole star has a declination near -90.
+    radiusArcmin: (south ? 90 + dec : 90 - dec) * 60,
     hourAngleHours: haHours,
     positionAngleDeg: positionAngle,
+    star,
+    hemisphere: star.hemisphere,
     ra,
     dec,
   };
 }
+
+/** Kept for the northern validation test, which anchors the whole method. */
+export const polarisReticle = (date, latDeg, lonDeg) =>
+  poleStarReticle(date, Math.abs(latDeg), lonDeg);
 
 /**
  * The full set of numbers to dial into the mount.
@@ -136,26 +189,33 @@ export function polarisReticle(date, latDeg, lonDeg) {
  * @param {number} declinationDeg  magnetic declination, east positive
  */
 export function alignmentSolution(date, site, declinationDeg) {
-  const reticle = polarisReticle(date, site.lat, site.lon);
+  const reticle = poleStarReticle(date, site.lat, site.lon);
   const jd = julianDay(date);
   const lst = lstHours(jd, site.lon);
   const polarisHz = equatorialToHorizontal(reticle.ra, reticle.dec, lst, site.lat);
+  const south = reticle.hemisphere === 'south';
 
-  // The mount's latitude scale is set to the observer's latitude: that is what
-  // puts the RA axis parallel to the Earth's. The pole's TRUE altitude equals
-  // latitude exactly; refraction only changes where it appears to be.
-  const poleAltitude = site.lat;
+  // The mount's latitude scale is set to the observer's latitude -- the
+  // magnitude of it, since the scale is not signed. That is what puts the RA
+  // axis parallel to the Earth's. The pole's TRUE altitude equals the latitude
+  // exactly; refraction only changes where it appears to be.
+  const poleAltitude = Math.abs(site.lat);
 
   return {
     ...reticle,
     latitudeSetting: poleAltitude,
     poleApparentAltitude: poleAltitude + refraction(poleAltitude),
+    // The mount points at the elevated pole: true north up north, true SOUTH
+    // down south. Aiming a southern mount at 0 degrees is 180 degrees wrong.
+    poleAzimuth: south ? 180 : 0,
+    poleName: south ? 'true south' : 'true north',
     polarisAlt: polarisHz.alt,
     polarisAz: polarisHz.az,
-    // True north is 0 deg. On a magnetic compass it reads at minus the
-    // declination, because a compass needle already points declination degrees
-    // east of true north.
-    trueNorthOnCompass: ((-declinationDeg % 360) + 360) % 360,
+    // Where the pole reads on a magnetic compass. A needle already points
+    // declination degrees east of true north, so subtract it from the pole's
+    // true bearing -- 0 in the north, 180 in the south.
+    trueNorthOnCompass:
+      (((south ? 180 : 0) - declinationDeg) % 360 + 360) % 360,
     declination: declinationDeg,
     lst,
   };
@@ -222,10 +282,13 @@ export function sunNow(date, latDeg, lonDeg) {
  *
  * Returns x,y in -1..1, or null if the star is outside the field.
  */
-export function projectAroundPole(raDeg, decDeg, lstH, radiusDeg) {
-  const r = 90 - decDeg;
+export function projectAroundPole(raDeg, decDeg, lstH, radiusDeg, south = false) {
+  const r = south ? 90 + decDeg : 90 - decDeg;
   if (r > radiusDeg) return null;
   const ha = (lstH * 15 - raDeg) * DEG;
   const k = r / radiusDeg;
-  return { x: -k * Math.sin(ha), y: -k * Math.cos(ha) };
+  // Handedness flips with the hemisphere. Facing NORTH, east is on your right
+  // and west on your left; turn round to face SOUTH and they swap. Both charts
+  // still put upper culmination at the top, so only x changes sign.
+  return { x: (south ? k : -k) * Math.sin(ha), y: -k * Math.cos(ha) };
 }

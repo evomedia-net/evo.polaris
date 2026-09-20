@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   julianDay, gmstHours, lstHours, precessFromJ2000, equatorialToHorizontal,
-  polarisReticle, POLARIS, refraction, projectAroundPole, sunPosition, solarNoon, sunNow,
+  polarisReticle, poleStarReticle, poleStarFor, alignmentSolution, POLARIS,
+  refraction, projectAroundPole, sunPosition, solarNoon, sunNow,
 } from '../site/src/astro.js';
 
 // --- independent anchors, so the chain is verified before the app relies on it
@@ -146,6 +148,131 @@ test('a shadow falls opposite the Sun', () => {
     assert.ok(Math.abs(sep - 180) < 1e-9,
       `${iso}: sun ${s.az.toFixed(1)}, shadow ${s.shadowAz.toFixed(1)}`);
   }
+});
+
+// --- southern hemisphere ----------------------------------------------------
+
+test('the pole star is chosen by the sign of the latitude', () => {
+  assert.equal(poleStarFor(42.5).name, 'Polaris');
+  assert.equal(poleStarFor(0).name, 'Polaris');          // equator: either works
+  assert.equal(poleStarFor(-33.9).name, 'Sigma Octantis');
+  assert.deepEqual(poleStarFor(42.5).rings, [36, 44]);   // engraved circles
+  assert.deepEqual(poleStarFor(-33.9).rings, [60, 70]);  // differ by hemisphere
+});
+
+test('Sigma Octantis sits in the reticle ring iOptron engraves for it', () => {
+  // ~63' from the pole, which is why the southern circles run 60'-70' and the
+  // northern ones 36'-44'. If this drifts out of the ring the drawn scale is
+  // wrong for the scope the observer is actually looking through.
+  const r = poleStarReticle(new Date('2026-09-19T12:00:00Z'), -33.9, 151.2);
+  assert.equal(r.hemisphere, 'south');
+  assert.ok(r.radiusArcmin > 60 && r.radiusArcmin < 70,
+    `Sigma Oct at ${r.radiusArcmin.toFixed(1)}' is outside the 60'-70' ring`);
+});
+
+test('the two hemispheres run their dials in opposite directions', () => {
+  // This is the claim actually being made, and it is the whole southern
+  // change. iOptron publish no southern worked example, so unlike the northern
+  // case there is nothing external to check against.
+  //
+  // Note it is NOT that the two dial readings mirror each other at a given
+  // instant -- they cannot, because Polaris and Sigma Octantis have completely
+  // different right ascensions (about 2.9h and 21.1h), so their hour angles
+  // are unrelated. What mirrors is the DIRECTION the dial travels: looking
+  // north the sky turns anticlockwise about the pole, looking south it turns
+  // clockwise, and the polar scope inverts both identically so the inversion
+  // cancels out of the comparison.
+  const lon = 151.2;
+  const t0 = new Date('2026-09-19T12:00:00Z');
+  const t1 = new Date(t0.getTime() + 2 * 3600 * 1000 * 0.9972696);  // 2 sidereal h
+
+  const nMove = ((poleStarReticle(t1, 33.9, lon).dialDecimal
+                - poleStarReticle(t0, 33.9, lon).dialDecimal) % 12 + 12) % 12;
+  const sMove = ((poleStarReticle(t1, -33.9, lon).dialDecimal
+                - poleStarReticle(t0, -33.9, lon).dialDecimal) % 12 + 12) % 12;
+
+  // Two sidereal hours is 30 degrees, which is exactly one dial hour -- and it
+  // must run backwards in the north and forwards in the south.
+  assert.ok(Math.abs(nMove - 11) < 0.02,
+    `north should fall one dial hour (11 mod 12), moved ${nMove.toFixed(3)}`);
+  assert.ok(Math.abs(sMove - 1) < 0.02,
+    `south should rise one dial hour, moved ${sMove.toFixed(3)}`);
+});
+
+test('a southern mount points at true south, not true north', () => {
+  const site = { lat: -33.87, lon: 151.21, altitude: 0 };
+  const sol = alignmentSolution(new Date('2026-09-19T12:00:00Z'), site, 12.5);
+  assert.equal(sol.poleAzimuth, 180, 'southern pole bears 180 degrees');
+  assert.equal(sol.poleName, 'true south');
+  // The latitude scale is unsigned: a mount at 33.87S sets 33.87, not -33.87.
+  assert.ok(Math.abs(sol.latitudeSetting - 33.87) < 1e-9,
+    `latitude setting ${sol.latitudeSetting} should be positive`);
+  // And the compass bearing must be about 180 off the northern answer.
+  const north = alignmentSolution(
+    new Date('2026-09-19T12:00:00Z'), { ...site, lat: 33.87 }, 12.5);
+  const gap = Math.abs(((sol.trueNorthOnCompass - north.trueNorthOnCompass + 540) % 360) - 180);
+  assert.ok(Math.abs(gap - 180) < 1e-9, `compass bearings differ by ${gap}, not 180`);
+});
+
+test('the south pole star is not filtered out of its own chart', () => {
+  // Sigma Octantis is magnitude 5.47 and the northern chart's limit is 5.2.
+  // Shipping that limit southward would drop the pole star silently.
+  const stars = JSON.parse(
+    readFileSync(new URL('../site/src/data/stars.json', import.meta.url), 'utf8'));
+  const sigma = stars.find((s) => s[4] === 7228);
+  assert.ok(sigma, 'Sigma Octantis (HR 7228) missing from the catalogue');
+  assert.ok(sigma[2] > 5.2, `test is pointless if Sigma Oct (${sigma[2]}) is under 5.2`);
+  assert.ok(sigma[2] <= 5.6, `southern chart limit of 5.6 would drop it at ${sigma[2]}`);
+});
+
+test('southern chart flips handedness: east is on the right', () => {
+  // Facing north, east is on your right. Turn round to face south and east and
+  // west swap over. Both charts still put upper culmination at the top.
+  const lst = 6;
+  const dec = -60;                                  // a southern circumpolar star
+  const top = projectAroundPole(lst * 15, dec, lst, 50, true);
+  assert.ok(Math.abs(top.x) < 1e-9 && top.y < 0, 'HA=0 belongs at the top');
+
+  const west = projectAroundPole(lst * 15 - 90, dec, lst, 50, true);
+  assert.ok(west.x > 0, `facing south, west should be on the RIGHT, got ${west.x}`);
+
+  // And it is genuinely the mirror of the northern chart, not a copy.
+  const northWest = projectAroundPole(lst * 15 - 90, 60, lst, 50, false);
+  assert.ok(northWest.x < 0 && west.x > 0, 'the two hemispheres must mirror');
+});
+
+test('the Southern Cross 4.5x rule falls out of the projection', () => {
+  // The best independent check available for the southern chart. The published
+  // rule is that the Cross's long axis -- Gacrux through Acrux -- extended
+  // about 4.5 times its own length lands on the south celestial pole. Nothing
+  // in the code knows that number, so if the projection is wrong in scale,
+  // orientation or handedness, this ratio stops coming out.
+  const stars = JSON.parse(
+    readFileSync(new URL('../site/src/data/stars.json', import.meta.url), 'utf8'));
+  const at = (hr) => {
+    const s = stars.find((x) => x[4] === hr);
+    return projectAroundPole(s[0], s[1], 6, 50, true);
+  };
+  const gacrux = at(4763), acrux = at(4730);
+  assert.ok(gacrux && acrux, 'both Crux stars must be in a 50 deg field');
+
+  const axis = Math.hypot(acrux.x - gacrux.x, acrux.y - gacrux.y);
+  const toPole = Math.hypot(acrux.x, acrux.y);          // pole is the origin
+  const ratio = toPole / axis;
+  assert.ok(ratio > 3.8 && ratio < 5.2,
+    `Gacrux->Acrux extended ${ratio.toFixed(2)}x reaches the pole, expected ~4.5`);
+
+  // Acrux must be the end NEARER the pole, or the arrow points into empty sky
+  // in the wrong direction entirely.
+  assert.ok(toPole < Math.hypot(gacrux.x, gacrux.y),
+    'Acrux is the foot of the Cross and must be the end closer to the pole');
+});
+
+test('southern radius is measured from the south pole', () => {
+  // dec -89 is one degree from the SOUTH pole and 179 from the north one.
+  assert.equal(projectAroundPole(0, -89, 0, 50, false), null, 'not on a north chart');
+  const s = projectAroundPole(0, -89, 0, 50, true);
+  assert.ok(Math.hypot(s.x, s.y) - 1 / 50 < 1e-9, 'should sit 1 degree out');
 });
 
 // A chart that is rotated or mirrored still looks like a star chart, so the

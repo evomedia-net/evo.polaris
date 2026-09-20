@@ -119,6 +119,58 @@ showed precisely the reverse.
 test('chart orientation: up is the zenith, west is on the left') now asserts
 all four quadrants, so both a rotation and a mirroring fail.
 
+The southern hemisphere
+-----------------------
+
+The south is not the north with a sign flipped, and three things differ.
+
+There is no southern Polaris. Sigma Octantis — Polaris Australis — is
+magnitude 5.47, roughly 25x fainter than Polaris at 2.02, and it sits about
+63' from the pole rather than 38'. It is below naked-eye visibility except
+under dark skies and is hard work even in a polar scope. The app says so rather
+than offering it as an equivalent, and points at the Southern Cross instead.
+
+That faintness caused a bug worth recording: the sky chart's magnitude limit
+was 5.2, so shipping it unchanged southward would have **filtered the south
+pole star out of its own chart**. The southern limit is 5.6; the northern one
+stays at 5.2 because it is cleaner without the extra stars.
+
+The dial runs the other way. Looking north the sky turns anticlockwise
+about the pole; looking south it turns clockwise. The polar scope inverts both
+identically, so the inversion cancels and the dial simply counts in the
+opposite direction. This is not externally validated — iOptron publish no
+southern worked example the way they do for Polaris, so it rests on that
+reasoning. The test pins the claim actually being made: that the two dials
+travel in opposite directions by the same amount. It deliberately does not
+assert that the two readings mirror each other at a given instant, because they
+cannot — Polaris and Sigma Octantis have completely unrelated right ascensions
+(about 2.9h and 21.1h).
+
+The chart's handedness flips. Facing north, east is on your right; turn
+around to face south and east and west swap. Both charts still put upper
+culmination at the top, so only the x axis changes sign.
+
+The check that makes the southern chart trustworthy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The published rule is that the Southern Cross's long axis, Gacrux through
+Acrux, extended about 4.5 times its own length, lands on the south
+celestial pole. Nothing in the code knows that number — it is a fact about the
+sky, not a constant in the projection.
+
+Measured off the projection, the axis is 0.12 units and Acrux sits 0.537 from
+the pole: a ratio of 4.5. If the projection were wrong in scale,
+orientation or handedness, that would not come out, so it is pinned as a test.
+Sigma Octantis independently lands 1.05 deg from the chart's centre, against
+its true 1.04 deg.
+
+The app also draws the Pointers' perpendicular bisector — a line at right
+angles from the midpoint of Alpha and Beta Centauri. Where it crosses the
+Cross's axis is the pole. Two independent lines meeting on the same empty patch
+of sky is far more convincing than one line running into nothing, which is all
+the Cross gives you alone. The Pointers also distinguish the real Cross from
+the False Cross, which has no such pair beside it.
+
 What altitude is worth
 ----------------------
 

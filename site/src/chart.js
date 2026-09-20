@@ -10,25 +10,48 @@ import { projectAroundPole } from './astro.js';
 export const ASTERISMS = {
   bigDipper: {
     name: 'The Big Dipper',
-    stars: [4301, 4295, 4554, 4660, 4905, 5054, 5191],   // Dubhe..Alkaid
+    hemisphere: 'north',
     lines: [[5191, 5054], [5054, 4905], [4905, 4660], [4660, 4554],
             [4554, 4295], [4295, 4301], [4301, 4660]],
   },
   cassiopeia: {
     name: 'Cassiopeia (the W)',
-    stars: [21, 168, 264, 403, 542],
+    hemisphere: 'north',
     lines: [[21, 168], [168, 264], [264, 403], [403, 542]],
   },
   littleDipper: {
     name: 'The Little Dipper',
-    stars: [424, 5563, 5735],
+    hemisphere: 'north',
     lines: [[424, 5563], [5563, 5735]],
+  },
+  // Crux: Gacrux at the top, Acrux at the foot, Mimosa and Delta across.
+  crux: {
+    name: 'The Southern Cross',
+    hemisphere: 'south',
+    lines: [[4763, 4730], [4853, 4656]],
+  },
+  // The Pointers. Drawn as a pair so the eye picks them out next to Crux;
+  // they are how you tell the real Cross from the False Cross.
+  pointers: {
+    name: 'The Pointers (Alpha and Beta Centauri)',
+    hemisphere: 'south',
+    lines: [[5459, 5267]],
   },
 };
 
 export const POLARIS_HR = 424;
+export const SIGMA_OCT_HR = 7228;       // magnitude 5.47 -- faint, see below
+
 const MERAK = 4295;        // beta UMa -- the back of the Dipper's bowl
 const DUBHE = 4301;        // alpha UMa -- the lip; Merak->Dubhe points at Polaris
+// alpha1 Cru, the foot of the Cross. The long axis Gacrux -> Acrux, extended
+// about 4.5 times its own length, lands on the south celestial pole. The
+// asterism line above already draws that axis, so only the foot is needed here
+// -- the arrow continues from it.
+const ACRUX = 4730;
+const ALPHA_CEN = 5459;    // the Pointers: Alpha and Beta Centauri. Their
+const BETA_CEN = 5267;     // perpendicular bisector crosses the Cross's axis
+                           // at the pole, and confirms it is the real Cross.
 
 /** Star colour from B-V index. Kept muted so it survives red night mode. */
 function starColour(bv) {
@@ -55,11 +78,16 @@ function starRadius(mag, scale) {
  * @param {number} opts.limitMag   faintest star to plot
  * @param {boolean} opts.night     red night-vision palette
  * @param {number} opts.size       canvas edge in CSS pixels
- * @param {boolean} opts.showPointer  draw the Merak->Dubhe->Polaris arrow
+ * @param {boolean} opts.showPointer  draw the star-hop arrow
+ * @param {boolean} opts.south     chart the south celestial pole instead
  */
 export function drawSkyChart(ctx, opts) {
-  const { stars, lst, radiusDeg = 50, limitMag = 5.2, night = false,
-          size, showPointer = true } = opts;
+  const { stars, lst, radiusDeg = 50, night = false,
+          size, showPointer = true, south = false } = opts;
+  // Sigma Octantis is magnitude 5.47, so a 5.2 cut-off would filter the south
+  // pole star out of its own chart. The southern sky needs the fainter limit
+  // for that one star; the northern chart does not and stays cleaner without.
+  const limitMag = opts.limitMag ?? (south ? 5.6 : 5.2);
   const R = size / 2 - 8;
   const cx = size / 2, cy = size / 2;
   const ink = night ? '#ff4a3a' : '#e8ecf4';
@@ -72,7 +100,7 @@ export function drawSkyChart(ctx, opts) {
   ctx.fill();
 
   const place = (s) => {
-    const p = projectAroundPole(s[0], s[1], lst, radiusDeg);
+    const p = projectAroundPole(s[0], s[1], lst, radiusDeg, south);
     return p && { x: cx + p.x * R, y: cy + p.y * R };
   };
 
@@ -101,10 +129,12 @@ export function drawSkyChart(ctx, opts) {
 
   // constellation lines
   ctx.lineWidth = Math.max(1.2, size / 420);
-  ctx.strokeStyle = night ? '#a8281e' : '#5b7fb8';
-  for (const key of ['bigDipper', 'cassiopeia', 'littleDipper']) {
-    for (const [a, b] of ASTERISMS[key].lines) {
-      const pa = byHr.get(a), pb = byHr.get(b);
+  ctx.strokeStyle = night ? '#8b0000' : '#5b7fb8';
+  const want = south ? 'south' : 'north';
+  for (const a of Object.values(ASTERISMS)) {
+    if (a.hemisphere !== want) continue;
+    for (const [p, q] of a.lines) {
+      const pa = byHr.get(p), pb = byHr.get(q);
       if (!pa || !pb) continue;
       ctx.beginPath();
       ctx.moveTo(pa.x, pa.y);
@@ -113,35 +143,85 @@ export function drawSkyChart(ctx, opts) {
     }
   }
 
-  // the star-hop: extend Merak -> Dubhe about five times to reach Polaris
-  const pol = byHr.get(POLARIS_HR);
-  if (showPointer) {
-    const m = byHr.get(MERAK), d = byHr.get(DUBHE);
-    if (m && d && pol) {
+  const amber = night ? '#cc0000' : '#ffb454';
+  const target = night ? '#ff0000' : '#7CFFB2';
+
+  // The star-hop. In the north it ends on a bright star you can actually see.
+  // In the south it does NOT: there is no southern Polaris, so the line runs
+  // from the foot of the Cross to the pole ITSELF, which is empty sky.
+  const pole = { x: cx, y: cy };
+  const from = byHr.get(south ? ACRUX : DUBHE);
+  const polaris = byHr.get(POLARIS_HR);
+  const to = south ? pole : polaris;
+  if (showPointer && from && to) {
+    ctx.save();
+    ctx.setLineDash([7, 6]);
+    ctx.lineWidth = Math.max(2, size / 240);
+    ctx.strokeStyle = amber;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.restore();
+    arrowHead(ctx, from, to, amber, size / 46);
+  }
+
+  // The Pointers' perpendicular bisector -- the SECOND southern method, and
+  // the one that confirms the first. Take the midpoint of Alpha-Beta Centauri
+  // and strike off at right angles; where it crosses the Cross's long axis is
+  // the pole. Two independent lines meeting on the same empty patch of sky is
+  // far more convincing than one line into nothing, which is all the Cross
+  // gives you on its own.
+  if (showPointer && south) {
+    const a = byHr.get(ALPHA_CEN), b = byHr.get(BETA_CEN);
+    if (a && b) {
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      // Unit normal to the Pointers, aimed at the pole rather than away.
+      let nx = -(b.y - a.y), ny = b.x - a.x;
+      const len = Math.hypot(nx, ny) || 1;
+      nx /= len; ny /= len;
+      if ((pole.x - mid.x) * nx + (pole.y - mid.y) * ny < 0) { nx = -nx; ny = -ny; }
+      const reach = Math.hypot(pole.x - mid.x, pole.y - mid.y);
       ctx.save();
-      ctx.setLineDash([7, 6]);
-      ctx.lineWidth = Math.max(2, size / 240);
-      ctx.strokeStyle = night ? '#ff8a3a' : '#ffb454';   // amber = the star-hop
+      ctx.setLineDash([3, 7]);
+      ctx.lineWidth = Math.max(1.5, size / 300);
+      ctx.strokeStyle = amber;
+      ctx.globalAlpha = 0.85;
       ctx.beginPath();
-      ctx.moveTo(d.x, d.y);
-      ctx.lineTo(pol.x, pol.y);
+      ctx.moveTo(mid.x, mid.y);
+      ctx.lineTo(mid.x + nx * reach, mid.y + ny * reach);
       ctx.stroke();
       ctx.restore();
-      arrowHead(ctx, d, pol, night ? '#ff8a3a' : '#ffb454', size / 46);
     }
   }
 
-  // Polaris last, so it sits on top of everything
-  if (pol) {
-    ctx.strokeStyle = night ? '#ffb0a0' : '#7CFFB2';     // green = the target
+  // The target, drawn last so it sits on top.
+  const mark = (pt, label) => {
+    ctx.strokeStyle = target;
     ctx.lineWidth = Math.max(2, size / 220);
     ctx.beginPath();
-    ctx.arc(pol.x, pol.y, size / 26, 0, Math.PI * 2);
+    ctx.arc(pt.x, pt.y, size / 26, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = night ? '#ffb0a0' : '#7CFFB2';
+    ctx.fillStyle = target;
     ctx.font = `600 ${Math.round(size / 24)}px system-ui, sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('Polaris', pol.x + size / 22, pol.y + size / 72);
+    ctx.fillText(label, pt.x + size / 22, pt.y + size / 72);
+  };
+
+  if (south) {
+    // The pole is the target; Sigma Octantis is only a landmark, and a faint
+    // one, so it is labelled separately rather than ringed as the thing to aim
+    // at. Ringing a magnitude 5.47 star as "the target" would be misleading.
+    mark(pole, 'South pole');
+    const sig = byHr.get(SIGMA_OCT_HR);
+    if (sig) {
+      ctx.fillStyle = night ? '#990000' : '#9aa6bd';
+      ctx.font = `500 ${Math.round(size / 30)}px system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('σ Oct (mag 5.5)', sig.x + size / 40, sig.y + size / 60);
+    }
+  } else if (polaris) {
+    mark(polaris, 'Polaris');
   }
 
   // horizon hint: the pole's lower meridian points at the north horizon
@@ -173,12 +253,18 @@ function arrowHead(ctx, from, to, colour, len) {
  * Concentric circles run 36'-44' (northern, Polaris) and 60'-70' (southern,
  * Sigma Octantis), per the SkyTracker Pro manual.
  */
-export function drawReticle(ctx, { dialDecimal, radiusArcmin, size, night = false }) {
+export function drawReticle(ctx, {
+  dialDecimal, radiusArcmin, size, night = false, rings = [36, 44],
+}) {
   const cx = size / 2, cy = size / 2;
   const R = size / 2 - 10;
-  const innerMin = 34, outerMin = 46;          // arcmin span the ring covers
-  const ink = night ? '#ff4a3a' : '#dfe6f2';
-  const faint = night ? '#8a2018' : '#46506a';
+  // The engraved circles differ by hemisphere -- 36'-44' for Polaris, 60'-70'
+  // for Sigma Octantis -- so the drawn scale has to follow the reticle the
+  // observer is actually looking through, not a fixed range.
+  const [ringLo, ringHi] = rings;
+  const innerMin = ringLo - 2, outerMin = ringHi + 2;
+  const ink = night ? '#ff0000' : '#dfe6f2';
+  const faint = night ? '#7a0000' : '#46506a';
 
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = night ? '#0a0000' : '#080b14';
@@ -197,8 +283,8 @@ export function drawReticle(ctx, { dialDecimal, radiusArcmin, size, night = fals
   const ringR = (arcmin) => ((arcmin - innerMin) / (outerMin - innerMin))
     * (R * 0.62) + R * 0.2;
 
-  // the 36'-44' graduation circles
-  for (let m = 36; m <= 44; m += 2) {
+  // the graduation circles for this hemisphere's pole star
+  for (let m = ringLo; m <= ringHi; m += 2) {
     ctx.strokeStyle = faint;
     ctx.beginPath();
     ctx.arc(cx, cy, ringR(m), 0, Math.PI * 2);

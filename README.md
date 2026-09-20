@@ -22,6 +22,24 @@ a mount:
 Plus a live sky chart of the circumpolar sky with the Big Dipper star-hop drawn
 on it, and — with the compass on — arrows telling you which way to turn.
 
+## Both hemispheres
+
+The app follows the sign of your latitude, and the south is not simply the
+north with a sign flipped:
+
+- **There is no southern Polaris.** Sigma Octantis is magnitude 5.5 — below
+  naked-eye visibility except under dark skies. The app says so instead of
+  offering it as an equivalent, and points you at the Southern Cross: run its
+  long axis about 4.5 times its own length. The Pointers' perpendicular
+  bisector is drawn too, crossing that line at the pole to confirm it.
+- **The reticle circles differ** — 36'–44' for Polaris, 60'–70' for Sigma
+  Octantis — and the drawn scale follows the scope you are looking through.
+- **The dial counts the other way**, because the sky turns the opposite way
+  about the southern pole.
+- **The chart's handedness flips**, since facing south puts east on your left.
+- **A southern mount points at true south**, so its compass bearing is 180°
+  from the northern answer.
+
 ## Finding true north without a compass
 
 A desktop browser has no magnetometer, and plenty of phones have a bad one, so

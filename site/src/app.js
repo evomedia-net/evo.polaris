@@ -154,8 +154,7 @@ $('manualApply').onclick = () => {
 
 function hemisphereNote() {
   return site && site.lat < 0
-    ? 'You are in the southern hemisphere: the polar scope’s 60′–70′ circles ' +
-      'and Sigma Octantis apply, not Polaris.'
+    ? 'Use the polar scope’s 60′–70′ circles — the southern group.'
     : '';
 }
 
@@ -170,17 +169,51 @@ function render() {
     `${latAbs.toFixed(2)}°`;
 
   const compass = solution.trueNorthOnCompass;
-  $('outCompass').textContent = `True north reads ${compass.toFixed(1)}°`;
+  const poleName = solution.poleName;                 // "true north" | "true south"
+  const isSouth = solution.hemisphere === 'south';
+
+  // Headings and static copy that name a hemisphere. Left hardcoded these read
+  // confidently wrong in the south -- "Find Polaris in the sky" above a chart
+  // of the SOUTH pole, where Polaris is permanently below the horizon.
+  $('poleWord2').textContent = poleName;
+  $('poleWord4').textContent = isSouth ? 'the south pole' : 'Polaris';
+  $('dialLabel').textContent =
+    `Put ${solution.star.short} here in the polar scope`;
+  $('northIntro').innerHTML = isSouth
+    ? 'Your mount points at <strong>true</strong> south, not magnetic south. '
+      + 'Any one of these gets you there — and the first two need no instrument '
+      + 'at all.'
+    : 'Your mount points at <strong>true</strong> north, not magnetic north. '
+      + 'Any one of these gets you there — and the first two need no instrument '
+      + 'at all.';
+  $('poleStarClaim').innerHTML = isSouth
+    ? 'The Southern Cross points the way'
+    : 'Polaris <em>is</em> true north';
+  $('skyDesc').textContent = isSouth
+    ? 'The sky around the south pole right now. The amber arrow runs the long '
+      + 'axis of the Southern Cross out to the pole; the dotted line from the '
+      + 'Pointers crosses it there, confirming the spot.'
+    : 'The sky around the pole right now. Follow the two front stars of the '
+      + 'Big Dipper’s bowl — the amber arrow — straight to Polaris.';
+  $('outCompass').textContent =
+    `${poleName[0].toUpperCase()}${poleName.slice(1)} reads ${compass.toFixed(1)}°`;
 
   // --- finding true north without a compass --------------------------------
   // Polaris is within about half a degree of the pole, so pointing at it IS
   // pointing true north. Worth saying plainly: people assume they need north
   // first in order to find Polaris, when it works the other way round.
-  $('outNorthStar').textContent =
-    `Polaris is only ${solution.radiusArcmin.toFixed(0)}′ ` +
-    `(${(solution.radiusArcmin / 60).toFixed(2)}°) from the true pole, so aiming ` +
-    'at it is aiming true north. Use the chart in step 4 to find it — ' +
-    'no compass, no declination, nothing to correct.';
+  // The southern sky has no usable pole star, and pretending otherwise sends
+  // someone hunting a magnitude 5.5 speck. Say what actually works instead.
+  $('outNorthStar').textContent = solution.hemisphere === 'south'
+    ? 'There is no southern Polaris. Sigma Octantis (Polaris Australis) sits '
+      + `${solution.radiusArcmin.toFixed(0)}′ from the pole but is only magnitude 5.5 — `
+      + 'below naked-eye visibility except under dark skies, and hard work even in '
+      + 'a polar scope. Use the sky instead: run the long axis of the Southern '
+      + 'Cross about 4.5 times its own length. The chart in step 4 draws it.'
+    : `Polaris is only ${solution.radiusArcmin.toFixed(0)}′ `
+      + `(${(solution.radiusArcmin / 60).toFixed(2)}°) from the true pole, so aiming `
+      + 'at it is aiming true north. Use the chart in step 4 to find it — '
+      + 'no compass, no declination, nothing to correct.';
 
   const noon = solarNoon(now, site.lon);
   // Name the zone. The time is rendered in the DEVICE's timezone, which is
@@ -232,10 +265,11 @@ function render() {
   drawReticle(rc.getContext('2d'), {
     dialDecimal: solution.dialDecimal,
     radiusArcmin: solution.radiusArcmin,
+    rings: solution.star.rings,          // 36'-44' north, 60'-70' south
     size: rc.width, night,
   });
   $('reticleDesc').textContent =
-    `Polar scope reticle. Polaris goes at ${solution.dialHour} o'clock ` +
+    `Polar scope reticle. ${solution.star.short} goes at ${solution.dialHour} o'clock ` +
     `${Math.round(mins)} minutes, at a radius of ` +
     `${solution.radiusArcmin.toFixed(1)} arcminutes from the centre.`;
 
@@ -243,13 +277,21 @@ function render() {
   drawSkyChart(sc.getContext('2d'), {
     stars,
     lst: lstHours(julianDay(now), site.lon),
-    radiusDeg: 50, limitMag: 5.2, night, size: sc.width,
+    radiusDeg: 50, night, size: sc.width,
+    south: solution.hemisphere === 'south',
   });
 
-  $('starhopText').textContent =
-    `Polaris sits ${latAbs.toFixed(0)}° above the horizon, due true north. ` +
-    'The two stars at the front of the Big Dipper’s bowl point at it: ' +
-    'follow that line about five times the gap between them.';
+  $('starhopText').textContent = solution.hemisphere === 'south'
+    ? `The south celestial pole sits ${latAbs.toFixed(0)}° above the horizon, due `
+      + 'true south. Run the long axis of the Southern Cross — Gacrux at the top '
+      + 'through Acrux at the foot — onward about 4.5 times its own length. To '
+      + 'confirm it, take the two bright Pointers (Alpha and Beta Centauri), and '
+      + 'follow a line at right angles from the middle of the gap between them: '
+      + 'where the two lines meet is the pole. The Pointers also tell you it is '
+      + 'the real Cross — the False Cross has no pair beside it.'
+    : `Polaris sits ${latAbs.toFixed(0)}° above the horizon, due true north. `
+      + 'The two stars at the front of the Big Dipper’s bowl point at it: '
+      + 'follow that line about five times the gap between them.';
 
   updateGuide();
 }
