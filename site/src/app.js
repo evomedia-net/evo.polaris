@@ -6,6 +6,9 @@ import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
 import { buildSkyVectors, smoothAngle } from './skyview.js';
+// Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
+// Delete this import and evomedia-chrome.js to strip the branding entirely.
+import { mountEvomediaChrome } from './evomedia-chrome.js';
 import { drawSkyView } from './skydraw.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
@@ -494,24 +497,53 @@ function render() {
 // reading be checked against the sky. Verify on real hardware before trusting
 // it to a degree -- the chart and the reticle do not depend on this at all.
 
-$('compassBtn').onclick = async () => {
-  if (compassOn) return;
+let orientEvent = null;      // the event name we actually subscribed to
+
+function stopCompass() {
+  if (orientEvent) window.removeEventListener(orientEvent, onOrientation);
+  orientEvent = null;
+  compassOn = false;
+  // Drop the readings too. Leaving the last ones behind would keep the arrows
+  // pointing confidently at a heading nobody is measuring any more, which is
+  // worse than admitting there is no compass.
+  heading = null; tilt = null; roll = null; rawAlpha = null;
+  sAlpha = sBeta = sGamma = null;
+  sawSensor = false;
+  skyFollow = false;                        // fall back to the pad
+  $('compassBtn').textContent = 'Turn on compass';
+  $('compassBtn').classList.add('primary');
+  $('skyDiag').textContent = '';
+  updateGuide();
+  if (skyOn) { updateSkyMode(); drawLiveSky(); }
+}
+
+async function startCompass() {
   const need = window.DeviceOrientationEvent
     && typeof DeviceOrientationEvent.requestPermission === 'function';
   if (need) {
     try {
       const ok = await DeviceOrientationEvent.requestPermission();
-      if (ok !== 'granted') { $('guideText').textContent =
-        'Compass permission was declined. The chart below still works.'; return; }
+      if (ok !== 'granted') {
+        $('guideText').textContent =
+          'Compass permission was declined. The chart and the buttons still work.';
+        return;
+      }
     } catch { /* fall through to the listener attempt */ }
   }
-  const evName = 'ondeviceorientationabsolute' in window
+  orientEvent = 'ondeviceorientationabsolute' in window
     ? 'deviceorientationabsolute' : 'deviceorientation';
-  window.addEventListener(evName, onOrientation);
-  sensorInfo.event = evName;
+  window.addEventListener(orientEvent, onOrientation);
+  sensorInfo.event = orientEvent;
   compassOn = true;
-  $('compassBtn').textContent = 'Compass is on';
+  $('compassBtn').textContent = 'Turn the compass off';
   $('compassBtn').classList.remove('primary');
+}
+
+// A toggle, not a one-way switch. It was the latter, so once the compass was
+// on there was no way to stop it draining the battery or to fall back to the
+// buttons when the reading was obviously wrong.
+$('compassBtn').onclick = () => {
+  if (compassOn) stopCompass(); else startCompass();
 };
 
 function onOrientation(e) {
@@ -607,6 +639,7 @@ $('speakBtn').onclick = () => {
 // --- boot -------------------------------------------------------------------
 
 async function boot() {
+  mountEvomediaChrome();
   applyAppearance();
   try {
     stars = await (await fetch('src/data/stars.json')).json();

@@ -152,6 +152,48 @@ html[data-night='on'] .hemi-btn[aria-pressed='true'] {
 }
 html[data-night='on'] .figure.accent { border-color: var(--ink); }
 
+/* Evomedia.net site chrome. Injected by evomedia-chrome.js on the real site
+   only; these rules are inert everywhere else. It sits ABOVE the app's own
+   sticky header so the app keeps its identity and the site keeps its nav, and
+   it scrolls away while the app header does not -- the app's controls are the
+   ones that must stay reachable. */
+.evo-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding: 0.55rem 0.9rem;
+  background: #0d1420;
+  border-bottom: 1px solid var(--line);
+}
+.evo-chrome-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 650;
+  font-size: 1rem;
+  color: var(--ink);
+  text-decoration: none;
+  min-height: var(--tap);
+}
+.evo-chrome-tld { color: var(--ink-dim); font-weight: 500; }
+.evo-chrome-nav { display: flex; flex-wrap: wrap; gap: 0.2rem; }
+.evo-chrome-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 0.7rem;
+  border-radius: 0.6rem;
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.evo-chrome-nav a:hover, .evo-chrome-nav a:focus-visible { color: var(--ink); }
+html[data-night='on'] .evo-chrome { background: #0a0000; }
+html[data-night='on'] .evo-chrome-brand,
+html[data-night='on'] .evo-chrome-nav a { color: var(--ink); }
+
 .bar {
   position: sticky;
   top: 0;
