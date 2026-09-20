@@ -253,3 +253,98 @@ export function altitudeFromTilt(betaDeg) {
   if (betaDeg == null || Number.isNaN(betaDeg)) return null;
   return Math.max(0, Math.min(89, Math.abs(betaDeg)));
 }
+
+// --- the Milky Way ----------------------------------------------------------
+//
+// Drawn because it is what most people are pointing a tracker AT. Knowing
+// where the band runs -- and where its bright core in Sagittarius sits -- is
+// the difference between framing a shot and hunting for one.
+//
+// The band is the galactic plane, so it is drawn from galactic coordinates
+// rotated into the sky rather than traced by hand. Two directions define that
+// rotation, both J2000:
+//
+//   galactic north pole   RA 192.85948   Dec +27.12825
+//   galactic centre       RA 266.40499   Dec -28.93617   (Sgr A*)
+//
+// Everything else follows, which means the band cannot drift out of step with
+// the stars drawn on top of it.
+
+const GAL_POLE_RA = 192.85948, GAL_POLE_DEC = 27.12825;
+const GAL_CENTRE_RA = 266.40499, GAL_CENTRE_DEC = -28.93617;
+
+function raDecToVec(raDeg, decDeg) {
+  const ra = raDeg * DEG, dec = decDeg * DEG, c = Math.cos(dec);
+  return [c * Math.cos(ra), c * Math.sin(ra), Math.sin(dec)];
+}
+
+const GZ = raDecToVec(GAL_POLE_RA, GAL_POLE_DEC);
+const GX = (() => {
+  // The centre direction is not exactly perpendicular to the pole once both
+  // are rounded, so it is orthogonalised rather than trusted -- otherwise the
+  // frame is very slightly skewed and the band leans.
+  const c = raDecToVec(GAL_CENTRE_RA, GAL_CENTRE_DEC);
+  const d = c[0] * GZ[0] + c[1] * GZ[1] + c[2] * GZ[2];
+  const v = [c[0] - d * GZ[0], c[1] - d * GZ[1], c[2] - d * GZ[2]];
+  const l = Math.hypot(v[0], v[1], v[2]);
+  return [v[0] / l, v[1] / l, v[2] / l];
+})();
+const GY = [
+  GZ[1] * GX[2] - GZ[2] * GX[1],
+  GZ[2] * GX[0] - GZ[0] * GX[2],
+  GZ[0] * GX[1] - GZ[1] * GX[0],
+];
+
+/** Galactic longitude and latitude to equatorial right ascension and declination. */
+export function galacticToEquatorial(lDeg, bDeg) {
+  const l = lDeg * DEG, b = bDeg * DEG, cb = Math.cos(b);
+  const g = [cb * Math.cos(l), cb * Math.sin(l), Math.sin(b)];
+  const v = [
+    GX[0] * g[0] + GY[0] * g[1] + GZ[0] * g[2],
+    GX[1] * g[0] + GY[1] * g[1] + GZ[1] * g[2],
+    GX[2] * g[0] + GY[2] * g[1] + GZ[2] * g[2],
+  ];
+  return {
+    ra: ((Math.atan2(v[1], v[0]) / DEG) % 360 + 360) % 360,
+    dec: Math.asin(Math.max(-1, Math.min(1, v[2]))) / DEG,
+  };
+}
+
+/**
+ * How bright the band is at a galactic longitude and latitude, 0..1.
+ *
+ * Not a photometric model -- a legible one. It falls off away from the plane,
+ * and is far brighter toward the centre in Sagittarius than toward the
+ * anticentre, which is what the eye and a camera both see.
+ */
+export function milkyWayBrightness(lDeg, bDeg) {
+  const towardCentre = Math.cos(lDeg * DEG);            // +1 centre, -1 anti
+  const core = 0.35 + 0.65 * ((towardCentre + 1) / 2) ** 1.7;
+  const acrossPlane = Math.exp(-((bDeg / 11) ** 2));    // fades out by ~20 deg
+  return Math.max(0, Math.min(1, core * acrossPlane));
+}
+
+/** The band as horizontal-coordinate patches, ready to project. */
+export function buildMilkyWay(lstHours, latDeg, stepL = 6, stepB = 3, maxB = 18) {
+  const out = [];
+  for (let l = 0; l < 360; l += stepL) {
+    for (let b = -maxB; b <= maxB; b += stepB) {
+      const a = milkyWayBrightness(l, b);
+      if (a < 0.06) continue;
+      const { ra, dec } = galacticToEquatorial(l, b);
+      const ha = (lstHours * 15 - ra) * DEG;
+      const d = dec * DEG, lat = latDeg * DEG;
+      const sinAlt = Math.sin(d) * Math.sin(lat)
+        + Math.cos(d) * Math.cos(lat) * Math.cos(ha);
+      const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+      const az = Math.atan2(-Math.cos(d) * Math.cos(lat) * Math.sin(ha),
+                            Math.sin(d) - Math.sin(lat) * sinAlt);
+      const c = Math.cos(alt);
+      out.push({
+        v: [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)],
+        a, l, b,
+      });
+    }
+  }
+  return out;
+}

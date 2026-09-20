@@ -212,6 +212,32 @@ Three smaller choices follow from the same rule:
 - Everything it shows still exists elsewhere — as numbers, as the arrows,
   and as the circumpolar chart. None of those changed.
 
+Constellations and the Milky Way
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both are on by default, with a button each. The figures are how people
+recognise what they are looking at, and the band is what most of them are
+pointing a camera at in the first place — knowing where it runs, and where its
+bright core in Sagittarius sits, is the difference between framing a shot and
+hunting for one.
+
+Twenty-six figures, the ones people actually point at, rather than all 88: a
+sky full of lines is unreadable exactly when you are trying to find one thing.
+
+They are written as **Bayer letters and resolved against the shipped catalogue
+at build time**, not as catalogue numbers. A line drawn to the wrong star still
+looks like a constellation — it is just a wrong one, and nothing in the app can
+tell. Resolving them means a mistake is a build failure with a star's name in
+it. That caught two on the first run.
+
+The Milky Way is drawn from the galactic plane rotated into the sky, not
+traced by hand, so it cannot drift out of step with the stars drawn on top of
+it. The frame is built from the galactic pole and the galactic centre, and
+checked against five stars' published galactic latitudes — Deneb at 2.0°,
+Polaris at 26.5° — because a slightly wrong rotation shows up nowhere else.
+It is drawn as soft additive blobs rather than a filled shape: a hard-edged
+band reads as something drawn on the sky, and the real thing has no edge.
+
 Why a rotation matrix rather than two angles
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

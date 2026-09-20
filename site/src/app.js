@@ -5,7 +5,7 @@ import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
-import { buildSkyVectors, smoothAngle } from './skyview.js';
+import { buildSkyVectors, smoothAngle, buildMilkyWay } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
 import { mountEvomediaChrome } from './evomedia-chrome.js';
@@ -51,6 +51,11 @@ let skyFov = 65;
 // replacing it.
 let skyFollow = true;
 let skyAim = { az: 0, alt: 45 };
+// Both on by default: the figures are how people recognise what they are
+// looking at, and the band is what most of them are pointing a camera at.
+let skyConstellations = true;
+let skyMilkyWay = true;
+let milkyWay = null;
 // Smoothed copies. Raw orientation readings jitter by a degree or two even on
 // a still phone, and at a 65 degree field that is several pixels of shake on
 // every star -- enough to make the view look broken rather than alive.
@@ -674,6 +679,8 @@ function refreshSkyVectors() {
   if (!site || !stars.length) return;
   const lst = lstHours(julianDay(new Date()), site.lon);
   skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5);
+  // Same slow tick as the stars: the band turns with the sky, not with you.
+  milkyWay = buildMilkyWay(lst, site.lat);
 }
 
 function drawLiveSky() {
@@ -695,6 +702,8 @@ function drawLiveSky() {
     targetAz: solution.poleAzimuth,
     targetName: solution.hemisphere === 'south' ? 'South pole' : 'Polaris',
     w: c.width, h: c.height, fov: skyFov, night,
+    constellations: skyConstellations,
+    milkyWay: skyMilkyWay ? milkyWay : null,
   });
 }
 
@@ -805,6 +814,17 @@ $('liveSkyBtn').onclick = () => {
 };
 
 // Zoom by button. Pinching is a two-finger gesture and this app uses none.
+$('skyConst').onclick = () => {
+  skyConstellations = !skyConstellations;
+  $('skyConst').textContent = `Constellations: ${skyConstellations ? 'on' : 'off'}`;
+  drawLiveSky();
+};
+$('skyMilky').onclick = () => {
+  skyMilkyWay = !skyMilkyWay;
+  $('skyMilky').textContent = `Milky Way: ${skyMilkyWay ? 'on' : 'off'}`;
+  drawLiveSky();
+};
+
 $('skyWider').onclick = () => { skyFov = Math.min(110, skyFov + 15); drawLiveSky(); };
 $('skyNarrower').onclick = () => { skyFov = Math.max(25, skyFov - 15); drawLiveSky(); };
 

@@ -10,7 +10,8 @@
     "build-data": "python scripts/build-data.py",
     "serve": "node scripts/serve.mjs",
     "docs:twins": "node scripts/md-txt.mjs",
-    "docs:check": "node scripts/md-txt.mjs --check"
+    "docs:check": "node scripts/md-txt.mjs --check",
+    "build-constellations": "python scripts/build-constellations.py"
   },
   "keywords": [
     "astronomy",

@@ -4,6 +4,7 @@ import {
   deviceBasis, basisFromAim, applyScreenAngle, altAzToVector, vectorToAltAz,
   focalLength, projectToScreen, starRadius, starColour,
 } from './skyview.js';
+import { CONSTELLATIONS } from './data/constellations.js';
 
 const NAMED = new Map([
   [424, 'Polaris'], [4301, 'Dubhe'], [4295, 'Merak'], [5191, 'Alkaid'],
@@ -60,6 +61,28 @@ export function drawSkyView(ctx, o) {
   const cx = w / 2, cy = h / 2;
   const aimed = vectorToAltAz(basis.forward);
 
+  // The Milky Way, first, because it is the sky rather than something drawn on
+  // it. Soft additive blobs rather than a filled polygon: a hard-edged band
+  // reads as a drawn shape, and the real thing has no edge.
+  if (o.milkyWay && o.milkyWay.length) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const blob = Math.max(18, w / 9);
+    for (const p of o.milkyWay) {
+      const q = projectToScreen(p.v, basis, focal);
+      if (!q) continue;
+      const x = cx + q.x, y = cy + q.y;
+      if (x < -blob || x > w + blob || y < -blob || y > h + blob) continue;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, blob);
+      const a = p.a * (night ? 0.10 : 0.16);
+      g.addColorStop(0, night ? `rgba(150,0,0,${a})` : `rgba(150,170,225,${a})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - blob, y - blob, blob * 2, blob * 2);
+    }
+    ctx.restore();
+  }
+
   // The horizon, drawn as a real projected curve rather than a straight rule:
   // under a rectilinear projection it only looks straight when you are level,
   // and faking that is how a view starts lying about which way is down.
@@ -102,6 +125,31 @@ export function drawSkyView(ctx, o) {
     if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
     ctx.fillStyle = label.length === 1 ? ink : dim;
     ctx.fillText(label, x, y + h / 34);
+  }
+
+  // Constellation figures. Drawn before the stars so the lines pass behind
+  // them rather than across their faces.
+  const drawn = new Map();
+  if (o.constellations) {
+    ctx.save();
+    ctx.strokeStyle = night ? '#7a0000' : '#4a6a9c';
+    ctx.lineWidth = Math.max(1, w / 620);
+    ctx.globalAlpha = 0.85;
+    for (const s2 of sky) drawn.set(s2.hr, s2.v);
+    for (const key of Object.keys(CONSTELLATIONS)) {
+      for (const [a, b] of CONSTELLATIONS[key].lines) {
+        const va = drawn.get(a), vb = drawn.get(b);
+        if (!va || !vb) continue;
+        const pa = projectToScreen(va, basis, focal);
+        const pb = projectToScreen(vb, basis, focal);
+        if (!pa || !pb) continue;          // never join across the horizon
+        ctx.beginPath();
+        ctx.moveTo(cx + pa.x, cy + pa.y);
+        ctx.lineTo(cx + pb.x, cy + pb.y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   // Stars.

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   deviceBasis, altAzToVector, vectorToAltAz, focalLength, projectToScreen,
   buildSkyVectors, starRadius, applyScreenAngle, smoothAngle, altitudeFromTilt,
+  galacticToEquatorial, milkyWayBrightness, buildMilkyWay,
 } from '../site/src/skyview.js';
 import { equatorialToHorizontal } from '../site/src/astro.js';
 
@@ -211,4 +212,72 @@ test('tilt maps a raise-only range onto the sky, not onto the ground', () => {
   assert.equal(altitudeFromTilt(120), 89);
   assert.equal(altitudeFromTilt(-30), 30, 'sign of the tilt does not matter');
   assert.equal(altitudeFromTilt(null), null);
+});
+
+// --- the Milky Way ----------------------------------------------------------
+
+test('galactic coordinates land on their known equatorial positions', () => {
+  // The two anchors the frame is built from, checked as output rather than
+  // assumed: getting this wrong draws the band across the wrong sky.
+  const centre = galacticToEquatorial(0, 0);
+  near(centre.ra, 266.405, 0.05, 'galactic centre RA (Sgr A*)');
+  near(centre.dec, -28.936, 0.05, 'galactic centre Dec');
+
+  const pole = galacticToEquatorial(0, 90);
+  near(pole.ra, 192.859, 0.05, 'galactic north pole RA');
+  near(pole.dec, 27.128, 0.05, 'galactic north pole Dec');
+
+  // The anticentre sits in Auriga/Taurus, opposite the centre.
+  const anti = galacticToEquatorial(180, 0);
+  near(anti.ra, 86.4, 0.5, 'anticentre RA');
+  near(anti.dec, 28.9, 0.5, 'anticentre Dec');
+});
+
+test('known stars land at their published galactic latitudes', () => {
+  // Stronger than "is it roughly on the plane": each of these has a catalogued
+  // galactic latitude, so the frame can be checked against real numbers. A
+  // rotation that is slightly off shows up here and nowhere else.
+  const offPlane = (raDeg, decDeg) => {
+    let best = 90;
+    for (let l = 0; l < 360; l += 0.25) {
+      const p = galacticToEquatorial(l, 0);
+      const d = Math.acos(Math.max(-1, Math.min(1,
+        Math.sin(p.dec * Math.PI / 180) * Math.sin(decDeg * Math.PI / 180)
+        + Math.cos(p.dec * Math.PI / 180) * Math.cos(decDeg * Math.PI / 180)
+          * Math.cos((p.ra - raDeg) * Math.PI / 180)))) * 180 / Math.PI;
+      if (d < best) best = d;
+    }
+    return best;
+  };
+  // [name, RA, Dec, published |galactic latitude|]
+  const cases = [
+    ['Deneb', 310.358, 45.280, 2.0],
+    ['Sadr', 305.557, 40.257, 2.2],
+    ['Gamma Sgr', 271.452, -30.424, 4.7],
+    ['Epsilon Sgr', 276.043, -34.385, 10.2],
+    ['Polaris', 37.95, 89.26, 26.5],
+  ];
+  for (const [name, ra, dec, want] of cases) {
+    near(offPlane(ra, dec), want, 0.6, `${name} galactic latitude`);
+  }
+});
+
+test('the band is brightest toward the centre and fades off the plane', () => {
+  assert.ok(milkyWayBrightness(0, 0) > milkyWayBrightness(180, 0),
+    'Sagittarius should outshine the anticentre');
+  assert.ok(milkyWayBrightness(0, 0) > milkyWayBrightness(0, 15),
+    'brightest on the plane itself');
+  assert.ok(milkyWayBrightness(0, 40) < 0.05, 'gone well off the plane');
+  for (const [l, b] of [[0, 0], [90, 5], [270, -10], [180, 0]]) {
+    const v = milkyWayBrightness(l, b);
+    assert.ok(v >= 0 && v <= 1, `brightness out of range at ${l}/${b}: ${v}`);
+  }
+});
+
+test('the band is built as patches with usable brightness', () => {
+  const band = buildMilkyWay(7.3, 42.5);
+  assert.ok(band.length > 200, `expected a band, got ${band.length} patches`);
+  assert.ok(band.every((p) => p.a >= 0.06 && p.a <= 1), 'brightness in range');
+  assert.ok(band.every((p) => Math.abs(Math.hypot(...p.v) - 1) < 1e-9),
+    'every patch is a unit direction');
 });
