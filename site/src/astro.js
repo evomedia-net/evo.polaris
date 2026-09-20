@@ -97,6 +97,53 @@ export function precessFromJ2000(raDeg, decDeg, jd, pmRaCosDec = 0, pmDec = 0) {
   };
 }
 
+/**
+ * The IAU-1976 precession from J2000 to a date, as a 3x3 rotation.
+ *
+ * WHY THIS EXISTS AS WELL AS precessFromJ2000(). That function is the
+ * validated one, and it is what the alignment path uses for Polaris. But the
+ * sky view has nine thousand stars, the chart has most of them again, and the
+ * Milky Way is three hundred patches -- all catalogued in J2000 and all placed
+ * against sidereal time OF DATE. Left unprecessed they sat 22 arcminutes from
+ * where the sky actually had them in 2026, growing fifty arcseconds a year,
+ * while the Moon (whose series is of date) sat where it should. Nothing on
+ * screen looked wrong, which is why it lasted.
+ *
+ * One matrix per tick, nine multiplications per star, and every J2000 object
+ * goes through exactly the rotation Polaris does. The test pins the two
+ * against each other to a nano-degree.
+ */
+export function precessionMatrix(jd) {
+  const t = julianCenturies(jd);
+  const zeta = (2306.2181 * t + 0.30188 * t * t + 0.017998 * t ** 3) / 3600 * DEG;
+  const z = (2306.2181 * t + 1.09468 * t * t + 0.018203 * t ** 3) / 3600 * DEG;
+  const theta = (2004.3109 * t - 0.42665 * t * t - 0.041833 * t ** 3) / 3600 * DEG;
+  const cZe = Math.cos(zeta), sZe = Math.sin(zeta);
+  const cZ = Math.cos(z), sZ = Math.sin(z);
+  const cT = Math.cos(theta), sT = Math.sin(theta);
+  // Rz(z) . Ry'(theta) . Rz(zeta), the same three steps precessFromJ2000
+  // takes, composed. Written as the product rather than a closed form so a
+  // sign cannot be mis-simplified; it is a one-off cost per tick.
+  const rz = (c, s) => [[c, -s, 0], [s, c, 0], [0, 0, 1]];
+  const ry = [[cT, 0, -sT], [0, 1, 0], [sT, 0, cT]];
+  const mul = (a, b) => a.map((row) =>
+    [0, 1, 2].map((j) => row[0] * b[0][j] + row[1] * b[1][j] + row[2] * b[2][j]));
+  return mul(mul(rz(cZ, sZ), ry), rz(cZe, sZe));
+}
+
+/** Rotate a J2000 equatorial direction to the equinox of date. */
+export function precessEquatorial(m, raDeg, decDeg) {
+  const r = raDeg * DEG, d = decDeg * DEG, c = Math.cos(d);
+  const v = [c * Math.cos(r), c * Math.sin(r), Math.sin(d)];
+  const x = m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2];
+  const y = m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2];
+  const zz = m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2];
+  return {
+    ra: ((Math.atan2(y, x) * RAD) % 360 + 360) % 360,
+    dec: Math.asin(Math.max(-1, Math.min(1, zz))) * RAD,
+  };
+}
+
 /** Equatorial to horizontal. Azimuth measured from true north, east positive. */
 export function equatorialToHorizontal(raDeg, decDeg, lstH, latDeg) {
   const ha = (lstH * 15 - raDeg) * DEG;
@@ -114,7 +161,12 @@ export function equatorialToHorizontal(raDeg, decDeg, lstH, latDeg) {
 }
 
 /**
- * Bennett's atmospheric refraction, in degrees, for a true altitude.
+ * Atmospheric refraction, in degrees, for a TRUE altitude: Saemundsson's
+ * formula (Meeus 16.4), which is the inverse form of Bennett's. Bennett's own
+ * coefficients (1, 7.31, 4.4) take the APPARENT altitude; these (1.02, 10.3,
+ * 5.11) take the true one, which is what the pole's altitude is. It was
+ * labelled Bennett for its whole life -- right maths, wrong name.
+ *
  * Refraction lifts everything near the horizon; at the altitudes a polar
  * scope works at it is small but not zero.
  */

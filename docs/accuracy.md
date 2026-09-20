@@ -78,6 +78,42 @@ The test bounds are deliberately loose (3°) and say why in a comment.
 **Cross-check against Stellarium before tightening them or before trusting the
 dial position to better than a few arcminutes.**
 
+## Reference frames — the bug an audit found
+
+Two Sun calculations, written by different methods in different modules,
+disagreed by **0.3676°**. General precession in longitude from J2000 to the
+date was 0.3733°. The methods agreed to 0.006°; the **frames** did not.
+
+Sidereal time is of date. The star catalogue, the planetary elements and the
+galactic frame are all J2000. Placing one against the other put every star,
+every planet and the whole Milky Way off from where the sky had them in 2026 —
+**22 arcminutes** near the equator and the ecliptic, where the planets and the
+Moon live, and about **9′** near the pole, where the pole itself moves by the
+smaller precession constant — growing every year. The Moon, whose series is of
+date, sat where it should. Polaris was on the dial at its true 37.5′ from the
+pole and in the sky view at its J2000 44.2′.
+
+(The first draft of the regression test expected 22′ *at the pole*, and failed.
+The pole moves by θ ≈ 20″/yr; a star on the equator by the full 50″/yr. The
+test was corrected, not the code — the sixth time in this project a failing
+test has been the test.)
+
+Nothing on screen looked wrong. Twenty-two arcminutes is three pixels at a 65°
+field, and every star was wrong by the same amount in the same direction. That
+is exactly the kind of error that survives: consistent, small, and invisible
+until something in a different frame — the Moon — is drawn beside it.
+
+**The fix is one rotation.** `precessionMatrix()` builds the IAU-1976
+precession as a 3×3 once per tick, and every J2000 object goes through it where
+it meets sidereal time: the stars, the planets, the Milky Way, and the
+circumpolar chart. The Moon is flagged `frame: 'date'` and left alone —
+precessing it with the rest would move it 22′ the *other* way, the mirror of
+the bug. The matrix is pinned against the validated `precessFromJ2000()` to a
+nano-degree, and a test now holds the two Suns together in one frame.
+
+The alignment numbers never had this problem — `poleStarReticle()` precessed
+Polaris from the start — which is why it went unnoticed for as long as it did.
+
 ## Two traps that produce correct-looking output
 
 Both are locked down by tests, because neither is visible by inspection.

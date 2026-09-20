@@ -2,7 +2,7 @@
 
 import {
   alignmentSolution, julianDay, lstHours, solarNoon, sunNow,
-  equatorialToHorizontal,
+  equatorialToHorizontal, precessionMatrix,
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
@@ -743,6 +743,7 @@ function render() {
   drawSkyChart(sc.getContext('2d'), {
     stars,
     lst: lstHours(julianDay(now), site.lon),
+    precess: precessionMatrix(julianDay(now)),
     radiusDeg: 50, night, size: sc.width,
     south: solution.hemisphere === 'south',
   });
@@ -966,10 +967,16 @@ boot();
 function refreshSkyVectors() {
   if (!site || !stars.length) return;
   const when = appTime();
-  const lst = lstHours(julianDay(when), site.lon);
-  skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5);
+  const jd = julianDay(when);
+  const lst = lstHours(jd, site.lon);
+  // Sidereal time is of date; the catalogue, the planets and the galactic
+  // frame are J2000. One matrix, computed here once per tick, is what puts
+  // them in the same sky. Only the alignment path did this before, which is
+  // why Polaris was right on the dial and 22 arcminutes off in the view.
+  const precess = precessionMatrix(jd);
+  skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5, precess);
   // Same slow tick as the stars: the band turns with the sky, not with you.
-  milkyWay = buildMilkyWay(lst, site.lat);
+  milkyWay = buildMilkyWay(lst, site.lat, 6, 3, 18, precess);
 
   // The planets and the Moon move against the stars, so they are rebuilt on
   // the same tick rather than cached alongside them. Both go through the same
@@ -982,8 +989,11 @@ function refreshSkyVectors() {
       illuminated: ph.illuminated,
       brightLimb: brightLimbAngle(ph, sunEquatorial(when)),
       isMoon: true,
+      // Its series is already of date. Precessing it with the planets would
+      // move it 22 arcminutes the wrong way -- the mirror of the bug.
+      frame: 'date',
     },
-  ], lst, site.lat);
+  ], lst, site.lat, precess);
   skyPlanetList = bodies.filter((b) => !b.isMoon);
   skyMoonBody = bodies.find((b) => b.isMoon) || null;
   $('planetsOut').textContent = describePlanets(skyPlanetList);

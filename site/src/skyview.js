@@ -21,6 +21,8 @@
 // actual basis and projecting onto it costs a dozen lines and has neither
 // problem.
 
+import { precessEquatorial } from './astro.js';
+
 const DEG = Math.PI / 180;
 
 /**
@@ -134,7 +136,13 @@ export function starColour(bv, night) {
  * a degree from where the star chart puts it, with nothing to say which was
  * lying.
  */
-export function equatorialToVector(raDeg, decDeg, lstHours, latDeg) {
+export function equatorialToVector(raDeg, decDeg, lstHours, latDeg, precess = null) {
+  // Sidereal time is of date, so the coordinates have to be too. Anything
+  // catalogued in J2000 -- the stars, the planets, the galactic frame -- comes
+  // through here with the precession matrix for the moment being drawn. The
+  // Moon does not: its series is already of date, and precessing it twice
+  // would move it 22 arcminutes the other way.
+  if (precess) ({ ra: raDeg, dec: decDeg } = precessEquatorial(precess, raDeg, decDeg));
   const lat = latDeg * DEG;
   const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
   const ha = (lstHours * 15 - raDeg) * DEG;
@@ -148,12 +156,12 @@ export function equatorialToVector(raDeg, decDeg, lstHours, latDeg) {
   return [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)];
 }
 
-export function buildSkyVectors(stars, lstHours, latDeg, limitMag = 5.5) {
+export function buildSkyVectors(stars, lstHours, latDeg, limitMag = 5.5, precess = null) {
   const out = [];
   for (const s of stars) {
     const [raDeg, decDeg, mag, bv, hr] = s;
     if (mag > limitMag) continue;
-    out.push({ v: equatorialToVector(raDeg, decDeg, lstHours, latDeg), mag, bv, hr });
+    out.push({ v: equatorialToVector(raDeg, decDeg, lstHours, latDeg, precess), mag, bv, hr });
   }
   return out;
 }
@@ -167,10 +175,12 @@ export function buildSkyVectors(stars, lstHours, latDeg, limitMag = 5.5) {
  * "off the edge of the view", it is on the other side of the planet, and an
  * arrow pointing helpfully at the ground is worse than silence.
  */
-export function buildBodies(bodies, lstHours, latDeg) {
+export function buildBodies(bodies, lstHours, latDeg, precess = null) {
   const out = [];
   for (const b of bodies) {
-    const v = equatorialToVector(b.ra, b.dec, lstHours, latDeg);
+    // A body that says it is already of date -- the Moon -- is left alone.
+    const p = b.frame === 'date' ? null : precess;
+    const v = equatorialToVector(b.ra, b.dec, lstHours, latDeg, p);
     const { alt, az } = vectorToAltAz(v);
     // Two neighbours a quarter-degree away, toward celestial north and
     // celestial east. Projecting those alongside the body itself gives the
@@ -183,9 +193,9 @@ export function buildBodies(bodies, lstHours, latDeg) {
     // backwards, and a mirrored crescent is wrong in a way people notice
     // instantly without being able to say why.
     const dec = Math.min(89.5, Math.max(-89.5, b.dec));
-    const vNorth = equatorialToVector(b.ra, dec + 0.25, lstHours, latDeg);
+    const vNorth = equatorialToVector(b.ra, dec + 0.25, lstHours, latDeg, p);
     const vEast = equatorialToVector(
-      b.ra + 0.25 / Math.cos(dec * DEG), dec, lstHours, latDeg);
+      b.ra + 0.25 / Math.cos(dec * DEG), dec, lstHours, latDeg, p);
     out.push({ ...b, v, alt, az, vNorth, vEast });
   }
   return out;
@@ -368,25 +378,19 @@ export function milkyWayBrightness(lDeg, bDeg) {
 }
 
 /** The band as horizontal-coordinate patches, ready to project. */
-export function buildMilkyWay(lstHours, latDeg, stepL = 6, stepB = 3, maxB = 18) {
+export function buildMilkyWay(lstHours, latDeg, stepL = 6, stepB = 3, maxB = 18,
+                              precess = null) {
   const out = [];
   for (let l = 0; l < 360; l += stepL) {
     for (let b = -maxB; b <= maxB; b += stepB) {
       const a = milkyWayBrightness(l, b);
       if (a < 0.06) continue;
+      // The galactic frame is defined in J2000, so the band is precessed like
+      // the stars it is drawn behind. This used to carry its own copy of the
+      // horizontal rotation -- a third one -- and now goes through the same
+      // function as everything else.
       const { ra, dec } = galacticToEquatorial(l, b);
-      const ha = (lstHours * 15 - ra) * DEG;
-      const d = dec * DEG, lat = latDeg * DEG;
-      const sinAlt = Math.sin(d) * Math.sin(lat)
-        + Math.cos(d) * Math.cos(lat) * Math.cos(ha);
-      const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
-      const az = Math.atan2(-Math.cos(d) * Math.cos(lat) * Math.sin(ha),
-                            Math.sin(d) - Math.sin(lat) * sinAlt);
-      const c = Math.cos(alt);
-      out.push({
-        v: [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)],
-        a, l, b,
-      });
+      out.push({ v: equatorialToVector(ra, dec, lstHours, latDeg, precess), a, l, b });
     }
   }
   return out;

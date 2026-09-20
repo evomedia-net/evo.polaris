@@ -4,7 +4,7 @@
 // exists as large text elsewhere on the page, and the canvases carry text
 // alternatives. Nobody should need to read a graphic to align a mount.
 
-import { projectAroundPole } from './astro.js';
+import { projectAroundPole, precessEquatorial } from './astro.js';
 
 // HR numbers verified against the shipped Bright Star Catalog, not memory.
 export const ASTERISMS = {
@@ -83,7 +83,7 @@ function starRadius(mag, scale) {
  */
 export function drawSkyChart(ctx, opts) {
   const { stars, lst, radiusDeg = 50, night = false,
-          size, showPointer = true, south = false } = opts;
+          size, showPointer = true, south = false, precess = null } = opts;
   // Sigma Octantis is magnitude 5.47, so a 5.2 cut-off would filter the south
   // pole star out of its own chart. The southern sky needs the fainter limit
   // for that one star; the northern chart does not and stays cleaner without.
@@ -100,7 +100,12 @@ export function drawSkyChart(ctx, opts) {
   ctx.fill();
 
   const place = (s) => {
-    const p = projectAroundPole(s[0], s[1], lst, radiusDeg, south);
+    // The catalogue is J2000 and the chart's centre is the pole OF DATE. Left
+    // unprecessed the whole field sat 22 arcminutes off it in 2026 -- and so
+    // did Polaris, drawn at its J2000 distance of 44' rather than its real 38'.
+    const { ra, dec } = precess ? precessEquatorial(precess, s[0], s[1])
+                                : { ra: s[0], dec: s[1] };
+    const p = projectAroundPole(ra, dec, lst, radiusDeg, south);
     return p && { x: cx + p.x * R, y: cy + p.y * R };
   };
 
