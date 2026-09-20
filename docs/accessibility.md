@@ -60,6 +60,44 @@ the build on a state label, a question mark, or an opening word that is not on
 the list of verbs the app uses. A new button cannot quietly introduce a sixth
 convention.
 
+## Two jobs, two panes
+
+The app started as a one-shot alignment tool: five numbered cards, top to
+bottom, done once at the start of a night. It is no longer only that. The live
+sky view, the constellation figures, the Milky Way band, the ISS and the Moon
+are all things people come back to all evening, and none of them is a step in
+a procedure.
+
+Stacked in one scroll, the sky view was four cards down. Nobody scrolls past a
+polar-scope reticle to find the Big Dipper.
+
+So there is a picker at the top with two sides:
+
+- **Tonight's sky** — the live view, the constellation and Milky Way toggles,
+  the field-of-view buttons, the ISS, and the Moon.
+- **Align my mount** — which way true north is, every number the mount asks
+  for, the reticle, and the star-hop chart, still numbered 1–2–3.
+
+**Where you are sits above both**, because it is a prerequisite for each and a
+step in neither. Once answered it collapses to one line — `30.06° N, 95.21° W`
+— with the full card one press behind *Change*. A first visit is now a single
+question and two buttons.
+
+**The picker is a tablist, not a pair of action buttons.** `role="tab"` with
+`aria-selected`, left/right arrow keys scoped to the picker so they cannot
+collide with the arrow keys that pan the sky view, and the chosen pane takes
+focus. The labels name the two jobs rather than an action, which is the same
+exception the hemisphere picker takes: in a segmented picker the label *is* the
+value.
+
+**One crossing between them.** Finding the pole is an alignment step, but the
+live view is the best tool for it, so step 3 carries *Show me in the live sky
+view*, which switches sides and aims at the pole. Nobody has to already know
+the view is over there.
+
+**Which side you were last on is remembered**, so the app opens where you left
+it rather than where its author thought you should start.
+
 ## Seeing it
 
 - **Text scales 0.8×–1.8×** from two permanent buttons in the header, and the
@@ -245,6 +283,18 @@ Three smaller choices follow from the same rule:
   someone to work out which is which is the failure mode.
 - **Everything it shows still exists elsewhere** — as numbers, as the arrows,
   and as the circumpolar chart. None of those changed.
+
+**The pad shows itself exactly when it is the only way to drive.** It is five
+full-width buttons — most of a phone screen — and while the phone itself is
+steering they do nothing. So it is closed when the view is following an
+orientation sensor, and open when there is nothing to follow: every desktop,
+and any phone that declines the permission. That is not a default anyone has to
+discover, it is the state that matches the device. *Move the view by hand*
+opens it anyway, and that choice outranks the guess from then on.
+
+**There is no longer a button to open the sky view**, because the view *is* the
+Tonight's sky pane. A press whose only job was to reveal the thing you had just
+navigated to was ceremony in front of the feature people come for.
 
 ### Constellations and the Milky Way
 

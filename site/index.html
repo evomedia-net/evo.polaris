@@ -46,9 +46,30 @@
 
 <main>
 
-  <!-- 1 ---------------------------------------------------------------- -->
-  <section class="card" aria-labelledby="h-where">
-    <h2 id="h-where"><span class="step">1</span> Where you are</h2>
+  <!-- Where you are, in one line, once it is known. It is a prerequisite for
+       both jobs below, so it sits above the pickers rather than inside one of
+       them, and collapses to a summary the moment it is answered. -->
+  <div class="place" id="placeBar" hidden>
+    <span class="place-where" id="placeWhere">—</span>
+    <button id="placeChange" class="place-btn"
+            aria-label="Change where I am">Change</button>
+  </div>
+
+  <!-- The two jobs. Aligning a mount happens once, at the start of a night,
+       and is a numbered procedure. Looking at the sky happens all evening and
+       is not a procedure at all. Stacking them in one scroll put the sky view
+       four cards down, which is a long way to go to find the Big Dipper. -->
+  <div class="modes" id="modePicker" role="tablist"
+       aria-label="What you are doing" hidden>
+    <button type="button" id="modeSkyBtn" class="mode-btn" role="tab"
+            aria-selected="true" aria-controls="paneSky">Tonight’s sky</button>
+    <button type="button" id="modeAlignBtn" class="mode-btn" role="tab"
+            aria-selected="false" aria-controls="paneAlign" tabindex="-1">Align my mount</button>
+  </div>
+
+  <!-- Where you are ----------------------------------------------------- -->
+  <section class="card" id="placeCard" aria-labelledby="h-where">
+    <h2 id="h-where">Where you are</h2>
 
     <button id="locateBtn" class="big-btn primary">Use my location</button>
     <p id="locateStatus" class="status" role="status" aria-live="polite">
@@ -92,142 +113,170 @@
     </div>
   </section>
 
-  <!-- 2 ---------------------------------------------------------------- -->
-  <section class="card" id="northCard" aria-labelledby="h-north" hidden>
-    <h2 id="h-north"><span class="step">2</span> Which way is <span id="poleWord2">true north</span>?</h2>
+  <!-- ===================================================================
+       TONIGHT'S SKY
+       =================================================================== -->
+  <div id="paneSky" role="tabpanel" aria-labelledby="modeSkyBtn" tabindex="-1" hidden>
 
-    <p class="status" id="northIntro">Your mount points at <strong>true</strong>
-      north, not magnetic north. Any one of these gets you there — and the first
-      two need no instrument at all.</p>
+    <section class="card" aria-labelledby="h-sky">
+      <h2 id="h-sky">Tonight’s sky</h2>
 
-    <div class="figure">
-      <div class="fig-label">At night — easiest, and exact</div>
-      <div class="fig-value small" id="poleStarClaim">Polaris <em>is</em> true north</div>
-      <div class="fig-note" id="outNorthStar">—</div>
-    </div>
-
-    <div class="figure">
-      <div class="fig-label">In daylight — a shadow, no instrument</div>
-      <div class="fig-value small" id="outSolarNoon">—</div>
-      <div class="fig-note" id="outSunNow">—</div>
-    </div>
-
-    <div class="figure">
-      <div class="fig-label">With a magnetic compass</div>
-      <div class="fig-value small" id="outCompass">—</div>
-      <div class="fig-note" id="outDeclination">—</div>
-    </div>
-  </section>
-
-  <!-- 3 ---------------------------------------------------------------- -->
-  <section class="card" id="settingsCard" aria-labelledby="h-set" hidden>
-    <h2 id="h-set"><span class="step">3</span> Set your tracker</h2>
-
-    <div class="figure big-figure">
-      <div class="fig-label">Latitude / altitude knob</div>
-      <div class="fig-value" id="outLatKnob">—</div>
-      <div class="fig-spelled" id="outLatWords">—</div>
-      <div class="fig-note">Set the mount's latitude scale to this.</div>
-    </div>
-
-    <div class="figure big-figure accent">
-      <div class="fig-label" id="dialLabel">Put Polaris here in the polar scope</div>
-      <div class="fig-value" id="outDial">—</div>
-      <div class="fig-note" id="outRadius">—</div>
-    </div>
-
-    <figure class="canvas-wrap">
-      <canvas id="reticle" width="420" height="420"
-              role="img" aria-labelledby="reticleDesc"></canvas>
-      <figcaption id="reticleDesc" class="visually-hidden">
-        Polar scope reticle with Polaris marked.
-      </figcaption>
-    </figure>
-
-    <h3 class="sub">Everything to dial in</h3>
-    <dl class="readout settings" id="mountSettings">
-      <div><dt>Altitude axis</dt><dd id="setAlt">—</dd></div>
-      <div><dt>Azimuth axis</dt><dd id="setAz">—</dd></div>
-      <div><dt>Azimuth on a compass</dt><dd id="setAzMag">—</dd></div>
-      <div><dt>Latitude</dt><dd id="setLat">—</dd></div>
-      <div><dt>Longitude</dt><dd id="setLon">—</dd></div>
-      <div><dt>Elevation</dt><dd id="setElev">—</dd></div>
-      <div><dt>UTC offset</dt><dd id="setUtc">—</dd></div>
-      <div><dt>Local sidereal time</dt><dd id="setLst">—</dd></div>
-    </dl>
-    <p class="hint" id="settingsNote"></p>
-
-    <h3 class="sub">The order to do it in</h3>
-    <ol class="steps" id="procedure"></ol>
-
-    <p class="status" id="timeNote" aria-live="polite"></p>
-    <button id="speakBtn" class="big-btn" aria-describedby="spokenText">Read these out loud</button>
-    <p class="hint" id="speakNote"></p>
-    <p class="spoken" id="spokenText"></p>
-  </section>
-
-  <!-- 4 ---------------------------------------------------------------- -->
-  <section class="card" id="findCard" aria-labelledby="h-find" hidden>
-    <h2 id="h-find"><span class="step">4</span> Find <span id="poleWord4">Polaris</span> in the sky</h2>
-
-    <div class="guide" id="guideBox" role="status" aria-live="polite">
-      <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>
-      <div>
-        <div class="guide-text" id="guideText">
-          Turn on the compass for live directions, or use the chart below.
-        </div>
-        <div class="guide-tilt" id="guideTilt"></div>
-      </div>
-    </div>
-    <button id="compassBtn" class="big-btn primary">Turn on the compass</button>
-
-    <div id="liveSkyWrap" class="live-sky" hidden>
-      <canvas id="liveSky" width="720" height="480"
-              role="img" aria-labelledby="liveSkyDesc"></canvas>
-      <p class="caption" id="liveSkyDesc">
-        A live window on the sky. Hold the phone up and move it around; the
-        stars sit where they really are, and the ringed marker is the pole.
-      </p>
+      <figure class="live-sky">
+        <canvas id="liveSky" width="720" height="480"
+                role="img" aria-labelledby="liveSkyDesc"></canvas>
+        <figcaption class="caption" id="liveSkyDesc">
+          A live window on the sky. Hold the phone up and move it around; the
+          stars sit where they really are, and the ringed marker is the pole.
+        </figcaption>
+      </figure>
       <p class="hint" id="skyMode"></p>
-      <div class="sky-pad">
-        <button id="skyUp" class="big-btn pad-up">Look up</button>
-        <button id="skyLeft" class="big-btn pad-left">Look left</button>
-        <button id="skyPole" class="big-btn pad-mid">Find the pole</button>
-        <button id="skyRight" class="big-btn pad-right">Look right</button>
-        <button id="skyDown" class="big-btn pad-down">Look down</button>
-      </div>
+
       <div class="sky-controls">
         <button id="skyWider" class="big-btn">Show more sky</button>
         <button id="skyNarrower" class="big-btn">Show less sky</button>
         <button id="skyConst" class="big-btn">Hide the constellations</button>
         <button id="skyMilky" class="big-btn">Hide the Milky Way</button>
       </div>
+
       <button id="skyFollow" class="big-btn ghost">Follow the phone instead</button>
+
+      <!-- The pad is hidden while the phone is doing the steering, because it
+           is five full-width buttons of screen doing nothing. It opens itself
+           the moment there is no sensor to follow -- every desktop, and any
+           phone that declines the permission -- since then it is the only way
+           to move the view at all. -->
+      <button id="padToggle" class="big-btn ghost">Move the view by hand</button>
+      <div class="sky-pad" id="skyPad" hidden>
+        <button id="skyUp" class="big-btn pad-up">Look up</button>
+        <button id="skyLeft" class="big-btn pad-left">Look left</button>
+        <button id="skyPole" class="big-btn pad-mid">Find the pole</button>
+        <button id="skyRight" class="big-btn pad-right">Look right</button>
+        <button id="skyDown" class="big-btn pad-down">Look down</button>
+      </div>
+
       <button id="issBtn" class="big-btn ghost">Find the ISS</button>
       <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is.
         It is the one thing here that needs the network — everything else works
         with the radio off.</p>
       <p class="hint" id="skyDiag"></p>
-    </div>
-    <button id="liveSkyBtn" class="big-btn">Show the live sky view</button>
+    </section>
 
-    <figure class="canvas-wrap">
-      <canvas id="sky" width="420" height="420"
-              role="img" aria-labelledby="skyDesc"></canvas>
-      <figcaption id="skyDesc" class="caption">
-        The sky around the pole right now, with the star-hop drawn on it.
-      </figcaption>
-    </figure>
+    <section class="card" aria-labelledby="h-moon">
+      <h2 id="h-moon">The Moon tonight</h2>
+      <div class="moon-row">
+        <canvas id="moonDisc" width="120" height="120" role="img"
+                aria-labelledby="moonText"></canvas>
+        <p class="status" id="moonText">—</p>
+      </div>
+    </section>
+  </div>
 
-    <p class="status" id="starhopText"></p>
+  <!-- ===================================================================
+       ALIGN MY MOUNT
+       =================================================================== -->
+  <div id="paneAlign" role="tabpanel" aria-labelledby="modeAlignBtn" tabindex="-1" hidden>
 
-    <h3 class="sub">The Moon tonight</h3>
-    <div class="moon-row">
-      <canvas id="moonDisc" width="120" height="120" role="img"
-              aria-labelledby="moonText"></canvas>
-      <p class="status" id="moonText">—</p>
-    </div>
-  </section>
+    <!-- 1 ---------------------------------------------------------------- -->
+    <section class="card" id="northCard" aria-labelledby="h-north">
+      <h2 id="h-north"><span class="step">1</span> Which way is <span id="poleWord2">true north</span>?</h2>
+
+      <p class="status" id="northIntro">Your mount points at <strong>true</strong>
+        north, not magnetic north. Any one of these gets you there — and the first
+        two need no instrument at all.</p>
+
+      <div class="figure">
+        <div class="fig-label">At night — easiest, and exact</div>
+        <div class="fig-value small" id="poleStarClaim">Polaris <em>is</em> true north</div>
+        <div class="fig-note" id="outNorthStar">—</div>
+      </div>
+
+      <div class="figure">
+        <div class="fig-label">In daylight — a shadow, no instrument</div>
+        <div class="fig-value small" id="outSolarNoon">—</div>
+        <div class="fig-note" id="outSunNow">—</div>
+      </div>
+
+      <div class="figure">
+        <div class="fig-label">With a magnetic compass</div>
+        <div class="fig-value small" id="outCompass">—</div>
+        <div class="fig-note" id="outDeclination">—</div>
+      </div>
+    </section>
+
+    <!-- 2 ---------------------------------------------------------------- -->
+    <section class="card" id="settingsCard" aria-labelledby="h-set">
+      <h2 id="h-set"><span class="step">2</span> Set your tracker</h2>
+
+      <div class="figure big-figure">
+        <div class="fig-label">Latitude / altitude knob</div>
+        <div class="fig-value" id="outLatKnob">—</div>
+        <div class="fig-spelled" id="outLatWords">—</div>
+        <div class="fig-note">Set the mount's latitude scale to this.</div>
+      </div>
+
+      <div class="figure big-figure accent">
+        <div class="fig-label" id="dialLabel">Put Polaris here in the polar scope</div>
+        <div class="fig-value" id="outDial">—</div>
+        <div class="fig-note" id="outRadius">—</div>
+      </div>
+
+      <figure class="canvas-wrap">
+        <canvas id="reticle" width="420" height="420"
+                role="img" aria-labelledby="reticleDesc"></canvas>
+        <figcaption id="reticleDesc" class="visually-hidden">
+          Polar scope reticle with Polaris marked.
+        </figcaption>
+      </figure>
+
+      <h3 class="sub">Everything to dial in</h3>
+      <dl class="readout settings" id="mountSettings">
+        <div><dt>Altitude axis</dt><dd id="setAlt">—</dd></div>
+        <div><dt>Azimuth axis</dt><dd id="setAz">—</dd></div>
+        <div><dt>Azimuth on a compass</dt><dd id="setAzMag">—</dd></div>
+        <div><dt>Latitude</dt><dd id="setLat">—</dd></div>
+        <div><dt>Longitude</dt><dd id="setLon">—</dd></div>
+        <div><dt>Elevation</dt><dd id="setElev">—</dd></div>
+        <div><dt>UTC offset</dt><dd id="setUtc">—</dd></div>
+        <div><dt>Local sidereal time</dt><dd id="setLst">—</dd></div>
+      </dl>
+      <p class="hint" id="settingsNote"></p>
+
+      <h3 class="sub">The order to do it in</h3>
+      <ol class="steps" id="procedure"></ol>
+
+      <p class="status" id="timeNote" aria-live="polite"></p>
+      <button id="speakBtn" class="big-btn" aria-describedby="spokenText">Read these out loud</button>
+      <p class="hint" id="speakNote"></p>
+      <p class="spoken" id="spokenText"></p>
+    </section>
+
+    <!-- 3 ---------------------------------------------------------------- -->
+    <section class="card" id="findCard" aria-labelledby="h-find">
+      <h2 id="h-find"><span class="step">3</span> Find <span id="poleWord4">Polaris</span> in the sky</h2>
+
+      <div class="guide" id="guideBox" role="status" aria-live="polite">
+        <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>
+        <div>
+          <div class="guide-text" id="guideText">
+            Turn on the compass for live directions, or use the chart below.
+          </div>
+          <div class="guide-tilt" id="guideTilt"></div>
+        </div>
+      </div>
+      <button id="compassBtn" class="big-btn primary">Turn on the compass</button>
+      <button id="skyJump" class="big-btn ghost">Show me in the live sky view</button>
+
+      <figure class="canvas-wrap">
+        <canvas id="sky" width="420" height="420"
+                role="img" aria-labelledby="skyDesc"></canvas>
+        <figcaption id="skyDesc" class="caption">
+          The sky around the pole right now, with the star-hop drawn on it.
+        </figcaption>
+      </figure>
+
+      <p class="status" id="starhopText"></p>
+    </section>
+  </div>
 
   <footer class="foot">
     <p>Free and open source, for astronomers who can't crouch behind an eyepiece.</p>

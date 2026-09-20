@@ -55,6 +55,15 @@ html[data-night='on'] {
 
 * { box-sizing: border-box; }
 
+/* The `hidden` attribute is `display: none` in the browser's own stylesheet,
+ * and ANY author rule that sets `display` beats it -- same specificity, and an
+ * author sheet wins a tie against the UA sheet. Three panels here were marked
+ * hidden and shown anyway for their whole life: the hand-entry form (whose
+ * toggle button therefore appeared to do nothing), the coordinate readout, and
+ * the new place bar and mode picker. Stated once, loudly, rather than
+ * remembered at every new `display: grid`. */
+[hidden] { display: none !important; }
+
 html {
   font-size: calc(17px * var(--scale));
   -webkit-text-size-adjust: 100%;
@@ -294,6 +303,83 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
 
 main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
 
+/* Where you are, once it is known.
+ *
+ * It is a prerequisite for BOTH jobs rather than a step in either, so it sits
+ * above the picker as one line instead of leading a numbered procedure. The
+ * full card is still one press away and still the same card. */
+.place {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  margin: 0.9rem 0 0;
+  padding: 0.4rem 0.4rem 0.4rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+}
+.place-where { font-weight: 650; font-size: 1rem; white-space: nowrap; }
+.place-btn {
+  min-height: var(--tap);
+  padding: 0 0.8rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 2px solid var(--line);
+  border-radius: 0.8rem;
+  cursor: pointer;
+}
+.place-btn:hover { color: var(--ink); }
+
+/* The two jobs. Same shape as the hemisphere picker, because it is the same
+ * kind of control: a segmented choice where one side is always live, and the
+ * label is the value rather than an action. */
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0;
+}
+.mode-btn {
+  min-height: var(--tap);
+  padding: 0.7rem 0.5rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 2px solid var(--line);
+  border-radius: 0.85rem;
+  cursor: pointer;
+}
+.mode-btn[aria-selected='true'] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* Night mode fills nothing, so the live side is said with weight and ink. */
+html[data-night='on'] .mode-btn {
+  background: transparent;
+  color: var(--ink-dim);
+  border-color: var(--line);
+}
+html[data-night='on'] .mode-btn[aria-selected='true'] {
+  color: var(--ink);
+  border-color: var(--ink);
+  border-width: 3px;
+}
+/* The panes take focus when a tab is chosen, so the ring has to be visible. */
+#paneSky:focus-visible, #paneAlign:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 1rem;
+}
+
 .card {
   margin: 1rem 0;
   padding: 1rem;
@@ -305,7 +391,11 @@ main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
 .card h2 {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  /* No gap. A flex container makes an anonymous item of every run of text, so
+     a gap here fell between the words too -- "Which way is | true north | ?"
+     read as three separate things with air around the punctuation. The space
+     belongs to the step circle alone. */
+  flex-wrap: wrap;
   margin: 0 0 0.9rem;
   font-size: 1.15rem;
   font-weight: 650;
@@ -314,6 +404,7 @@ main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
 .step {
   display: grid;
   place-items: center;
+  margin-right: 0.6rem;
   width: 1.9rem;
   height: 1.9rem;
   flex: 0 0 auto;
@@ -490,8 +581,15 @@ html[data-night='on'] .live-sky canvas { background: #000; }
 .pad-down { grid-area: down; }
 .sky-pad .big-btn { margin: 0; }
 
+/* Two to a row, so the padding has to come in a little -- at the full 1.05rem
+   "Show more sky" wrapped while "Show less sky" did not, which reads as a
+   layout accident rather than a pair. */
 .sky-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.sky-controls .big-btn { margin: 0.4rem 0 0; }
+.sky-controls .big-btn {
+  margin: 0.4rem 0 0;
+  padding: 0.85rem 0.5rem;
+  font-size: 1rem;
+}
 
 /* The Moon: a drawn disc beside the sentence. The picture is the fastest way
    to read a phase, and the sentence is the one that survives a screen reader

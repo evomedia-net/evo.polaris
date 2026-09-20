@@ -71,6 +71,23 @@ let sawSensor = false;
 let sensorInfo = { event: null, absolute: null, screen: 0 };
 let lastOnTarget = false;
 
+// --- which of the two jobs is on screen -------------------------------------
+//
+// This app does two things now. Aligning a mount is a numbered procedure done
+// once, at the start of a night. Looking at the sky is not a procedure at all
+// and happens all evening. They used to be one long scroll with the sky view
+// four cards down, which is a long way to go to find the Big Dipper.
+let mode = store.get('mode', 'sky');
+
+// null means "work it out from whether the phone is steering"; true or false
+// is a choice someone made, and a choice outranks the guess.
+let padOpen = store.get('padOpen', null);
+
+// Whether the compass is on because someone asked for it on the Align side,
+// as opposed to the sky view switching it on to follow the phone. It decides
+// who is allowed to switch it off again.
+let compassByUser = false;
+
 // --- appearance -------------------------------------------------------------
 
 let scale = store.get('scale', 1);
@@ -118,20 +135,109 @@ $('nightToggle').onclick = () => {
 
 // --- location ---------------------------------------------------------------
 
+/** The one-line summary that replaces the card once the question is answered. */
+function placeSummary() {
+  // Latitude and longitude only. Altitude is in the card -- it earns its place
+  // there and not here, because it moves the magnetic declination by under
+  // 0.01 degrees even at 3000 m, and spelling it out on this line pushed the
+  // button onto a second row.
+  const la = `${Math.abs(site.lat).toFixed(2)}° ${site.lat >= 0 ? 'N' : 'S'}`;
+  const lo = `${Math.abs(site.lon).toFixed(2)}° ${site.lon >= 0 ? 'E' : 'W'}`;
+  return `${la}, ${lo}`;
+}
+
 function setSite(next, note) {
   site = next;
   store.set('site', site);
-  $('northCard').hidden = false;
   $('siteReadout').hidden = false;
   $('outLat').textContent = `${site.lat.toFixed(4)}° ${site.lat >= 0 ? 'N' : 'S'}`;
   $('outLon').textContent = `${site.lon.toFixed(4)}° ${site.lon >= 0 ? 'E' : 'W'}`;
   $('outAlt').textContent = Number.isFinite(site.altitude)
     ? `${Math.round(site.altitude)} m` : 'not supplied';
   $('locateStatus').textContent = note;
-  $('settingsCard').hidden = false;
-  $('findCard').hidden = false;
-  render();
+
+  // Position is a prerequisite for BOTH jobs, so it lives above the picker
+  // rather than inside one of them -- and answering it collapses the card to a
+  // single line and hands the screen back to the work.
+  $('placeWhere').textContent = placeSummary();
+  $('placeBar').hidden = false;
+  $('placeCard').hidden = true;
+  setPlaceChangeLabel(false);
+  $('modePicker').hidden = false;
+
+  render();                 // solution first: the sky view cannot draw without it
+  applyMode();
 }
+
+/**
+ * The visible word is short because it shares a single row with the
+ * coordinates on a phone, and "Change where I am" pushed it onto a second row.
+ * The accessible name carries the whole phrase, so what a screen reader
+ * announces is the full label and not the abbreviation.
+ */
+function setPlaceChangeLabel(open) {
+  const btn = $('placeChange');
+  btn.textContent = open ? 'Hide' : 'Change';
+  btn.setAttribute('aria-label',
+    open ? 'Hide the position boxes' : 'Change where I am');
+}
+
+$('placeChange').onclick = () => {
+  const opening = $('placeCard').hidden;
+  $('placeCard').hidden = !opening;
+  setPlaceChangeLabel(opening);
+};
+
+// --- the two modes -----------------------------------------------------------
+
+function applyMode() {
+  const sky = mode === 'sky';
+  $('modeSkyBtn').setAttribute('aria-selected', String(sky));
+  $('modeAlignBtn').setAttribute('aria-selected', String(!sky));
+  $('modeSkyBtn').tabIndex = sky ? 0 : -1;
+  $('modeAlignBtn').tabIndex = sky ? -1 : 0;
+  $('paneSky').hidden = !sky;
+  $('paneAlign').hidden = sky;
+
+  skyOn = sky;
+  if (sky) {
+    refreshSkyVectors();
+    aimAtPole();
+    // Following needs the orientation listener, so asking for it is part of
+    // opening the view rather than a second thing to discover.
+    if (skyFollow && !compassOn) startCompass();
+    updateSkyMode();
+    drawLiveSky();
+  } else if (compassOn && !compassByUser) {
+    // The sky view turned it on and the sky view has gone; a sensor nobody is
+    // reading is just battery. Leaving the pane is not a change of preference,
+    // though, so the follow setting survives being stopped.
+    const wanted = skyFollow;
+    stopCompass();
+    skyFollow = wanted;
+  }
+}
+
+function setMode(next) {
+  if (mode !== next) {
+    mode = next;
+    store.set('mode', mode);
+    applyMode();
+  }
+  $(mode === 'sky' ? 'modeSkyBtn' : 'modeAlignBtn').focus();
+}
+
+$('modeSkyBtn').onclick = () => setMode('sky');
+$('modeAlignBtn').onclick = () => setMode('align');
+
+// Left/right between the two tabs, which is what a tablist is expected to do.
+// Scoped to the picker so it cannot collide with the arrow keys that pan the
+// sky view.
+$('modePicker').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  e.preventDefault();
+  setMode(mode === 'sky' ? 'align' : 'sky');
+});
 
 $('locateBtn').onclick = () => {
   if (!navigator.geolocation) {
@@ -364,10 +470,10 @@ function render() {
       + `${solution.radiusArcmin.toFixed(0)}′ from the pole but is only magnitude 5.5 — `
       + 'below naked-eye visibility except under dark skies, and hard work even in '
       + 'a polar scope. Use the sky instead: run the long axis of the Southern '
-      + 'Cross about 4.5 times its own length. The chart in step 4 draws it.'
+      + 'Cross about 4.5 times its own length. The chart in step 3 draws it.'
     : `Polaris is only ${solution.radiusArcmin.toFixed(0)}′ `
       + `(${(solution.radiusArcmin / 60).toFixed(2)}°) from the true pole, so aiming `
-      + 'at it is aiming true north. Use the chart in step 4 to find it — '
+      + 'at it is aiming true north. Use the chart in step 3 to find it — '
       + 'no compass, no declination, nothing to correct.';
 
   const noon = solarNoon(now, site.lon);
@@ -575,7 +681,11 @@ async function startCompass() {
 // on there was no way to stop it draining the battery or to fall back to the
 // buttons when the reading was obviously wrong.
 $('compassBtn').onclick = () => {
-  if (compassOn) stopCompass(); else startCompass();
+  // Pressing THIS button is a standing request: it survives switching panes,
+  // and only this button can withdraw it. The sky view's own follow toggle
+  // borrows the compass and is not allowed to stop one someone else asked for.
+  if (compassOn) { compassByUser = false; stopCompass(); }
+  else { compassByUser = true; startCompass(); }
 };
 
 function onOrientation(e) {
@@ -752,6 +862,16 @@ function updateSkyMode() {
       + 'Use the buttons or the arrow keys — nothing needs to be held up.';
   $('skyFollow').textContent = following
     ? 'Stop following the phone' : 'Follow the phone instead';
+
+  // The pad is five full-width buttons -- most of a phone screen. While the
+  // phone itself is steering they do nothing, so they are not on screen. The
+  // moment there is no sensor to follow they are the ONLY way to move the view
+  // -- every desktop, and any phone that declines the permission -- so they
+  // open themselves rather than waiting to be found.
+  const padVisible = padOpen === null ? !following : padOpen;
+  $('skyPad').hidden = !padVisible;
+  $('padToggle').textContent = padVisible
+    ? 'Hide the hand controls' : 'Move the view by hand';
   for (const id of ['skyUp', 'skyDown', 'skyLeft', 'skyRight']) {
     $(id).disabled = following;
   }
@@ -810,9 +930,24 @@ $('skyRight').onclick = () => pan(STEP, 0);
 $('skyPole').onclick = () => { skyFollow = false; aimAtPole(); updateSkyMode(); drawLiveSky(); };
 $('skyFollow').onclick = () => {
   skyFollow = !skyFollow;
-  if (skyFollow && !compassOn) $('compassBtn').click();
+  if (skyFollow) {
+    if (!compassOn) startCompass();
+  } else if (compassOn && !compassByUser) {
+    // In this pane, following IS the compass, so turning it off here has to
+    // actually stop the sensor -- otherwise the off switch switches nothing
+    // off. It leaves alone a compass the Align side asked for.
+    stopCompass();
+  }
   updateSkyMode();
   drawLiveSky();
+};
+
+$('padToggle').onclick = () => {
+  const following = skyFollow && rawAlpha !== null;
+  const visible = padOpen === null ? !following : padOpen;
+  padOpen = !visible;
+  store.set('padOpen', padOpen);
+  updateSkyMode();
 };
 
 // Arrow keys, one key at a time, no modifiers. Same reasoning as the buttons.
@@ -820,6 +955,8 @@ window.addEventListener('keydown', (e) => {
   if (!skyOn || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea') return;
+  // The mode picker is a tablist and owns left/right for itself.
+  if (e.target.getAttribute && e.target.getAttribute('role') === 'tab') return;
   const moves = {
     ArrowUp: [0, STEP], ArrowDown: [0, -STEP],
     ArrowLeft: [-STEP, 0], ArrowRight: [STEP, 0],
@@ -827,23 +964,10 @@ window.addEventListener('keydown', (e) => {
   if (moves[e.key]) { e.preventDefault(); pan(...moves[e.key]); }
 });
 
-$('liveSkyBtn').onclick = () => {
-  skyOn = !skyOn;
-  $('liveSkyWrap').hidden = !skyOn;
-  $('liveSkyBtn').textContent = skyOn
-    ? 'Hide the live sky view' : 'Show the live sky view';
-  if (!skyOn) return;
-  refreshSkyVectors();
-  // Aim at the pole regardless: it is what the app is about, and it is what
-  // the view falls back to the moment anyone presses a pad button or the
-  // device turns out to have no sensors.
-  aimAtPole();
-  // Following needs the orientation listener, so asking for it is part of
-  // opening the view rather than a second thing to discover.
-  if (!compassOn) $('compassBtn').click();
-  updateSkyMode();
-  drawLiveSky();
-};
+// The live sky view no longer has its own show/hide button: it IS the
+// Tonight's sky pane, and applyMode() opens and closes it. A button whose only
+// job was to reveal the thing you had just navigated to was one press of
+// ceremony in front of the feature people come for.
 
 // Zoom by button. Pinching is a two-finger gesture and this app uses none.
 // The one networked feature, so it is a button rather than something that
@@ -882,6 +1006,18 @@ $('skyMilky').onclick = () => {
   skyMilkyWay = !skyMilkyWay;
   $('skyMilky').textContent = skyMilkyWay
     ? 'Hide the Milky Way' : 'Show the Milky Way';
+  drawLiveSky();
+};
+
+// The one crossing between the two panes. Finding the pole is an alignment
+// step, but the live view is the best tool for it, so the alignment side can
+// send you there rather than making you know it is over the other side.
+$('skyJump').onclick = () => {
+  setMode('sky');
+  // If the phone is steering, aiming would be overwritten on the next frame;
+  // the target arrow at the edge of the view is what guides you there instead.
+  if (!(skyFollow && rawAlpha !== null)) aimAtPole();
+  updateSkyMode();
   drawLiveSky();
 };
 

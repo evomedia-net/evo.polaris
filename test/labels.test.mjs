@@ -31,8 +31,15 @@ const root = new URL('../site/', import.meta.url);
 const html = readFileSync(fileURLToPath(new URL('index.html', root)), 'utf8');
 const appJs = readFileSync(fileURLToPath(new URL('src/app.js', root)), 'utf8');
 
-/** Value pickers: the label IS the value, and aria-pressed carries the state. */
-const VALUE_PICKERS = new Set(['latN', 'latS', 'lonE', 'lonW']);
+/**
+ * Value pickers: the label IS the value, and the selection is carried by
+ * aria-pressed (hemispheres) or aria-selected (the two modes) rather than by
+ * the words. The mode picker names the two jobs this app does, which is what a
+ * picker is for; it is not a pair of actions.
+ */
+const VALUE_PICKERS = new Set([
+  'latN', 'latS', 'lonE', 'lonW', 'modeSkyBtn', 'modeAlignBtn',
+]);
 
 /** Glyph buttons. Their words live in aria-label, which is checked instead. */
 const GLYPH_BUTTONS = new Set(['textSmaller', 'textBigger']);
@@ -44,7 +51,7 @@ const GLYPH_BUTTONS = new Set(['textSmaller', 'textBigger']);
  */
 const VERBS = new Set([
   'use', 'turn', 'show', 'hide', 'enter', 'look', 'find', 'read', 'follow',
-  'stop', 'make', 'switch',
+  'stop', 'make', 'switch', 'change', 'move',
 ]);
 
 /** Every <button> in the page: id, visible text, aria-label if it has one. */
@@ -76,9 +83,18 @@ function runtimeLabels(src, id) {
     names.push(a[1]);
   }
   for (const name of names) {
-    const re = new RegExp(`${name}\\.textContent\\s*=([\\s\\S]*?);`, 'g');
-    for (const m of src.matchAll(re)) {
-      for (const lit of m[1].matchAll(/'((?:[^'\\]|\\.)*)'/g)) out.push(lit[1]);
+    // Both the visible text AND the accessible name. Where a control's visible
+    // word is shortened to fit a row, the aria-label is the real label, and a
+    // test that only read textContent would be checking the abbreviation.
+    for (const prop of ['\\.textContent\\s*=', "\\.setAttribute\\('aria-label',"]) {
+      const re = new RegExp(`${name}${prop}([\\s\\S]*?);`, 'g');
+      for (const m of src.matchAll(re)) {
+        // Join string concatenations first. A sentence written as
+        // `'Switch to ' + 'Dark Mode.'` is ONE label; read literal by literal
+        // it looks like a second label starting with the word "Dark".
+        const rhs = m[1].replace(/'\s*\+\s*'/g, '');
+        for (const lit of rhs.matchAll(/'((?:[^'\\]|\\.)*)'/g)) out.push(lit[1]);
+      }
     }
   }
   return out;
@@ -132,10 +148,13 @@ test('every toggle says both directions, and neither is the state it is in', () 
   const pairs = [
     ['nightToggle', 'Use Night Mode', 'Use Dark Mode'],
     ['compassBtn', 'Turn on the compass', 'Turn off the compass'],
-    ['liveSkyBtn', 'Show the live sky view', 'Hide the live sky view'],
     ['skyConst', 'Show the constellations', 'Hide the constellations'],
     ['skyMilky', 'Show the Milky Way', 'Hide the Milky Way'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],
+    ['padToggle', 'Move the view by hand', 'Hide the hand controls'],
+    // Its visible word is short so it shares a row with the coordinates; the
+    // accessible name is the full phrase, and that is the label under test.
+    ['placeChange', 'Change where I am', 'Hide the position boxes'],
   ];
   const shipped = new Map(
     buttonsInHtml(html).filter((b) => b.id).map((b) => [b.id, b.text]),
@@ -147,6 +166,24 @@ test('every toggle says both directions, and neither is the state it is in', () 
         `#${id} never says "${w}". It says: ${[...found].join(' / ')}`);
     }
   }
+});
+
+test('every element app.js reaches for exists in the page', () => {
+  // The restructure that split the app into two panes moved almost every
+  // element in the page. A single renamed or dropped id is a TypeError on the
+  // first render, and the only place it shows up is a browser console.
+  const ids = new Set([...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]));
+  const wanted = [...new Set(
+    [...appJs.matchAll(/\$\('([A-Za-z0-9_-]+)'\)/g)].map((m) => m[1]),
+  )];
+  // Both sides are asserted non-empty first. A regex that silently matches
+  // nothing would otherwise report "every id is missing", which reads as a
+  // catastrophic page failure and is really a broken test.
+  assert.ok(ids.size > 40, `only parsed ${ids.size} ids out of index.html`);
+  assert.ok(wanted.length > 40, `only found ${wanted.length} lookups`);
+  const missing = wanted.filter((id) => !ids.has(id));
+  assert.deepEqual(missing, [],
+    `app.js reaches for ids that index.html does not have: ${missing.join(', ')}`);
 });
 
 test('the compass button the guide text names is the compass button', () => {
