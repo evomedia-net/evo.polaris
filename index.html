@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b14">
+<title>evo.polaris — polar alignment</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+
+<header class="bar">
+  <h1>evo<span class="dot">.</span>polaris</h1>
+  <div class="bar-actions">
+    <button id="textSmaller" class="icon-btn" aria-label="Smaller text">A−</button>
+    <button id="textBigger" class="icon-btn" aria-label="Larger text">A+</button>
+    <button id="nightToggle" class="icon-btn" aria-pressed="false">Night</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- 1 ---------------------------------------------------------------- -->
+  <section class="card" aria-labelledby="h-where">
+    <h2 id="h-where"><span class="step">1</span> Where you are</h2>
+
+    <button id="locateBtn" class="big-btn primary">Use my location</button>
+    <p id="locateStatus" class="status" role="status" aria-live="polite">
+      Location not set yet.
+    </p>
+
+    <dl class="readout" id="siteReadout" hidden>
+      <div><dt>Latitude</dt><dd id="outLat">—</dd></div>
+      <div><dt>Longitude</dt><dd id="outLon">—</dd></div>
+      <div><dt>Altitude</dt><dd id="outAlt">—</dd></div>
+    </dl>
+
+    <button id="manualToggle" class="big-btn ghost">Enter it by hand instead</button>
+    <div id="manualEntry" class="manual" hidden>
+      <label>Latitude <span class="hint">degrees, + north</span>
+        <input id="inLat" type="number" step="0.0001" inputmode="decimal" placeholder="42.3601">
+      </label>
+      <label>Longitude <span class="hint">degrees, + east</span>
+        <input id="inLon" type="number" step="0.0001" inputmode="decimal" placeholder="-71.0589">
+      </label>
+      <label>Altitude <span class="hint">metres above sea level</span>
+        <input id="inAlt" type="number" step="1" inputmode="decimal" placeholder="10">
+      </label>
+      <button id="manualApply" class="big-btn primary">Use these numbers</button>
+    </div>
+  </section>
+
+  <!-- 2 ---------------------------------------------------------------- -->
+  <section class="card" id="settingsCard" aria-labelledby="h-set" hidden>
+    <h2 id="h-set"><span class="step">2</span> Set your tracker</h2>
+
+    <div class="figure big-figure">
+      <div class="fig-label">Latitude / altitude knob</div>
+      <div class="fig-value" id="outLatKnob">—</div>
+      <div class="fig-note">Set the mount's latitude scale to this.</div>
+    </div>
+
+    <div class="figure big-figure">
+      <div class="fig-label">Point the mount at this compass bearing</div>
+      <div class="fig-value" id="outCompass">—</div>
+      <div class="fig-note" id="outDeclination">—</div>
+    </div>
+
+    <div class="figure big-figure accent">
+      <div class="fig-label">Put Polaris here in the polar scope</div>
+      <div class="fig-value" id="outDial">—</div>
+      <div class="fig-note" id="outRadius">—</div>
+    </div>
+
+    <figure class="canvas-wrap">
+      <canvas id="reticle" width="420" height="420"
+              role="img" aria-labelledby="reticleDesc"></canvas>
+      <figcaption id="reticleDesc" class="visually-hidden">
+        Polar scope reticle with Polaris marked.
+      </figcaption>
+    </figure>
+
+    <p class="status" id="timeNote" aria-live="polite"></p>
+    <button id="speakBtn" class="big-btn">Read these out loud</button>
+  </section>
+
+  <!-- 3 ---------------------------------------------------------------- -->
+  <section class="card" id="findCard" aria-labelledby="h-find" hidden>
+    <h2 id="h-find"><span class="step">3</span> Find Polaris in the sky</h2>
+
+    <div class="guide" id="guideBox" role="status" aria-live="polite">
+      <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>
+      <div class="guide-text" id="guideText">
+        Turn on the compass to get live directions.
+      </div>
+    </div>
+    <button id="compassBtn" class="big-btn primary">Turn on compass</button>
+
+    <figure class="canvas-wrap">
+      <canvas id="sky" width="420" height="420"
+              role="img" aria-labelledby="skyDesc"></canvas>
+      <figcaption id="skyDesc" class="caption">
+        The sky around the pole right now. Follow the two front stars of the
+        Big Dipper's bowl — the amber arrow — straight to Polaris.
+      </figcaption>
+    </figure>
+
+    <p class="status" id="starhopText"></p>
+  </section>
+
+  <footer class="foot">
+    <p>Free and open source, for astronomers who can't crouch behind an eyepiece.</p>
+    <p id="buildLine" class="hint"></p>
+  </footer>
+</main>
+
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

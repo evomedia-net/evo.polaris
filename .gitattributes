@@ -1,0 +1,8 @@
+# Normalise to LF in the repository. The .txt twins are compared byte for byte
+# by test/md-twin.test.mjs, so leaving line endings to the platform is how that
+# check turns red on one machine and green on another.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

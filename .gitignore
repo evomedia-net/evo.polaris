@@ -1,0 +1,10 @@
+# Fetched source catalog -- 1.7 MB, regenerate with scripts/fetch-sources.sh.
+# The generated src/data/stars.json IS committed: the app needs it offline.
+scripts/bsc5.dat
+scripts/bsc5.dat.gz
+scripts/wmm.zip
+
+node_modules/
+.DS_Store
+Thumbs.db
+*.log

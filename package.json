@@ -1,0 +1,26 @@
+{
+  "name": "evo-polaris",
+  "version": "0.0.0.1.0",
+  "description": "Free, open-source, accessible polar-alignment assistant for star trackers and equatorial mounts.",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "build-data": "python scripts/build-data.py",
+    "serve": "node scripts/serve.mjs",
+    "docs:twins": "node scripts/md-txt.mjs",
+    "docs:check": "node scripts/md-txt.mjs --check"
+  },
+  "keywords": [
+    "astronomy",
+    "astrophotography",
+    "polar-alignment",
+    "polaris",
+    "accessibility",
+    "a11y",
+    "pwa",
+    "ioptron",
+    "star-tracker"
+  ]
+}

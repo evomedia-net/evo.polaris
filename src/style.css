@@ -1,0 +1,265 @@
+/* evo.polaris
+ *
+ * Design constraints, in priority order:
+ *   1. Readable outdoors in the dark by someone who may have low vision.
+ *   2. Operable with one unsteady hand, a mouthstick, or a trackball -- so:
+ *      single taps only, no drag, no pinch, no double-tap, no press-and-hold.
+ *   3. Targets stay put. Nothing reflows or moves under the pointer when a
+ *      value updates, because re-acquiring a moved target is expensive.
+ *   4. Night mode is red-on-black: white light destroys dark adaptation, and
+ *      an app you can't use without ruining your night vision is unusable.
+ */
+
+:root {
+  --scale: 1;
+  --bg: #080b14;
+  --card: #111725;
+  --ink: #e8ecf4;
+  --ink-dim: #9aa6bd;
+  --line: #243049;
+  --accent: #7CFFB2;
+  --accent-ink: #062b18;
+  --warn: #ffb454;
+  --focus: #79b8ff;
+  --tap: 3.4rem;              /* minimum touch target */
+}
+
+html[data-night='on'] {
+  --bg: #0a0000;
+  --card: #170303;
+  --ink: #ff5544;
+  --ink-dim: #b33327;
+  --line: #4a0f0a;
+  --accent: #ff9e8e;
+  --accent-ink: #2a0500;
+  --warn: #ff8a3a;
+  --focus: #ff8a7a;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  font-size: calc(17px * var(--scale));
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0 0 3rem;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+/* night mode dims the whole surface rather than just recolouring it */
+html[data-night='on'] body { filter: brightness(0.82); }
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.bar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.bar .dot { color: var(--accent); }
+
+.bar-actions { display: flex; gap: 0.4rem; }
+
+.icon-btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 0.7rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  cursor: pointer;
+}
+.icon-btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
+
+.card {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.card h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.9rem;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  font-size: 0.95rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 50%;
+}
+
+/* Buttons are deliberately full width and tall: a big target that never moves
+   is far cheaper to hit than a small one that is perfectly placed. */
+.big-btn {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  margin: 0.55rem 0;
+  padding: 0.85rem 1rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--line);
+  border-radius: 0.85rem;
+  cursor: pointer;
+  text-align: center;
+}
+.big-btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.big-btn.ghost { border-style: dashed; color: var(--ink-dim); }
+.big-btn:active { transform: translateY(1px); }
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.status {
+  margin: 0.5rem 0;
+  color: var(--ink-dim);
+  font-size: 0.95rem;
+}
+.hint { color: var(--ink-dim); font-size: 0.85rem; font-weight: 400; }
+
+.readout { margin: 0.8rem 0; display: grid; gap: 0.4rem; }
+.readout > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.readout dt { color: var(--ink-dim); margin: 0; }
+.readout dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+.manual { display: grid; gap: 0.7rem; margin-top: 0.6rem; }
+.manual label { display: grid; gap: 0.25rem; font-weight: 600; }
+.manual input {
+  min-height: var(--tap);
+  padding: 0.6rem 0.8rem;
+  font: inherit;
+  font-size: 1.1rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 0.7rem;
+}
+
+/* The payoff numbers. Big, tabular, and each in its own block so a screen
+   reader and a glance both get label -> value -> what to do with it. */
+.figure {
+  margin: 0.7rem 0;
+  padding: 0.85rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+}
+.figure.accent { border-color: var(--accent); }
+.fig-label { color: var(--ink-dim); font-size: 0.92rem; }
+.fig-value {
+  font-size: 2.1rem;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.figure.accent .fig-value { color: var(--accent); }
+.fig-note { color: var(--ink-dim); font-size: 0.92rem; }
+
+.canvas-wrap { margin: 1rem 0 0; }
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 26rem;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 0.85rem;
+  background: var(--bg);
+}
+.caption {
+  margin-top: 0.6rem;
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+}
+
+.guide {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 6rem;
+  padding: 1rem;
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 0.85rem;
+}
+.guide.on-target { border-color: var(--accent); }
+.guide-arrow {
+  font-size: 3.2rem;
+  line-height: 1;
+  color: var(--warn);
+  width: 3.4rem;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.guide.on-target .guide-arrow { color: var(--accent); }
+.guide-text { font-size: 1.15rem; font-weight: 600; text-align: left; }
+
+.foot { margin: 2rem 0 0; padding: 0 0.3rem; color: var(--ink-dim); font-size: 0.88rem; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "evo.polaris — polar alignment",
+  "short_name": "evo.polaris",
+  "description": "Free, accessible polar alignment for star trackers and equatorial mounts.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080b14",
+  "theme_color": "#080b14",
+  "categories": ["utilities", "education"],
+  "icons": [
+    { "src": "src/data/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
