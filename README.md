@@ -22,6 +22,61 @@ a mount:
 Plus a live sky chart of the circumpolar sky with the Big Dipper star-hop drawn
 on it, and — with the compass on — arrows telling you which way to turn.
 
+## Finding true north without a compass
+
+A desktop browser has no magnetometer, and plenty of phones have a bad one, so
+the app never assumes you have a working compass. It offers three routes:
+
+- **Polaris itself.** Polaris sits about 0.6° from the true pole, so pointing at
+  it *is* pointing true north. People assume they need north in order to find
+  Polaris; it works the other way round — star-hop to it from the Big Dipper
+  using the chart and you are aligned, with no compass and no declination
+  correction anywhere in the loop.
+- **A shadow at solar noon.** The app computes the exact moment the Sun crosses
+  your meridian. At that instant any vertical object's shadow lies on the true
+  north–south line. No instrument at all. Which way the shadow points is read
+  off the computed Sun position rather than assumed from hemisphere, because
+  inside the tropics the Sun passes north of the zenith for part of the year and
+  the shadow flips with it.
+- **A magnetic compass**, with the declination already worked out for you.
+
+Solar-noon time is shown in your *device's* timezone and labelled with it, since
+that is the useful clock when you are standing at the coordinates.
+
+## Running it as a website
+
+It is a plain static site — no build step, no server-side anything — so it can
+be dropped on any static host, and you can type your position in by hand instead
+of using GPS.
+
+One requirement: **serve it over HTTPS.** Geolocation, the device-orientation
+compass, and the service worker that makes it work offline are all
+secure-context APIs. Over plain `http://` they fail silently and the GPS button
+appears to do nothing. `localhost` is exempt, which is why `npm run serve` works.
+
+### The one network call
+
+Typing coordinates in by hand leaves altitude to find, so there is a button that
+looks it up from [Open-Meteo](https://open-meteo.com/) — no key, no account.
+
+It is a button and not an automatic lookup because it is the **only** request
+this app ever makes, and it carries your coordinates to someone else. That
+should be a thing you choose, not a thing that happens.
+
+It is also honestly a convenience rather than an accuracy fix: altitude shifts
+magnetic declination by **under 0.01° even at 3000 m**, against a good polar
+alignment of about 0.1°. Leaving it at sea level costs you nothing. The reason
+it is worth having is that nobody should have to go and look up their own
+elevation and type it in.
+
+### Deploying
+
+The service worker uses **network-first for the app shell** and cache-first only
+for the bundled star and magnetic data. Cache-first for everything is how a
+static site pins every returning visitor to the first build they ever loaded, so
+a deploy would reach nobody until they cleared site data. Bump `VERSION` in
+`sw.js` with each release so old caches are dropped on activate.
+
 ## Accessibility
 
 This is the point of the project, not a later pass.

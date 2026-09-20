@@ -1,6 +1,6 @@
 // evo.polaris -- app wiring.
 
-import { alignmentSolution, julianDay, lstHours } from './astro.js';
+import { alignmentSolution, julianDay, lstHours, solarNoon, sunNow } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 
@@ -48,6 +48,7 @@ $('nightToggle').onclick = () => {
 function setSite(next, note) {
   site = next;
   store.set('site', site);
+  $('northCard').hidden = false;
   $('siteReadout').hidden = false;
   $('outLat').textContent = `${site.lat.toFixed(4)}° ${site.lat >= 0 ? 'N' : 'S'}`;
   $('outLon').textContent = `${site.lon.toFixed(4)}° ${site.lon >= 0 ? 'E' : 'W'}`;
@@ -95,6 +96,44 @@ $('manualToggle').onclick = () => {
   }
 };
 
+// Altitude lookup. Deliberately a button rather than automatic: it is the only
+// network call the app can make, and it carries the user's coordinates to a
+// third party, so it happens when they ask and not before.
+//
+// It is a convenience, not an accuracy fix -- see the note it prints. The point
+// is to spare anyone having to go and find their elevation and type it in.
+$('lookupAlt').onclick = async () => {
+  const lat = parseFloat($('inLat').value);
+  const lon = parseFloat($('inLon').value);
+  const note = $('lookupAltNote');
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    note.textContent = 'Fill in latitude and longitude first.';
+    return;
+  }
+  note.textContent = 'Looking up the ground elevation…';
+  try {
+    const res = await fetch(
+      'https://api.open-meteo.com/v1/elevation' +
+      `?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`,
+      { mode: 'cors' },
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const metres = Array.isArray(data.elevation) ? data.elevation[0] : null;
+    if (!Number.isFinite(metres)) throw new Error('no elevation in response');
+
+    $('inAlt').value = Math.round(metres);
+    note.textContent =
+      `Ground elevation about ${Math.round(metres)} m. For what it is worth, ` +
+      'altitude shifts the magnetic declination by under 0.01° even at 3000 m, ' +
+      'so this barely moves the numbers — it just saves you looking it up.';
+  } catch (err) {
+    note.textContent =
+      `Could not reach the elevation service (${err.message}). Leave it blank — ` +
+      'altitude changes the result by under 0.01°, so sea level is fine.';
+  }
+};
+
 $('manualApply').onclick = () => {
   const lat = parseFloat($('inLat').value);
   const lon = parseFloat($('inLon').value);
@@ -131,7 +170,44 @@ function render() {
     `${latAbs.toFixed(2)}°`;
 
   const compass = solution.trueNorthOnCompass;
-  $('outCompass').textContent = `${compass.toFixed(1)}°`;
+  $('outCompass').textContent = `True north reads ${compass.toFixed(1)}°`;
+
+  // --- finding true north without a compass --------------------------------
+  // Polaris is within about half a degree of the pole, so pointing at it IS
+  // pointing true north. Worth saying plainly: people assume they need north
+  // first in order to find Polaris, when it works the other way round.
+  $('outNorthStar').textContent =
+    `Polaris is only ${solution.radiusArcmin.toFixed(0)}′ ` +
+    `(${(solution.radiusArcmin / 60).toFixed(2)}°) from the true pole, so aiming ` +
+    'at it is aiming true north. Use the chart in step 4 to find it — ' +
+    'no compass, no declination, nothing to correct.';
+
+  const noon = solarNoon(now, site.lon);
+  // Name the zone. The time is rendered in the DEVICE's timezone, which is
+  // right when you are standing at the coordinates and quietly wrong when you
+  // are planning for somewhere else -- so say which clock this is.
+  const noonTxt = noon.toLocaleTimeString([], {
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  });
+
+  // Which way the noon shadow falls is NOT simply a hemisphere question: inside
+  // the tropics the Sun passes north of the zenith for part of the year, and the
+  // shadow flips with it. Read it off the computed position instead of guessing.
+  const noonSun = sunNow(noon, site.lat, site.lon);
+  const shadowNorth = Math.cos(noonSun.shadowAz * Math.PI / 180) > 0;
+  const dir = shadowNorth ? 'north' : 'south';
+  $('outSolarNoon').textContent = `Shadows point true ${dir} at ${noonTxt}`;
+
+  const sun = sunNow(now, site.lat, site.lon);
+  $('outSunNow').textContent =
+    `At local solar noon the Sun crosses the meridian due ` +
+    `${shadowNorth ? 'south' : 'north'}, so a vertical stick's shadow points ` +
+    `exactly true ${dir} — mark that line and you have your axis. ` +
+    (sun.up
+      ? `Right now the Sun is ${sun.alt.toFixed(0)}° up at bearing ` +
+        `${sun.az.toFixed(0)}°, with its shadow falling toward ` +
+        `${sun.shadowAz.toFixed(0)}°.`
+      : 'The Sun is below the horizon right now.');
   // For western declination these two numbers are always equal, so spell out
   // what each one means rather than printing the same figure twice.
   const dd = Math.abs(dec);
