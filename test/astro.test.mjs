@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   julianDay, gmstHours, lstHours, precessFromJ2000, equatorialToHorizontal,
   polarisReticle, POLARIS, refraction, projectAroundPole, sunPosition, solarNoon, sunNow,
-} from '../src/astro.js';
+} from '../site/src/astro.js';
 
 // --- independent anchors, so the chain is verified before the app relies on it
 

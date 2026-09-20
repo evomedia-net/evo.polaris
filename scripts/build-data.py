@@ -17,7 +17,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-OUT = os.path.join(ROOT, "src", "data")
+OUT = os.path.join(ROOT, "site", "src", "data")
 
 
 def col(line, a, b):

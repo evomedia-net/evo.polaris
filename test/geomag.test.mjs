@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { magneticField } from '../src/geomag.js';
+import { magneticField } from '../site/src/geomag.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
