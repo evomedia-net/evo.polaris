@@ -153,6 +153,37 @@ Typing is expensive. Every field that can be filled some other way, is:
 - Rejected entries keep their values. A bad latitude produces a message and
   leaves every field exactly as typed. Wiping a form someone paid for keystroke
   by keystroke is the worst thing an error handler can do.
+- The sign is a button, not a character. See below.
+
+The minus sign was the worst input bug in the app
+-------------------------------------------------
+
+Latitude and longitude used to be typed as signed decimals — -33.8688. That
+is one character, easy to drop, and dropping it was silent and catastrophic:
+typing 33.8688 for Sydney produced a complete, confident, northern
+answer. Wrong pole star, wrong reticle circles, wrong chart, azimuth 180° out,
+and nothing on the page marking any of it as suspect.
+
+Longitude was worse, because there is no hemisphere wording to contradict it.
+95.2107 instead of -95.2107 moves you from Texas to central China, and the
+only thing that disagrees is the sidereal time — which is exactly the number
+nobody can sanity-check by eye.
+
+So the sign is now two big buttons — North/South and East/West — and the
+field holds a plain magnitude. That removes a keystroke, which matters here,
+but the real gain is that the hemisphere becomes a **visible state you can
+check** rather than a punctuation mark you have to remember.
+
+Three details that make it hold up:
+
+- A typed minus still works, and moves the button to match. Letting the
+  button silently override an explicit -33.8688 would reintroduce the very
+  bug the buttons exist to remove.
+- The field normalises to a magnitude afterwards, so the number and the
+  button can never sit on screen contradicting each other. That invariant is
+  asserted directly in test/coords.test.mjs.
+- GPS moves the buttons too, so opening the panel after locating shows the
+  right side of the equator rather than a stale default.
 
 Working where it is used
 ------------------------

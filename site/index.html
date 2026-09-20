@@ -63,12 +63,24 @@
 
     <button id="manualToggle" class="big-btn ghost">Enter it by hand instead</button>
     <div id="manualEntry" class="manual" hidden>
-      <label>Latitude <span class="hint">degrees, + north</span>
+      <label>Latitude <span class="hint">degrees — no minus sign needed</span>
         <input id="inLat" type="number" step="0.0001" inputmode="decimal" placeholder="30.0563">
       </label>
-      <label>Longitude <span class="hint">degrees, + east</span>
-        <input id="inLon" type="number" step="0.0001" inputmode="decimal" placeholder="-95.2107">
+      <div class="hemi-label" id="latHemiLabel">Hemisphere
+        <span class="hint">north or south of the equator</span></div>
+      <div class="hemi" role="group" aria-labelledby="latHemiLabel">
+        <button type="button" id="latN" class="hemi-btn" aria-pressed="true">North</button>
+        <button type="button" id="latS" class="hemi-btn" aria-pressed="false">South</button>
+      </div>
+      <label>Longitude <span class="hint">degrees — no minus sign needed</span>
+        <input id="inLon" type="number" step="0.0001" inputmode="decimal" placeholder="95.2107">
       </label>
+      <div class="hemi-label" id="lonHemiLabel">Hemisphere
+        <span class="hint">east or west of Greenwich &mdash; the Americas are west</span></div>
+      <div class="hemi" role="group" aria-labelledby="lonHemiLabel">
+        <button type="button" id="lonE" class="hemi-btn" aria-pressed="false">East</button>
+        <button type="button" id="lonW" class="hemi-btn" aria-pressed="true">West</button>
+      </div>
       <label>Altitude <span class="hint">metres above sea level — optional</span>
         <input id="inAlt" type="number" step="1" inputmode="decimal" placeholder="26">
       </label>

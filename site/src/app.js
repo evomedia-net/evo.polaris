@@ -4,6 +4,7 @@ import { alignmentSolution, julianDay, lstHours, solarNoon, sunNow } from './ast
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
+import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -98,6 +99,11 @@ $('locateBtn').onclick = () => {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude, altitude, accuracy } = pos.coords;
+      // Keep the pickers truthful even when the position came from GPS, so
+      // opening the panel afterwards shows the right side of the equator.
+      latHemi = hemisphereFor(latitude, 'N', 'S');
+      lonHemi = hemisphereFor(longitude, 'E', 'W');
+      paintHemi();
       setSite(
         { lat: latitude, lon: longitude, altitude: altitude ?? 0 },
         `Located to about ${Math.round(accuracy)} m.` +
@@ -113,6 +119,54 @@ $('locateBtn').onclick = () => {
   );
 };
 
+// --- hemisphere pickers ------------------------------------------------------
+//
+// The sign of a coordinate is now a button, not a character someone has to
+// remember to type. A dropped minus was the worst input bug this app had:
+// 33.8688 for Sydney instead of -33.8688 produced a complete, confident,
+// northern answer with nothing on screen marking it wrong.
+
+let latHemi = 'N';
+let lonHemi = 'W';
+
+function paintHemi() {
+  $('latN').setAttribute('aria-pressed', String(latHemi === 'N'));
+  $('latS').setAttribute('aria-pressed', String(latHemi === 'S'));
+  $('lonE').setAttribute('aria-pressed', String(lonHemi === 'E'));
+  $('lonW').setAttribute('aria-pressed', String(lonHemi === 'W'));
+}
+
+/** Show a signed value as a magnitude, with the button carrying the sign. */
+function fillCoord(inputId, value, positive, negative) {
+  $(inputId).value = Math.abs(value).toFixed(4);
+  return hemisphereFor(value, positive, negative);
+}
+
+for (const [id, set] of [['latN', 'N'], ['latS', 'S']]) {
+  $(id).onclick = () => { latHemi = set; paintHemi(); };
+}
+for (const [id, set] of [['lonE', 'E'], ['lonW', 'W']]) {
+  $(id).onclick = () => { lonHemi = set; paintHemi(); };
+}
+
+// Typing a minus sign still works and moves the button to match, rather than
+// being silently overridden by it. The field then normalises to a magnitude so
+// the number and the button can never sit on screen contradicting each other.
+$('inLat').addEventListener('change', () => {
+  const r = resolveCoordinate($('inLat').value, latHemi, 'S');
+  if (!r.ok) return;
+  latHemi = r.hemi;
+  $('inLat').value = r.magnitude;
+  paintHemi();
+});
+$('inLon').addEventListener('change', () => {
+  const r = resolveCoordinate($('inLon').value, lonHemi, 'W');
+  if (!r.ok) return;
+  lonHemi = r.hemi;
+  $('inLon').value = r.magnitude;
+  paintHemi();
+});
+
 $('manualToggle').onclick = () => {
   const box = $('manualEntry');
   box.hidden = !box.hidden;
@@ -120,8 +174,9 @@ $('manualToggle').onclick = () => {
   // Your saved position if you have one, the default if you do not, so the
   // boxes are never blank and applying them is a tap rather than typing.
   const from = site || DEFAULT_SITE;
-  $('inLat').value = from.lat.toFixed(4);
-  $('inLon').value = from.lon.toFixed(4);
+  latHemi = fillCoord('inLat', from.lat, 'N', 'S');
+  lonHemi = fillCoord('inLon', from.lon, 'E', 'W');
+  paintHemi();
   $('inAlt').value = Math.round(from.altitude || 0);
   $('prefillNote').textContent = site
     ? 'Filled in with your saved position.'
@@ -168,19 +223,32 @@ $('lookupAlt').onclick = async () => {
 };
 
 $('manualApply').onclick = () => {
-  const lat = parseFloat($('inLat').value);
-  const lon = parseFloat($('inLon').value);
+  const latR = resolveCoordinate($('inLat').value, latHemi, 'S');
+  const lonR = resolveCoordinate($('inLon').value, lonHemi, 'W');
   const alt = parseFloat($('inAlt').value);
-  if (!Number.isFinite(lat) || Math.abs(lat) > 90) {
-    $('locateStatus').textContent = 'Latitude must be between −90 and 90.';
+
+  if (!latR.ok || !validate(latR.value, 90)) {
+    $('locateStatus').textContent =
+      'Latitude must be a number from 0 to 90. Use the North / South buttons '
+      + 'for the side of the equator.';
     return;                                    // fields keep their values
   }
-  if (!Number.isFinite(lon) || Math.abs(lon) > 180) {
-    $('locateStatus').textContent = 'Longitude must be between −180 and 180.';
+  if (!lonR.ok || !validate(lonR.value, 180)) {
+    $('locateStatus').textContent =
+      'Longitude must be a number from 0 to 180. Use the East / West buttons '
+      + 'for the side of the prime meridian.';
     return;
   }
-  setSite({ lat, lon, altitude: Number.isFinite(alt) ? alt : 0 },
-    'Using the position you typed.');
+  // Keep the form showing exactly what was accepted.
+  latHemi = latR.hemi; lonHemi = lonR.hemi;
+  $('inLat').value = latR.magnitude;
+  $('inLon').value = lonR.magnitude;
+  paintHemi();
+
+  setSite({ lat: latR.value, lon: lonR.value,
+            altitude: Number.isFinite(alt) ? alt : 0 },
+    `Using the position you typed — ${latR.magnitude}° ${latR.hemi}, `
+    + `${lonR.magnitude}° ${lonR.hemi}.`);
 };
 
 // --- the numbers ------------------------------------------------------------

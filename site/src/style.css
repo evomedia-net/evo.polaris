@@ -97,7 +97,57 @@ html[data-night='on'] .icon-btn.is-night {
 html[data-night='on'] .card,
 html[data-night='on'] .figure,
 html[data-night='on'] .guide,
-html[data-night='on'] .manual input {
+html[data-night='on'] /* The word "Hemisphere" is on screen, not just in the accessible name. The
+   buttons alone read as two bare compass words next to a number, and someone
+   who does not already know that latitude carries a sign has no way to tell
+   what they are choosing between. aria-labelledby points at this same element
+   so the visible label and the spoken one cannot drift apart. */
+.hemi-label {
+  margin: 0.15rem 0 0.35rem;
+  font-weight: 600;
+  font-size: 0.98rem;
+  color: var(--ink);
+}
+.hemi-label .hint { display: block; font-weight: 400; }
+
+/* Hemisphere pickers. Two big targets side by side, so the sign is a tap
+   rather than a punctuation mark someone has to remember to type. */
+.hemi {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: -0.2rem 0 0.2rem;
+}
+.hemi-btn {
+  min-height: var(--tap);
+  padding: 0.7rem 0.5rem;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 2px solid var(--line);
+  border-radius: 0.85rem;
+  cursor: pointer;
+}
+.hemi-btn[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* Night mode fills nothing, so the chosen side is said with weight and ink. */
+html[data-night='on'] .hemi-btn {
+  background: transparent;
+  color: var(--ink-dim);
+  border-color: var(--line);
+}
+html[data-night='on'] .hemi-btn[aria-pressed='true'] {
+  color: var(--ink);
+  border-color: var(--ink);
+  border-width: 3px;
+}
+
+.manual input {
   background: transparent;
 }
 html[data-night='on'] .figure.accent { border-color: var(--ink); }
