@@ -383,7 +383,12 @@ function applyMode() {
   if (sky) {
     refreshSkyVectors();
     sizeSkyCanvas();
-    syncFullScreen();
+    // Record the orientation WITHOUT acting on it. Opening the view used to
+    // call syncFullScreen(), which read the current orientation and filled the
+    // screen if it happened to be landscape -- so every desktop, and any phone
+    // loaded already sideways, went full screen on load. Full screen follows a
+    // ROTATION, which is a change; the state at load is not one.
+    seedOrientation();
     aimAtPole();
     // AUTO MODE IS ON FROM THE MOMENT THE VIEW OPENS. The listener is attached
     // here rather than behind a press, so the sky is already following which
@@ -1134,40 +1139,46 @@ function rotationWants() {
   return !!(landscapeMq && landscapeMq.matches);
 }
 
-function syncFullScreen() {
-  const want = fullLock === null ? rotationWants() : fullLock;
-  if (want === fullOn) return;
-  fullOn = want;
-  applyFullScreen();
-}
+// Auto full screen is a PHONE gesture -- rotate the device to landscape. A
+// desktop is permanently landscape and never rotates, so it must NEVER
+// auto-fill; only the button does. A coarse pointer is the "this is a touch
+// device" signal.
+const canAutoFull = !!(landscapeMq && window.matchMedia
+  && window.matchMedia('(pointer: coarse)').matches);
 
-// ROTATION IS DRIVEN BY `resize`, NOT BY THE MEDIA QUERY ALONE.
+// The orientation the last time we looked. Seeded without acting when the view
+// opens, so the FIRST genuine flip is detected while the state at load fills
+// nothing.
+let lastLandscape = null;
+function seedOrientation() { lastLandscape = rotationWants(); }
+
+// FULL SCREEN FOLLOWS A ROTATION, NOT A RESIZE OR THE LOAD STATE.
 //
-// A matchMedia('(orientation: landscape)') change listener looked like the
-// obvious way to do this, and it half worked: turning the phone to landscape
-// filled the screen, and turning it BACK did nothing. Stuck full screen, with
-// the only way out a button someone would have to find. A MediaQueryList with
-// no strong reference can be collected along with its listeners, and the event
-// is not guaranteed to arrive in step with the layout anyway.
-//
-// A rotation always fires `resize`. So `resize` is the signal, the media query
-// is only consulted for the answer, and the list is kept in a module-level
-// binding so nothing can collect it.
+// The previous version treated every `resize` as a fresh instruction: it reset
+// fullLock and re-synced against the current orientation. On a desktop that is
+// permanently landscape, and on a phone the URL bar showing and hiding fires
+// resize constantly -- so the screen filled itself at moments nobody rotated
+// anything. Now a resize only re-sizes the canvas; the screen fills or empties
+// ONLY when the orientation actually flips, and only on a device that rotates.
 function onViewportChanged() {
   if (!skyOn) return;
-  // Turning the phone hands control back to the rotation. It is the same
-  // gesture that asks for full screen in the first place, so treating it as a
-  // fresh instruction is what people expect -- and it gives the pinned state a
-  // way out without a third button to explain itself.
-  fullLock = null;
-  syncFullScreen();
+  const now = rotationWants();
+  if (now !== lastLandscape) {          // a genuine rotation, not a resize
+    lastLandscape = now;
+    if (canAutoFull) {
+      // A physical rotation is a strong statement of intent, so it resumes
+      // auto mode even after the button was used to pin a state.
+      fullLock = null;
+      if (now !== fullOn) { fullOn = now; applyFullScreen(); }
+    }
+  }
   if (sizeSkyCanvas()) drawLiveSky();
 }
 
 window.addEventListener('resize', onViewportChanged);
 window.addEventListener('orientationchange', onViewportChanged);
 if (landscapeMq) {
-  // Still registered: on a phone this can arrive before the resize does.
+  // On a phone this can arrive before the resize does.
   if (landscapeMq.addEventListener) {
     landscapeMq.addEventListener('change', onViewportChanged);
   } else if (landscapeMq.addListener) {

@@ -41,11 +41,14 @@ html[data-night='on'] {
   --bg: #000000;
   --card: #0a0000;
   --ink: #ff0000;
-  /* Secondary text has to stay readable. #a00000 behind the 0.7 brightness
-   * filter lands near #700000, which is technically emitting less light and
-   * practically unreadable -- and an accessible app that you cannot read has
-   * optimised the wrong thing. Still pure red, just enough of it. */
-  --ink-dim: #cc0000;
+  /* Secondary text is the SAME red as primary in night mode, not a dimmer one.
+   * A two-tier palette (#cc0000 for secondary) read as "some text is darker
+   * than the rest" -- reported from the field -- and hierarchy is not worth a
+   * second shade when the whole surface is one hue by design. Both are pure
+   * red on the 0.7 brightness filter; #ff0000 is if anything MORE readable, so
+   * the old readability reason for keeping it bright still holds. Borders stay
+   * dimmer (--line) because a border is not text. */
+  --ink-dim: #ff0000;
   --line: #800000;
   --accent: #ff0000;
   --accent-ink: #ff0000;      /* outlined, never filled -- see below */
