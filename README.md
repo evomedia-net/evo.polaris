@@ -230,15 +230,23 @@ offline once loaded, which is the normal case in a dark field.
 
 ## Documentation
 
-- [docs/accuracy.md](docs/accuracy.md) — what is validated against what, the
+The three documents live in [evo.polaris-docs](https://github.com/evomedia-net/evo.polaris-docs),
+which builds them into a docs site:
+
+- **Accuracy, and how it is checked** — what is validated against what, the
   three WMM bugs NOAA's test vectors caught, the two traps that produce
   correct-looking output, and the one residual that is still unexplained.
-- [docs/accessibility.md](docs/accessibility.md) — the input model, why night
-  mode is red, why the compass is optional, and the known gaps.
-- [docs/deploying.md](docs/deploying.md) — the two-phase certificate dance, the
-  `.json` whitelist trap, and why `siteDir` is `site` and not the repo root.
+- **Accessibility** — the input model, why night mode is red, why the compass
+  is optional, and the known gaps.
+- **Deploying** — the two-phase certificate dance, the `.json` whitelist trap,
+  and why `siteDir` is `site` and not the repo root.
 
-Every `.md` here has a generated `.txt` twin, kept in sync by
+They were `docs/*.md` here until that site existed. Keeping a second set in
+this repo would be a hand-kept duplicate, and the drift would be invisible
+precisely because nobody reads both copies — the same reason the plain-text
+twins below are generated rather than written.
+
+Every `.md` in this repo still has a generated `.txt` twin, kept in sync by
 `npm run docs:twins` and enforced by the test suite.
 
 ## Data and licence
