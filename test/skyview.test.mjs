@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   deviceBasis, altAzToVector, vectorToAltAz, focalLength, projectToScreen,
-  buildSkyVectors, starRadius,
+  buildSkyVectors, starRadius, applyScreenAngle, smoothAngle, altitudeFromTilt,
 } from '../site/src/skyview.js';
 import { equatorialToHorizontal } from '../site/src/astro.js';
 
@@ -155,4 +155,60 @@ test('brighter stars draw bigger, and nothing vanishes', () => {
   assert.ok(starRadius(-1.4) > starRadius(2) , 'Sirius beats Polaris');
   assert.ok(starRadius(2) > starRadius(5.4), 'Polaris beats a faint one');
   assert.ok(starRadius(5.5) >= 0.6, 'the faintest still has a size');
+});
+
+// --- what real phones need --------------------------------------------------
+
+test('the screen angle rotates the picture, not the aim', () => {
+  const b = deviceBasis(0, 90, 0);
+  const land = applyScreenAngle(b, 90);
+  // Aimed at the same patch of sky...
+  const a1 = vectorToAltAz(b.forward), a2 = vectorToAltAz(land.forward);
+  near(a1.alt, a2.alt, 1e-9, 'altitude unchanged');
+  near(a1.az, a2.az, 1e-9, 'azimuth unchanged');
+  // ...but the screen's own axes have turned a quarter turn.
+  const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+  near(dot(b.right, land.right), 0, 1e-9, 'right has rotated 90 degrees');
+  near(Math.abs(dot(b.up, land.right)), 1, 1e-9, 'screen right is the old up');
+  // and it stays orthonormal
+  near(Math.hypot(...land.right), 1, 1e-9, 'right still a unit vector');
+  near(dot(land.right, land.up), 0, 1e-9, 'right still perpendicular to up');
+});
+
+test('a zero screen angle is left completely alone', () => {
+  const b = deviceBasis(37, 120, -25);
+  assert.deepEqual(applyScreenAngle(b, 0), b);
+});
+
+test('smoothing crosses north without swinging the long way round', () => {
+  // The seam. Averaged naively, 359 and 1 give 180 -- the sky would jump to
+  // the opposite horizon every time the heading passed north.
+  // Halfway between 359 and 1 IS 0, which is the whole point -- the naive
+  // average would be 180, the opposite horizon.
+  const out = smoothAngle(359, 1, 0.5);
+  const offZero = Math.abs(((out + 180) % 360) - 180);
+  assert.ok(offZero < 0.5, `smoothed to ${out}, expected ~0/360 not ~180`);
+});
+
+test('smoothing converges and the first reading is taken as-is', () => {
+  assert.equal(smoothAngle(null, 42), 42, 'nothing to smooth from');
+  let v = 0;
+  for (let i = 0; i < 60; i++) v = smoothAngle(v, 90, 0.25);
+  near(v, 90, 0.5, 'converges on the target');
+  // and it genuinely damps: one step must not arrive
+  near(smoothAngle(0, 90, 0.25), 90 * 0.25, 8, 'one step is partial');
+});
+
+test('tilt maps a raise-only range onto the sky, not onto the ground', () => {
+  // The pointing convention (beta - 90) spends flat-to-vertical getting from
+  // the ground to the horizon. Someone who cannot sweep the phone needs that
+  // same movement to cover horizon-to-zenith instead.
+  assert.equal(altitudeFromTilt(0), 0, 'flat looks at the horizon');
+  assert.equal(altitudeFromTilt(45), 45);
+  assert.equal(altitudeFromTilt(90), 89, 'vertical looks (almost) straight up');
+  // Tipping past vertical, or the other way, must not send the view under the
+  // ground -- there is nothing to see there and it reads as a fault.
+  assert.equal(altitudeFromTilt(120), 89);
+  assert.equal(altitudeFromTilt(-30), 30, 'sign of the tilt does not matter');
+  assert.equal(altitudeFromTilt(null), null);
 });

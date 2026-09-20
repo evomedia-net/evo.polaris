@@ -5,7 +5,7 @@ import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
-import { buildSkyVectors } from './skyview.js';
+import { buildSkyVectors, smoothAngle } from './skyview.js';
 import { drawSkyView } from './skydraw.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
@@ -39,11 +39,22 @@ let rawAlpha = null;         // alpha as reported, for the sky view's own basis
 let skyVectors = null;       // star directions, recomputed on a slow timer
 let skyOn = false;
 let skyFov = 65;
-// Manual aim is the DEFAULT. Following the phone is opt-in, because holding a
-// phone up and sweeping it around is exactly the gesture this app exists to
-// avoid needing, and on a desktop there is no sensor to follow at all.
-let skyFollow = false;
+// Following the phone is the DEFAULT, because that is what anyone expects of a
+// sky view and it is the thing that makes it feel like a window rather than a
+// picture. It falls back to manual on its own when the device reports no
+// orientation -- every desktop, and any phone that declines the permission --
+// and any press on the pad takes control back. The accessible layout, for
+// people who cannot sweep a phone around, layers on top of that rather than
+// replacing it.
+let skyFollow = true;
 let skyAim = { az: 0, alt: 45 };
+// Smoothed copies. Raw orientation readings jitter by a degree or two even on
+// a still phone, and at a 65 degree field that is several pixels of shake on
+// every star -- enough to make the view look broken rather than alive.
+let sAlpha = null, sBeta = null, sGamma = null;
+let skyFrame = null;                 // pending requestAnimationFrame
+let sawSensor = false;
+let sensorInfo = { event: null, absolute: null, screen: 0 };
 let lastOnTarget = false;
 
 // --- appearance -------------------------------------------------------------
@@ -497,6 +508,7 @@ $('compassBtn').onclick = async () => {
   const evName = 'ondeviceorientationabsolute' in window
     ? 'deviceorientationabsolute' : 'deviceorientation';
   window.addEventListener(evName, onOrientation);
+  sensorInfo.event = evName;
   compassOn = true;
   $('compassBtn').textContent = 'Compass is on';
   $('compassBtn').classList.remove('primary');
@@ -508,7 +520,24 @@ function onOrientation(e) {
   if (typeof e.beta === 'number' && !Number.isNaN(e.beta)) tilt = e.beta;
   if (typeof e.gamma === 'number' && !Number.isNaN(e.gamma)) roll = e.gamma;
   if (typeof e.alpha === 'number' && !Number.isNaN(e.alpha)) rawAlpha = e.alpha;
-  if (skyOn && skyFollow) drawLiveSky();
+
+  sAlpha = smoothAngle(sAlpha, rawAlpha ?? 0);
+  sBeta = smoothAngle(sBeta, tilt ?? 0);
+  sGamma = smoothAngle(sGamma, roll ?? 0);
+  if (e.absolute != null) sensorInfo.absolute = e.absolute;
+  sensorInfo.screen = screenAngle();
+
+  // The very first reading is what decides whether this device can follow at
+  // all, so the label has to be refreshed then -- otherwise the view follows
+  // the phone while the text underneath still says to use the buttons.
+  if (skyOn && !sawSensor) { sawSensor = true; updateSkyMode(); }
+
+  // One redraw per frame, not one per event. Orientation fires faster than the
+  // display refreshes, and projecting three thousand stars for frames nobody
+  // ever sees is how a live view turns into a slideshow.
+  if (skyOn && skyFollow && skyFrame === null) {
+    skyFrame = requestAnimationFrame(() => { skyFrame = null; drawLiveSky(); });
+  }
   if (e.alpha == null) { updateGuide(); return; }
   const magnetic = e.webkitCompassHeading != null
     ? e.webkitCompassHeading                    // already true north on iOS
@@ -620,12 +649,14 @@ function drawLiveSky() {
   if (!skyVectors) return;
   const c = $('liveSky');
   const useDevice = skyFollow && rawAlpha !== null;
+  if (useDevice) updateSensorReadout();
   drawSkyView(c.getContext('2d'), {
     aim: useDevice ? null : skyAim,
+    screenAngle: sensorInfo.screen,
     sky: skyVectors,
-    alpha: rawAlpha ?? 0,
-    beta: tilt ?? 90,
-    gamma: roll ?? 0,
+    alpha: sAlpha ?? rawAlpha ?? 0,
+    beta: sBeta ?? tilt ?? 90,
+    gamma: sGamma ?? roll ?? 0,
     declination: solution.declination,
     targetAlt: Math.abs(solution.latitudeSetting),
     targetAz: solution.poleAzimuth,
@@ -664,6 +695,39 @@ function pan(dAz, dAlt) {
   drawLiveSky();
 }
 
+document.addEventListener('visibilitychange', () => {
+  // A hidden tab does not run requestAnimationFrame, so a frame scheduled just
+  // before the switch is still pending on the way back and blocks every later
+  // one. Drop it and redraw once, rather than trusting it to arrive.
+  if (document.hidden) return;
+  if (skyFrame !== null) { cancelAnimationFrame(skyFrame); skyFrame = null; }
+  if (skyOn) drawLiveSky();
+});
+
+function screenAngle() {
+  const o = window.screen && window.screen.orientation;
+  if (o && typeof o.angle === 'number') return o.angle;
+  return typeof window.orientation === 'number' ? window.orientation : 0;
+}
+
+// What this phone actually reports. Sensor behaviour cannot be tested from a
+// desktop, and the failure that matters -- a RELATIVE alpha, whose zero is
+// wherever the phone happened to be -- looks exactly like a working view that
+// happens to be aimed at the wrong part of the sky. So the app says so.
+function updateSensorReadout() {
+  const el = $('skyDiag');
+  if (!el) return;
+  const abs = sensorInfo.absolute;
+  const warn = sensorInfo.event === 'deviceorientation' && abs !== true
+    ? ' — this phone did not offer an absolute compass, so the sky may be '
+      + 'turned the wrong way. Use the buttons instead.'
+    : '';
+  el.textContent =
+    `${sensorInfo.event || 'no'} event · absolute ${abs === null ? 'unstated' : abs}`
+    + ` · alpha ${Math.round(sAlpha ?? 0)}° beta ${Math.round(sBeta ?? 0)}°`
+    + ` gamma ${Math.round(sGamma ?? 0)}° · screen ${sensorInfo.screen}°${warn}`;
+}
+
 const STEP = 15;
 $('skyUp').onclick = () => pan(0, STEP);
 $('skyDown').onclick = () => pan(0, -STEP);
@@ -696,9 +760,13 @@ $('liveSkyBtn').onclick = () => {
     ? 'Hide the live sky view' : 'Show the live sky view';
   if (!skyOn) return;
   refreshSkyVectors();
-  // Open looking at the pole: it is what the whole app is about, and it means
-  // the view is useful before anyone touches a control.
+  // Aim at the pole regardless: it is what the app is about, and it is what
+  // the view falls back to the moment anyone presses a pad button or the
+  // device turns out to have no sensors.
   aimAtPole();
+  // Following needs the orientation listener, so asking for it is part of
+  // opening the view rather than a second thing to discover.
+  if (!compassOn) $('compassBtn').click();
   updateSkyMode();
   drawLiveSky();
 };

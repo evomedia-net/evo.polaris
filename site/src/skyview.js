@@ -189,3 +189,67 @@ export function basisFromAim(azDeg, altDeg, rollDeg = 0) {
   }
   return { right, up, forward };
 }
+
+/**
+ * Rotate a basis for the screen's own orientation.
+ *
+ * DeviceOrientation reports against the DEVICE, which does not turn when the
+ * screen does. Hold a phone in landscape and the device's "up" is still the
+ * short edge, so an uncorrected view is rotated ninety degrees and every
+ * left/right instruction is wrong. screen.orientation.angle is how much the
+ * screen has turned relative to the device, so undoing it puts the sky back.
+ *
+ * Only right and up change: what the phone is AIMED at does not depend on
+ * which way the picture is drawn.
+ */
+export function applyScreenAngle(basis, angleDeg) {
+  if (!angleDeg) return basis;
+  const a = -angleDeg * DEG, c = Math.cos(a), s = Math.sin(a);
+  const { right, up, forward } = basis;
+  return {
+    right: right.map((v, i) => v * c + up[i] * s),
+    up: right.map((v, i) => -v * s + up[i] * c),
+    forward,
+  };
+}
+
+/**
+ * Smooth an angle in degrees, the long way round being wrong.
+ *
+ * Averaging 359 and 1 the obvious way gives 180 -- the sky would swing to the
+ * opposite horizon every time the heading crossed north. Interpolating the
+ * unit vector instead has no seam.
+ *
+ * @param {number|null} prev  the smoothed value so far
+ * @param {number} next       the new raw reading
+ * @param {number} k          0 = never move, 1 = no smoothing at all
+ */
+export function smoothAngle(prev, next, k = 0.25) {
+  if (prev == null || Number.isNaN(prev)) return next;
+  const p = prev * DEG, n = next * DEG;
+  const x = Math.cos(p) + (Math.cos(n) - Math.cos(p)) * k;
+  const y = Math.sin(p) + (Math.sin(n) - Math.sin(p)) * k;
+  return ((Math.atan2(y, x) / DEG) % 360 + 360) % 360;
+}
+
+/**
+ * Altitude from tilt, for a phone that can be raised but not swept.
+ *
+ * The pointing convention elsewhere -- alt = beta - 90 -- assumes you can aim
+ * the BACK of the phone at a patch of sky, which needs the phone held up and
+ * turned. Someone who can lift a phone from flat to vertical but cannot sweep
+ * it left and right has ninety degrees of pitch and no yaw, so that convention
+ * spends their whole range getting from the ground to the horizon and leaves
+ * nothing for the sky.
+ *
+ * This maps the range they actually have onto the range that matters:
+ *
+ *     flat on the bed (beta 0)   ->  the horizon
+ *     straight up     (beta 90)  ->  the zenith
+ *
+ * Azimuth then comes from the buttons, which is the axis they cannot drive.
+ */
+export function altitudeFromTilt(betaDeg) {
+  if (betaDeg == null || Number.isNaN(betaDeg)) return null;
+  return Math.max(0, Math.min(89, Math.abs(betaDeg)));
+}

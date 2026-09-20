@@ -1,8 +1,8 @@
 // Drawing the live sky view. The maths lives in skyview.js; this only paints.
 
 import {
-  deviceBasis, basisFromAim, altAzToVector, vectorToAltAz, focalLength,
-  projectToScreen, starRadius, starColour,
+  deviceBasis, basisFromAim, applyScreenAngle, altAzToVector, vectorToAltAz,
+  focalLength, projectToScreen, starRadius, starColour,
 } from './skyview.js';
 
 const NAMED = new Map([
@@ -49,9 +49,13 @@ export function drawSkyView(ctx, o) {
 
   // Either the device is aimed somewhere, or the buttons are. Same projection
   // either way -- pointing is never the only way to look at the sky.
+  // The screen does not turn when the device does, so a landscape phone needs
+  // the picture rotated back or every left/right instruction is ninety degrees
+  // wrong. Manual aim is already in screen terms and needs no correction.
   const basis = o.aim
     ? basisFromAim(o.aim.az, o.aim.alt, 0)
-    : deviceBasis(alpha, beta, gamma, declination);
+    : applyScreenAngle(deviceBasis(alpha, beta, gamma, declination),
+                       o.screenAngle || 0);
   const focal = focalLength(w, fov);
   const cx = w / 2, cy = h / 2;
   const aimed = vectorToAltAz(basis.forward);
