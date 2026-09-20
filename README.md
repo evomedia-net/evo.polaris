@@ -77,9 +77,27 @@ appears to do nothing. `localhost` is exempt, which is why `npm run serve` works
 Typing coordinates in by hand leaves altitude to find, so there is a button that
 looks it up from [Open-Meteo](https://open-meteo.com/) — no key, no account.
 
-It is a button and not an automatic lookup because it is the **only** request
-this app ever makes, and it carries your coordinates to someone else. That
-should be a thing you choose, not a thing that happens.
+It is a button and not an automatic lookup because it is the only request that
+leaves **your coordinates with someone else**. That should be a thing you
+choose, not a thing that happens.
+
+The app makes one other request, and it is a different kind of thing. When you
+leave the page it reports **how many seconds you were here** to this site's own
+server — a single integer, no identifier, no cookie, nothing written to
+storage, no coordinates, and nothing to a third party. The server already knows
+your address and browser from having served you the page; this adds one number
+to that and stops.
+
+It exists because polaris is a single page: everything else in the access log
+arrives while the page loads, so nothing in it can say whether the app was used
+for ten seconds or an hour. That is worth knowing and there was no honest way
+to infer it.
+
+It does not run at all if your browser sends **Do Not Track** or **Global
+Privacy Control**, and it never runs offline — the send fails and the app
+carries on without noticing. Visits shorter than ten seconds are not reported.
+The code is `site/src/dwell.js`; it is about sixty lines and says exactly what
+it sends.
 
 It is also honestly a convenience rather than an accuracy fix: altitude shifts
 magnetic declination by **under 0.01° even at 3000 m**, against a good polar

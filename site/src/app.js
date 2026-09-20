@@ -14,6 +14,10 @@ import {
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
 import { mountEvomediaChrome } from './evomedia-chrome.js';
+// How long the app was actually used. One page means the access log cannot
+// say; this reports elapsed seconds to our own origin and nothing else, and
+// stays silent for anyone sending Do Not Track or Global Privacy Control.
+import { startDwellBeacon } from './dwell.js';
 import { fetchIss, lookAngles, describePass } from './iss.js';
 import { drawSkyView, drawMoonDisc } from './skydraw.js';
 import {
@@ -928,6 +932,7 @@ $('speakBtn').onclick = () => {
 
 async function boot() {
   mountEvomediaChrome();
+  startDwellBeacon();
   applyAppearance();
   try {
     stars = await (await fetch('src/data/stars.json')).json();

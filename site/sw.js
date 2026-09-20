@@ -18,7 +18,7 @@ const ASSETS = [
   './src/geomag.js', './src/chart.js', './src/guide.js', './src/words.js',
   './src/skyview.js', './src/skydraw.js', './src/evomedia-chrome.js',
   './src/coords.js', './src/briefing.js', './src/iss.js', './src/moon.js',
-  './src/planets.js',
+  './src/planets.js', './src/dwell.js',
   './src/data/constellations.js', './src/data/stars.json', './src/data/wmm2025.js', './src/data/icon.svg',
 ];
 
