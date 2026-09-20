@@ -105,10 +105,31 @@ you chase the pole around without converging.
 
 ## Hearing it
 
-**"Read these out loud"** speaks the latitude setting, the compass bearing and
-the reticle position through the browser's speech synthesis. The case this is
-for is real and specific: you are at the mount, in the dark, and the phone is
-not where your eyes are.
+**"Read these out loud"** speaks the altitude axis, the compass bearing and the
+reticle position through the browser's speech synthesis. The case this is for
+is real and specific: you are at the mount, in the dark, and the phone is not
+where your eyes are.
+
+**The words it says are also printed underneath it.** Not a caption on audio —
+it is literally the same string, rendered from one source. That matters three
+ways: a deaf or hard-of-hearing user gets the sentence at all, where the button
+alone would give them nothing; a sighted user can check what will be read
+before committing to listening to it; and the two can never drift apart,
+because there is only one of them.
+
+Writing it for the ear changed the wording. "Fourteen degrees on a compass,
+fourteen degrees west declination" sounds like a stutter — and for *western*
+declination those two numbers are always equal, so it is not a coincidence that
+can be avoided. It now says "…that is 14 degrees on a magnetic compass,
+**because** the needle here points 14 degrees west of true north", which turns
+an apparent repeat into the reason for itself.
+
+Extracting it also caught a live bug. The spoken text said **"Put Polaris"** in
+both hemispheres while the screen correctly said "Put σ Oct" — so anyone
+relying on the audio in the southern hemisphere was sent after a star that
+never rises where they are standing. The briefing now names the right star, the
+right pole, and adds a warning the northern version does not need: that Sigma
+Octantis is magnitude 5.5 and the Southern Cross is the way to find the pole.
 
 **Haptic confirmation** fires once when the live arrows reach Polaris, so
 "you're pointing at it" arrives without looking at the screen at all.

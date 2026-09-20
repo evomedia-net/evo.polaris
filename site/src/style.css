@@ -342,6 +342,27 @@ html[data-night='on'] .fig-spelled { color: var(--ink); }
 .steps strong { color: var(--accent); font-variant-numeric: tabular-nums; }
 html[data-night='on'] .steps strong { color: var(--ink); }
 
+/* The words the button says, printed. Not a caption on audio - it is the same
+   string, and for a deaf or hard-of-hearing user it is the ONLY form of that
+   sentence. It also lets a sighted user check what will be read before
+   committing to listening to it. */
+.spoken {
+  margin: 0.5rem 0 0;
+  padding: 0.8rem 0.95rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.7rem;
+}
+html[data-night='on'] .spoken {
+  background: transparent;
+  border-color: var(--line);
+  border-left-color: var(--ink);
+}
+
 .canvas-wrap { margin: 1rem 0 0; }
 canvas {
   display: block;

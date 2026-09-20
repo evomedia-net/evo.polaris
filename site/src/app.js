@@ -4,6 +4,7 @@ import { alignmentSolution, julianDay, lstHours, solarNoon, sunNow } from './ast
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
+import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 
 const $ = (id) => document.getElementById(id);
@@ -416,6 +417,11 @@ function render() {
     return li;
   }));
 
+  // The exact words the button will say, printed. One source, so the audio and
+  // the text can never drift apart -- and for a deaf or hard-of-hearing user
+  // this IS the sentence, since the button alone would give them nothing.
+  $('spokenText').textContent = spokenBriefing(solution);
+
   $('timeNote').textContent =
     `Good for ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. ` +
     'Polaris moves about one dial minute every two minutes — reset it if you take a break.';
@@ -527,15 +533,14 @@ function updateGuide() {
 // --- speech -----------------------------------------------------------------
 
 $('speakBtn').onclick = () => {
-  if (!solution || !window.speechSynthesis) return;
-  const dec = solution.declination;
-  const say =
-    `Set the altitude axis to ${spellAngle(solution.settings.altitudeAxis)}. ` +
-    `Point the mount at ${solution.trueNorthOnCompass.toFixed(0)} degrees on your compass, ` +
-    `which is ${Math.abs(dec).toFixed(0)} degrees ${dec >= 0 ? 'east' : 'west'} declination. ` +
-    `Put Polaris at ${solution.dialHour} o'clock ` +
-    `${Math.round(solution.dialMinute)} minutes on the dial, ` +
-    `at radius ${solution.radiusArcmin.toFixed(0)} arc minutes.`;
+  if (!solution) return;
+  const say = spokenBriefing(solution);      // the same string shown on screen
+  if (!window.speechSynthesis) {
+    // No speech engine. The text is already on screen, so say so rather than
+    // letting the button look broken.
+    $('speakBtn').textContent = 'This browser has no speech — the words are below';
+    return;
+  }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(say);
   u.rate = 0.92;
