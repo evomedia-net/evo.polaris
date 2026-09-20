@@ -95,6 +95,43 @@ export function moonPosition(date) {
   };
 }
 
+/**
+ * The Sun's equatorial position -- right ascension and declination.
+ *
+ * Needed for two things the ecliptic longitude alone cannot give: the angle of
+ * the Moon's bright limb, and telling whether a planet is lost in twilight.
+ * The Sun's ecliptic latitude is zero by definition, which is what makes this
+ * a one-line rotation rather than a second series.
+ */
+export function sunEquatorial(date) {
+  const d = daysSinceJ2000(date);
+  const lam = sunEclipticLongitude(date) * DEG;
+  const eps = obliquity(d) * DEG;
+  const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam));
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lam));
+  return { ra: ((ra / DEG) % 360 + 360) % 360, dec: dec / DEG };
+}
+
+/**
+ * The position angle of the Moon's bright limb, degrees east of north.
+ *
+ * WHAT THIS IS FOR: a crescent does not sit with its horns pointing wherever
+ * you like. The lit edge always faces the Sun, and drawing it any other way
+ * produces a picture that is wrong in a way people notice instantly without
+ * being able to say why. Low in the west after sunset the crescent leans one
+ * way; the same phase in the east before dawn leans the other.
+ *
+ * Measured from celestial north through east, which is the convention every
+ * ephemeris uses for a position angle.
+ */
+export function brightLimbAngle(moon, sun) {
+  const dRa = (sun.ra - moon.ra) * DEG;
+  const sd = sun.dec * DEG, md = moon.dec * DEG;
+  const y = Math.cos(sd) * Math.sin(dRa);
+  const x = Math.sin(sd) * Math.cos(md) - Math.cos(sd) * Math.sin(md) * Math.cos(dRa);
+  return ((Math.atan2(y, x) / DEG) % 360 + 360) % 360;
+}
+
 const SYNODIC = 29.530588853;     // days from one new Moon to the next
 
 /**

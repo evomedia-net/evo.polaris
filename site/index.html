@@ -55,6 +55,14 @@
             aria-label="Change where I am">Change</button>
   </div>
 
+  <!-- When you are looking. Mirrors the place bar above: a one-line answer
+       with the boxes one press behind it. -->
+  <div class="place" id="whenBar" hidden>
+    <span class="place-where" id="whenText">Right now</span>
+    <button id="whenChange" class="place-btn"
+            aria-label="Plan another night">Plan</button>
+  </div>
+
   <!-- The two jobs. Aligning a mount happens once, at the start of a night,
        and is a numbered procedure. Looking at the sky happens all evening and
        is not a procedure at all. Stacking them in one scroll put the sky view
@@ -113,6 +121,24 @@
     </div>
   </section>
 
+  <!-- When you are looking ---------------------------------------------- -->
+  <section class="card" id="whenCard" aria-labelledby="h-when" hidden>
+    <h2 id="h-when">When you are looking</h2>
+    <p class="status">Set a date and the whole app answers for that night —
+      where the stars, the Moon and the planets will be, and where the mount
+      will need to point.</p>
+
+    <label>Date and time
+      <span class="hint">as the clock will read where you are standing</span>
+      <input id="inWhen" type="datetime-local">
+    </label>
+    <p class="hint" id="whenTzNote"></p>
+
+    <button id="whenApply" class="big-btn primary">Use this date and time</button>
+    <button id="whenNow" class="big-btn ghost">Show right now instead</button>
+    <p class="hint" id="whenWarn"></p>
+  </section>
+
   <!-- ===================================================================
        TONIGHT'S SKY
        =================================================================== -->
@@ -121,14 +147,17 @@
     <section class="card" aria-labelledby="h-sky">
       <h2 id="h-sky">Tonight’s sky</h2>
 
-      <figure class="live-sky">
+      <figure class="live-sky" id="liveSkyWrap">
         <canvas id="liveSky" width="720" height="480"
                 role="img" aria-labelledby="liveSkyDesc"></canvas>
+        <button id="fullBtn" class="big-btn full-btn">Fill the screen</button>
         <figcaption class="caption" id="liveSkyDesc">
           A live window on the sky. Hold the phone up and move it around; the
           stars sit where they really are, and the ringed marker is the pole.
+          The Moon is drawn larger than life so its phase can be read at all.
         </figcaption>
       </figure>
+      <button id="fullAuto" class="big-btn ghost" hidden>Follow the phone's rotation</button>
       <p class="hint" id="skyMode"></p>
 
       <div class="sky-controls">
@@ -136,7 +165,10 @@
         <button id="skyNarrower" class="big-btn">Show less sky</button>
         <button id="skyConst" class="big-btn">Hide the constellations</button>
         <button id="skyMilky" class="big-btn">Hide the Milky Way</button>
+        <button id="skyPlanets" class="big-btn">Hide the planets</button>
+        <button id="skyMoon" class="big-btn">Hide the Moon</button>
       </div>
+      <p class="hint" id="planetsOut"></p>
 
       <button id="skyFollow" class="big-btn ghost">Follow the phone instead</button>
 

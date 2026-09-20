@@ -229,6 +229,96 @@ The drawn disc uses an **elliptical terminator**, not a straight edge — you ar
 looking at a sphere, so the boundary between lit and unlit is a circle seen at
 an angle, and a straight one is a shape nobody has ever seen in the sky.
 
+## The planets
+
+Computed, not fetched — like the Moon and unlike the ISS.
+
+**The method.** JPL's approximate Keplerian elements: each orbit as six numbers
+plus six rates of change per century. Propagate the elements to the date, solve
+Kepler's equation for the position in the orbit, rotate into the ecliptic,
+subtract the Earth's own position, and what is left is a geocentric direction.
+
+**Accuracy, stated honestly.** The element set is published as good from 1800 to
+2050, and over that span it is worth **a few arcminutes** for the inner planets
+and better than an arcminute for the outer ones — a small fraction of the
+Moon's width, and far finer than anyone can point a phone. It is not good
+enough to predict an occultation or a transit time, and it does not pretend to
+be: there is no perturbation theory here at all, only ellipses.
+
+Deliberately left out: light-time correction (up to about 30 minutes for
+Saturn, which moves it by well under an arcminute), aberration, and nutation.
+All are smaller than the element error they would be correcting inside.
+
+**How it is checked.** The strongest available test is an event anyone can look
+up: the **great conjunction of 2020 December 21**, the closest Jupiter–Saturn
+pairing since 1623, reported everywhere at the time as about six arcminutes —
+a fifth of the Moon's width. The test asserts a separation under 0.2° on the
+day, *and* a separation over 0.5° a week earlier, so it cannot be passed by a
+projection that happens to pile everything into one spot. It pins both planets
+at once and a wrong answer is not close.
+
+The rest are invariants that need no quoted figure at all, which is the point —
+nothing in the code knows any of these numbers:
+
+- **Every planet stays between its own perihelion and aphelion.** The strongest
+  test of the Kepler solver there is.
+- **Each goes round in its own sidereal period** — Mercury 88 days through
+  Saturn 10,759 — and the longitude comes back to where it started. "No change"
+  is zero, not half a turn: the same trap the Moon's sidereal-month test fell
+  into.
+- **Mercury never gets more than about 28° from the Sun, Venus about 47°.**
+  These limits are what make them morning and evening objects, they fall
+  straight out of the geometry, and getting them right validates the geocentric
+  subtraction.
+- **A superior planet reaches opposition and is nearest there.** Both halves
+  have to hold together.
+- **Venus outshines every other planet**, and Neptune is never naked-eye.
+- **Mars's phase angle peaks near 47°, Jupiter's near 12°** — the Earth is too
+  close to the Sun for an outer planet to show much of a phase.
+
+One test failed for an honest reason worth recording: Neptune's aphelion came
+out 0.12 au short. The sampling window was 98 years and **Neptune's orbit is
+165**, so it never reached aphelion inside it. The test was wrong, not the
+ephemeris. The window is now 1880–2050 — the span the elements are published
+for, and just longer than one Neptune year — with a 62-day step that shares no
+factor with any period here.
+
+**Magnitudes** use the standard phase-angle polynomials. Saturn's is the weak
+one: its rings contribute up to about 0.9 magnitudes depending on how open they
+are to us, and that tilt is not modelled, so Saturn can read up to a magnitude
+too faint. It decides how big a dot gets drawn and nothing else.
+
+**Above the horizon is not the same as findable.** Anything within about 12° of
+the Sun is in the glare whatever its magnitude says, and the summary line calls
+that out rather than offering it as a target.
+
+### The Moon in the sky view
+
+Two things had to be right for the Moon to be drawn where it is rather than
+merely near it.
+
+**The bright limb faces the Sun.** A crescent does not sit with its horns
+pointing wherever you like — the lit edge always faces the Sun, and drawing it
+otherwise produces a picture that is wrong in a way people notice instantly
+without being able to say why. Low in the west after sunset the crescent leans
+one way; the same phase in the east before dawn leans the other. The position
+angle of the bright limb is computed from the Sun's and the Moon's equatorial
+positions.
+
+**Which way is "north" on screen is measured, not reasoned about.** A position
+angle is meaningless without knowing where north and east run in the picture,
+and that changes with every turn of the view. Rather than derive it — working
+out which way east runs in a projection of the sky *seen from inside*, not from
+outside like a map, is a handedness argument that is very easy to get backwards
+— two neighbours a quarter-degree away are projected alongside the Moon itself
+and the directions read off. A mirrored crescent is exactly the kind of error
+that looks fine until someone who knows the sky glances at it.
+
+**Its size is exaggerated and its position is not.** The real Moon is about half
+a degree across, which at a 65° field is six pixels — too small to read a phase
+from at all. It is drawn at a floor of about a twentieth of the view height, the
+way a chart exaggerates a symbol it needs you to recognise. The caption says so.
+
 ## The ISS, and the one thing that needs the network
 
 Everything else in this app works with the radio off. Stars are fixed for

@@ -8,13 +8,18 @@ import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
-import { buildSkyVectors, smoothAngle, buildMilkyWay } from './skyview.js';
+import {
+  buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies,
+} from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
 import { mountEvomediaChrome } from './evomedia-chrome.js';
 import { fetchIss, lookAngles, describePass } from './iss.js';
 import { drawSkyView, drawMoonDisc } from './skydraw.js';
-import { moonPhase, describeMoon } from './moon.js';
+import {
+  moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
+} from './moon.js';
+import { planetPositions, describePlanets } from './planets.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 
@@ -60,7 +65,21 @@ let skyAim = { az: 0, alt: 45 };
 // looking at, and the band is what most of them are pointing a camera at.
 let skyConstellations = true;
 let skyMilkyWay = true;
+// The planets and the Moon are why half of this pane exists now, so both are
+// on. They are also the two things that can hide something you were looking
+// for -- the Moon is drawn larger than life -- hence the switches.
+let skyShowPlanets = true;
+let skyShowMoon = true;
 let milkyWay = null;
+let skyPlanetList = [];
+let skyMoonBody = null;
+
+// Full screen. null means "follow the phone's rotation"; true or false is a
+// choice someone made by hand, and a choice outranks the rotation until they
+// hand it back. Same three-state shape as the pan pad, for the same reason:
+// the automatic rule is right nearly always, and "nearly" is not "always".
+let fullLock = null;
+let fullOn = false;
 let issMark = null;          // {alt, az, sunlit} once asked for, else null
 // Smoothed copies. Raw orientation readings jitter by a degree or two even on
 // a still phone, and at a 65 degree field that is several pixels of shake on
@@ -82,6 +101,24 @@ let mode = store.get('mode', 'sky');
 // null means "work it out from whether the phone is steering"; true or false
 // is a choice someone made, and a choice outranks the guess.
 let padOpen = store.get('padOpen', null);
+
+// --- when you are looking ---------------------------------------------------
+//
+// null means right now. Anything else is a night being planned for, and every
+// number in the app answers for that instant instead.
+//
+// IT IS DELIBERATELY NOT PERSISTED. Everything else here is -- position, text
+// size, theme, which pane you were on -- but a planned date is the one setting
+// whose stale value is dangerous. Open the app in a field at midnight, having
+// planned a trip a fortnight ago, and it would hand you a complete, confident
+// set of mount numbers for the wrong night with nothing obviously wrong on
+// screen. Every load starts at "right now".
+let plannedFor = null;
+
+/** The instant the whole app is answering for. */
+function appTime() {
+  return plannedFor ? new Date(plannedFor) : new Date();
+}
 
 // Whether the compass is on because someone asked for it on the Align side,
 // as opposed to the sky view switching it on to follow the phone. It decides
@@ -163,6 +200,9 @@ function setSite(next, note) {
   $('placeBar').hidden = false;
   $('placeCard').hidden = true;
   setPlaceChangeLabel(false);
+  $('whenBar').hidden = false;
+  setWhenChangeLabel(false);
+  paintWhen();
   $('modePicker').hidden = false;
 
   render();                 // solution first: the sky view cannot draw without it
@@ -188,6 +228,98 @@ $('placeChange').onclick = () => {
   setPlaceChangeLabel(opening);
 };
 
+// --- planning another night --------------------------------------------------
+
+// The hint the ISS section carries when it can actually answer. Captured
+// rather than duplicated, so the page stays the one place it is written.
+const ISS_HINT = $('issOut').textContent;
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** A Date as the value a datetime-local input wants, in local time. */
+function localInputValue(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+    + `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function longWhen(d) {
+  return d.toLocaleString([], {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function setWhenChangeLabel(open) {
+  const btn = $('whenChange');
+  btn.textContent = open ? 'Hide' : 'Plan';
+  btn.setAttribute('aria-label',
+    open ? 'Hide the date boxes' : 'Plan another night');
+}
+
+function paintWhen() {
+  const planning = plannedFor !== null;
+  $('whenText').textContent = planning ? longWhen(appTime()) : 'Right now';
+  // A planned night has to look different from a live one at a glance. These
+  // are real mount numbers and they are for a date that is not today.
+  $('whenBar').classList.toggle('planning', planning);
+
+  // The station's position can be ASKED FOR and not predicted -- this app does
+  // no orbit propagation, and iss.js says so. Answering a question about a
+  // future night with today's position would be inventing a pass.
+  $('issBtn').disabled = planning;
+  $('issOut').textContent = planning
+    ? 'Where the station is can only be asked for, not predicted — that needs '
+      + 'orbit propagation from a fresh element set, which this app does not do. '
+      + 'Switch back to right now to use it.'
+    : ISS_HINT;
+
+  const v = modelValidity();
+  $('whenWarn').textContent =
+    planning && appTime().getFullYear() > Number(v.validUntil)
+      ? `Past ${v.validUntil} the magnetic model is an extrapolation, so the `
+        + 'compass bearing drifts. True north, the star positions and the dial '
+        + 'reading are unaffected — they do not use it.'
+      : '';
+
+  if (site) { render(); if (skyOn) { refreshSkyVectors(); drawLiveSky(); } }
+}
+
+$('whenChange').onclick = () => {
+  const opening = $('whenCard').hidden;
+  $('whenCard').hidden = !opening;
+  setWhenChangeLabel(opening);
+  if (!opening) return;
+  $('inWhen').value = localInputValue(plannedFor ? appTime() : eveningToday());
+  const tz = (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || 'this device';
+  $('whenTzNote').textContent =
+    `Read in this device's time zone (${tz}). The app cannot tell that you will `
+    + 'be somewhere on a different clock, so for a trip across a time-zone line, '
+    + 'enter the time as it would read here.';
+};
+
+/** Tonight at nine, because that is when people plan to be out. */
+function eveningToday() {
+  const d = new Date();
+  d.setHours(21, 0, 0, 0);
+  return d;
+}
+
+$('whenApply').onclick = () => {
+  const v = $('inWhen').value;
+  const d = v ? new Date(v) : null;
+  if (!d || Number.isNaN(+d)) {
+    $('whenWarn').textContent = 'That is not a date and time this app can read.';
+    return;
+  }
+  plannedFor = d.toISOString();
+  paintWhen();
+};
+
+$('whenNow').onclick = () => {
+  plannedFor = null;
+  paintWhen();
+};
+
 // --- the two modes -----------------------------------------------------------
 
 function applyMode() {
@@ -202,13 +334,19 @@ function applyMode() {
   skyOn = sky;
   if (sky) {
     refreshSkyVectors();
+    sizeSkyCanvas();
+    syncFullScreen();
     aimAtPole();
     // Following needs the orientation listener, so asking for it is part of
     // opening the view rather than a second thing to discover.
     if (skyFollow && !compassOn) startCompass();
     updateSkyMode();
     drawLiveSky();
-  } else if (compassOn && !compassByUser) {
+  } else {
+    if (fullOn) { fullOn = false; applyFullScreen(); }
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }
+  if (!sky && compassOn && !compassByUser) {
     // The sky view turned it on and the sky view has gone; a sensor nobody is
     // reading is just battery. Leaving the pane is not a change of preference,
     // though, so the follow setting survives being stopped.
@@ -417,7 +555,7 @@ function hemisphereNote() {
 
 function render() {
   if (!site) return;
-  const now = new Date();
+  const now = appTime();
   const dec = declination(site.lat, site.lon, (site.altitude || 0) / 1000, now);
   solution = alignmentSolution(now, site, dec);
 
@@ -577,9 +715,13 @@ function render() {
   // this IS the sentence, since the button alone would give them nothing.
   $('spokenText').textContent = spokenBriefing(solution);
 
-  $('timeNote').textContent =
-    `Good for ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. ` +
-    'Polaris moves about one dial minute every two minutes — reset it if you take a break.';
+  $('timeNote').textContent = plannedFor
+    ? `These are the numbers for ${longWhen(now)} — not for right now. `
+      + `${solution.star.short} moves about one dial minute every two minutes, so `
+      + 'read them again when you get there.'
+    : `Good for ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. `
+      + 'Polaris moves about one dial minute every two minutes — reset it if you '
+      + 'take a break.';
 
   const rc = $('reticle');
   drawReticle(rc.getContext('2d'), {
@@ -818,11 +960,137 @@ boot();
 
 function refreshSkyVectors() {
   if (!site || !stars.length) return;
-  const lst = lstHours(julianDay(new Date()), site.lon);
+  const when = appTime();
+  const lst = lstHours(julianDay(when), site.lon);
   skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5);
   // Same slow tick as the stars: the band turns with the sky, not with you.
   milkyWay = buildMilkyWay(lst, site.lat);
+
+  // The planets and the Moon move against the stars, so they are rebuilt on
+  // the same tick rather than cached alongside them. Both go through the same
+  // rotation the stars do -- one implementation, so they cannot disagree.
+  const ph = moonPhase(when);
+  const bodies = buildBodies([
+    ...planetPositions(when),
+    {
+      name: 'Moon', ra: ph.ra, dec: ph.dec,
+      illuminated: ph.illuminated,
+      brightLimb: brightLimbAngle(ph, sunEquatorial(when)),
+      isMoon: true,
+    },
+  ], lst, site.lat);
+  skyPlanetList = bodies.filter((b) => !b.isMoon);
+  skyMoonBody = bodies.find((b) => b.isMoon) || null;
+  $('planetsOut').textContent = describePlanets(skyPlanetList);
 }
+
+/**
+ * Match the canvas's pixels to the box it is being drawn into.
+ *
+ * The backing store was a fixed 720x480 and CSS stretched it to fit, which is
+ * soft on a phone and outright distorted the moment full screen changes the
+ * aspect ratio -- a circle drawn round the pole would come out an oval, on the
+ * one view whose whole promise is that things are where they really are.
+ *
+ * Device pixel ratio is capped at 2: past that it is four times the projection
+ * work per frame for a difference nobody can see.
+ */
+function sizeSkyCanvas() {
+  const c = $('liveSky');
+  const box = c.getBoundingClientRect();
+  if (!box.width || !box.height) return false;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.round(box.width * dpr), h = Math.round(box.height * dpr);
+  if (c.width === w && c.height === h) return false;
+  c.width = w; c.height = h;
+  return true;
+}
+
+function applyFullScreen() {
+  const wrap = $('liveSkyWrap');
+  wrap.classList.toggle('full', fullOn);
+  $('fullBtn').textContent = fullOn ? 'Leave full screen' : 'Fill the screen';
+  // Offered only when there is something to hand back. A control that does
+  // nothing is worse than a missing one.
+  $('fullAuto').hidden = fullLock === null;
+  sizeSkyCanvas();
+  drawLiveSky();
+}
+
+const landscapeMq = window.matchMedia
+  ? window.matchMedia('(orientation: landscape)') : null;
+
+/** Landscape fills the screen, portrait does not -- unless someone said otherwise. */
+function rotationWants() {
+  return !!(landscapeMq && landscapeMq.matches);
+}
+
+function syncFullScreen() {
+  const want = fullLock === null ? rotationWants() : fullLock;
+  if (want === fullOn) return;
+  fullOn = want;
+  applyFullScreen();
+}
+
+// ROTATION IS DRIVEN BY `resize`, NOT BY THE MEDIA QUERY ALONE.
+//
+// A matchMedia('(orientation: landscape)') change listener looked like the
+// obvious way to do this, and it half worked: turning the phone to landscape
+// filled the screen, and turning it BACK did nothing. Stuck full screen, with
+// the only way out a button someone would have to find. A MediaQueryList with
+// no strong reference can be collected along with its listeners, and the event
+// is not guaranteed to arrive in step with the layout anyway.
+//
+// A rotation always fires `resize`. So `resize` is the signal, the media query
+// is only consulted for the answer, and the list is kept in a module-level
+// binding so nothing can collect it.
+function onViewportChanged() {
+  if (!skyOn) return;
+  syncFullScreen();               // no-op unless the answer actually changed
+  if (sizeSkyCanvas()) drawLiveSky();
+}
+
+window.addEventListener('resize', onViewportChanged);
+window.addEventListener('orientationchange', onViewportChanged);
+if (landscapeMq) {
+  // Still registered: on a phone this can arrive before the resize does.
+  if (landscapeMq.addEventListener) {
+    landscapeMq.addEventListener('change', onViewportChanged);
+  } else if (landscapeMq.addListener) {
+    landscapeMq.addListener(onViewportChanged);
+  }
+}
+
+$('fullBtn').onclick = async () => {
+  fullLock = !fullOn;
+  fullOn = fullLock;
+  applyFullScreen();
+  // Real fullscreen as well, where it is allowed: this press IS a gesture, so
+  // the request can succeed here even though a rotation's cannot. If it is
+  // refused the overlay above is already doing the job, so the failure costs
+  // nothing and is not worth reporting.
+  try {
+    if (fullOn) await $('liveSkyWrap').requestFullscreen?.();
+    else if (document.fullscreenElement) await document.exitFullscreen?.();
+  } catch { /* the overlay stands on its own */ }
+};
+
+$('fullAuto').onclick = () => {
+  fullLock = null;
+  syncFullScreen();
+  applyFullScreen();
+};
+
+// Leaving real fullscreen by the browser's own gesture -- the Escape key, or a
+// swipe -- has to bring the overlay with it, or the page is left covering the
+// screen with no way out that looks like the way in.
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && fullOn && fullLock === true) {
+    fullLock = false;
+    fullOn = false;
+    applyFullScreen();
+  }
+});
 
 function drawLiveSky() {
   if (!skyOn || !solution) return;
@@ -845,6 +1113,8 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     milkyWay: skyMilkyWay ? milkyWay : null,
+    planets: skyShowPlanets ? skyPlanetList : null,
+    moon: skyShowMoon ? skyMoonBody : null,
     iss: issMark,
   });
 }
@@ -856,10 +1126,15 @@ function aimAtPole() {
 
 function updateSkyMode() {
   const following = skyFollow && rawAlpha !== null;
+  // A planned night has to say so here too. Pointing a phone at a sky drawn
+  // for a different date is the one way this view can mislead, and the whole
+  // point of it is that what you see is where things really are.
+  const when = plannedFor ? `Showing ${longWhen(appTime())}. ` : '';
   $('skyMode').textContent = following
-    ? 'Following the phone. The buttons take over again if you press one.'
-    : `Looking ${Math.round(skyAim.az)}° round and ${Math.round(skyAim.alt)}° up. `
-      + 'Use the buttons or the arrow keys — nothing needs to be held up.';
+    ? `${when}Following the phone. The buttons take over again if you press one.`
+    : `${when}Looking ${Math.round(skyAim.az)}° round and `
+      + `${Math.round(skyAim.alt)}° up. Use the buttons or the arrow keys — `
+      + 'nothing needs to be held up.';
   $('skyFollow').textContent = following
     ? 'Stop following the phone' : 'Follow the phone instead';
 
@@ -1018,6 +1293,18 @@ $('skyJump').onclick = () => {
   // the target arrow at the edge of the view is what guides you there instead.
   if (!(skyFollow && rawAlpha !== null)) aimAtPole();
   updateSkyMode();
+  drawLiveSky();
+};
+
+$('skyPlanets').onclick = () => {
+  skyShowPlanets = !skyShowPlanets;
+  $('skyPlanets').textContent = skyShowPlanets
+    ? 'Hide the planets' : 'Show the planets';
+  drawLiveSky();
+};
+$('skyMoon').onclick = () => {
+  skyShowMoon = !skyShowMoon;
+  $('skyMoon').textContent = skyShowMoon ? 'Hide the Moon' : 'Show the Moon';
   drawLiveSky();
 };
 

@@ -177,6 +177,79 @@ export function drawSkyView(ctx, o) {
     }
   }
 
+  // Planets. ALWAYS NAMED: "which of those dots is Jupiter" is the entire
+  // question, and an unlabelled planet is just a star that happens to be in
+  // the wrong catalogue. Drawn a little larger than a star of the same
+  // magnitude, which is also how they look -- a steady disc rather than a
+  // twinkling point.
+  if (o.planets) {
+    for (const p of o.planets) {
+      if (p.alt <= 0) continue;                 // under your feet, not off-screen
+      const q = projectToScreen(p.v, basis, focal);
+      if (!q) continue;
+      const x = cx + q.x, y = cy + q.y;
+      if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
+      const r = Math.max(2.2, starRadius(p.magnitude) * 1.4);
+      ctx.fillStyle = night ? '#ff0000' : p.colour;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
+      ctx.font = `600 ${Math.round(h / 32)}px system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText(p.name, x + r + 5, y);
+      ctx.textAlign = 'center';
+    }
+  }
+
+  // The Moon, with the phase it actually has and the lit side facing the Sun.
+  //
+  // DRAWN LARGER THAN LIFE, DELIBERATELY. The real Moon is about half a degree
+  // across, which at a 65-degree field is six pixels -- too small to read a
+  // phase from at all. It gets a floor of h/20 instead, the way a chart
+  // exaggerates a symbol it needs you to recognise. Its POSITION is exact; its
+  // size is not, and the caption says so rather than leaving it to be noticed.
+  if (o.moon && o.moon.alt > -1) {
+    const q = projectToScreen(o.moon.v, basis, focal);
+    if (q) {
+      const x = cx + q.x, y = cy + q.y;
+      const trueR = Math.tan(0.26 * Math.PI / 180) * focal;
+      const r = Math.max(h / 20, trueR);
+
+      // North and east as they run on screen at this point, measured from the
+      // projection rather than assumed. The bright limb is at position angle
+      // PA from north through east, which in this frame is exactly
+      // cos(PA) * north + sin(PA) * east.
+      const pn = projectToScreen(o.moon.vNorth, basis, focal);
+      const pe = projectToScreen(o.moon.vEast, basis, focal);
+      let angle = 0;
+      if (pn && pe) {
+        const norm = (dx, dy) => {
+          const m = Math.hypot(dx, dy) || 1;
+          return [dx / m, dy / m];
+        };
+        const [nx, ny] = norm(pn.x - q.x, pn.y - q.y);
+        const [ex, ey] = norm(pe.x - q.x, pe.y - q.y);
+        const pa = (o.moon.brightLimb || 0) * Math.PI / 180;
+        angle = Math.atan2(
+          ny * Math.cos(pa) + ey * Math.sin(pa),
+          nx * Math.cos(pa) + ex * Math.sin(pa),
+        );
+      }
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      moonFace(ctx, r, o.moon.illuminated, night);
+      ctx.restore();
+
+      ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
+      ctx.font = `600 ${Math.round(h / 32)}px system-ui, sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillText('Moon', x + r + 5, y);
+      ctx.textAlign = 'center';
+    }
+  }
+
   // The target: the pole itself, ringed, because that is what you align to.
   const tp = projectToScreen(altAzToVector(targetAlt, targetAz), basis, focal);
   let onScreen = false;
@@ -249,43 +322,51 @@ export function drawSkyView(ctx, o) {
  * sphere, so the boundary between lit and unlit is a circle seen at an angle.
  * Drawing it straight gives a shape nobody has ever seen in the sky.
  */
-export function drawMoonDisc(ctx, { illuminated, waxing, size, night = false }) {
-  const r = size / 2 - 3;
-  const cx = size / 2, cy = size / 2;
-  ctx.clearRect(0, 0, size, size);
-
-  const lit = night ? '#ff3a2a' : '#e8e4d8';
-  const dark = night ? '#2a0000' : '#23283a';
-
-  ctx.fillStyle = dark;
+/**
+ * The lit face, centred on the origin, with the bright limb toward +x.
+ *
+ * ONE implementation of the phase shape, shared by the card and by the Moon
+ * drawn into the sky view. Whoever calls it decides which way the light is
+ * coming from by rotating the canvas first -- which is exactly what the
+ * difference between the two is.
+ */
+function moonFace(ctx, r, illuminated, night) {
+  ctx.fillStyle = night ? '#2a0000' : '#23283a';
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
 
   // k is how far the terminator has swept across the face, 0..1.
   const k = Math.max(0, Math.min(1, illuminated));
   if (k > 0.001) {
-    ctx.save();
-    ctx.fillStyle = lit;
+    ctx.fillStyle = night ? '#ff3a2a' : '#e8e4d8';
     ctx.beginPath();
     // Half the disc is always a plain semicircle; the other half is the
     // terminator ellipse, which bulges one way before half phase and the other
-    // way after. Waxing lights the right-hand limb from the northern
-    // hemisphere, which is the convention every almanac prints.
-    const start = waxing ? -Math.PI / 2 : Math.PI / 2;
-    ctx.arc(cx, cy, r, start, start + Math.PI, false);
+    // way after. A straight edge is a shape nobody has ever seen in the sky.
+    const start = -Math.PI / 2;
+    ctx.arc(0, 0, r, start, start + Math.PI, false);
     const bulge = r * (2 * k - 1);
-    ctx.ellipse(cx, cy, Math.abs(bulge), r, 0,
-                start + Math.PI, start,
-                waxing ? bulge < 0 : bulge > 0);
+    ctx.ellipse(0, 0, Math.abs(bulge), r, 0, start + Math.PI, start, bulge < 0);
     ctx.closePath();
     ctx.fill();
-    ctx.restore();
   }
 
   ctx.strokeStyle = night ? '#7a0000' : '#3a4356';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+export function drawMoonDisc(ctx, { illuminated, waxing, size, night = false }) {
+  const r = size / 2 - 3;
+  ctx.clearRect(0, 0, size, size);
+  ctx.save();
+  ctx.translate(size / 2, size / 2);
+  // Waxing lights the right-hand limb from the northern hemisphere, which is
+  // the convention every almanac prints. Waning is the same face turned round.
+  if (!waxing) ctx.rotate(Math.PI);
+  moonFace(ctx, r, illuminated, night);
+  ctx.restore();
 }

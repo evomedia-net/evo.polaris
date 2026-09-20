@@ -321,6 +321,13 @@ main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
   border-radius: 0.9rem;
 }
 .place-where { font-weight: 650; font-size: 1rem; white-space: nowrap; }
+/* Planning a night that is not tonight. These are real mount numbers for a
+   date that is not today, so the bar has to be unmistakable at a glance --
+   not a subtle difference someone has to go looking for. */
+.place.planning { border-color: var(--accent); border-width: 2px; }
+.place.planning .place-where { color: var(--accent); white-space: normal; }
+html[data-night='on'] .place.planning { border-color: var(--ink); }
+html[data-night='on'] .place.planning .place-where { color: var(--ink); }
 .place-btn {
   min-height: var(--tap);
   padding: 0 0.8rem;
@@ -438,6 +445,13 @@ html[data-night='on'] .mode-btn[aria-selected='true'] {
   border-color: var(--accent);
 }
 .big-btn.ghost { border-style: dashed; color: var(--ink-dim); }
+/* A control that cannot answer right now says so by looking spent, rather than
+   by answering wrongly. The pan pad uses this while the phone is steering, and
+   the ISS button while a future night is being planned for. */
+.big-btn:disabled, .place-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .big-btn:active { transform: translateY(1px); }
 
 :focus-visible {
@@ -564,6 +578,57 @@ html[data-night='on'] .spoken {
   border: 1px solid var(--line);
 }
 html[data-night='on'] .live-sky canvas { background: #000; }
+
+/* FULL SCREEN.
+ *
+ * A CSS overlay rather than the Fullscreen API, because the API needs a user
+ * gesture and the whole point here is that TURNING THE PHONE does it. An
+ * orientation change is not a gesture any browser will accept, so a rotation
+ * would silently fail and the feature would only work when pressed. The button
+ * additionally asks for real fullscreen -- that one does have a gesture behind
+ * it -- and when the request is refused this overlay is still what you see. */
+.live-sky.full {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  margin: 0;
+  background: var(--bg);
+}
+.live-sky.full canvas {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+}
+/* The caption is the alternative to the picture, so it is not deleted -- it is
+   moved out of sight and left for a screen reader, exactly like the reticle's
+   description. A full-screen view with no text alternative would be the one
+   part of this app that is picture-only. */
+.live-sky.full .caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.full-btn { margin: 0.55rem 0 0; }
+/* In full screen it becomes a corner control, because there is no "below the
+   canvas" any more. Top right, away from the horizon and the cardinal letters
+   along the bottom. */
+.live-sky.full .full-btn {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  right: max(0.6rem, env(safe-area-inset-right));
+  width: auto;
+  min-width: 0;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  background: var(--card);
+  z-index: 2;
+}
+html[data-night='on'] .live-sky.full .full-btn { background: transparent; }
 /* Two buttons rather than pinch-to-zoom: pinching is a two-finger gesture and
    this app does not use any. */
 /* A directional pad, because the sky view must be drivable by someone who

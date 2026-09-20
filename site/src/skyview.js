@@ -125,25 +125,68 @@ export function starColour(bv, night) {
  * orientation event would be most of the work for none of the benefit, so the
  * expensive half is done on a timer and only the projection runs per frame.
  */
-export function buildSkyVectors(stars, lstHours, latDeg, limitMag = 5.5) {
-  const out = [];
+/**
+ * One object's direction in the observer's frame, from its equatorial place.
+ *
+ * ONE implementation, used by the stars, the planets and the Moon alike. Two
+ * copies of this rotation would drift apart eventually, and the drift would
+ * look exactly like an ephemeris error in whichever one was wrong -- a planet
+ * a degree from where the star chart puts it, with nothing to say which was
+ * lying.
+ */
+export function equatorialToVector(raDeg, decDeg, lstHours, latDeg) {
   const lat = latDeg * DEG;
   const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
+  const ha = (lstHours * 15 - raDeg) * DEG;
+  const dec = decDeg * DEG;
+  const sinDec = Math.sin(dec), cosDec = Math.cos(dec);
+  const sinAlt = sinDec * sinLat + cosDec * cosLat * Math.cos(ha);
+  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+  const az = Math.atan2(-cosDec * cosLat * Math.sin(ha),
+                        sinDec - sinLat * sinAlt);
+  const c = Math.cos(alt);
+  return [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)];
+}
+
+export function buildSkyVectors(stars, lstHours, latDeg, limitMag = 5.5) {
+  const out = [];
   for (const s of stars) {
     const [raDeg, decDeg, mag, bv, hr] = s;
     if (mag > limitMag) continue;
-    const ha = (lstHours * 15 - raDeg) * DEG;
-    const dec = decDeg * DEG;
-    const sinDec = Math.sin(dec), cosDec = Math.cos(dec);
-    const sinAlt = sinDec * sinLat + cosDec * cosLat * Math.cos(ha);
-    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
-    const az = Math.atan2(-cosDec * cosLat * Math.sin(ha),
-                          sinDec - sinLat * sinAlt);
-    const c = Math.cos(alt);
-    out.push({
-      v: [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)],
-      mag, bv, hr,
-    });
+    out.push({ v: equatorialToVector(raDeg, decDeg, lstHours, latDeg), mag, bv, hr });
+  }
+  return out;
+}
+
+/**
+ * The planets and the Moon, placed in the sky the same way the stars are.
+ *
+ * Each keeps whatever it arrived with -- name, colour, magnitude, phase -- and
+ * gains a direction, an altitude and an azimuth. Anything below the horizon is
+ * dropped here rather than at drawing time: something under your feet is not
+ * "off the edge of the view", it is on the other side of the planet, and an
+ * arrow pointing helpfully at the ground is worse than silence.
+ */
+export function buildBodies(bodies, lstHours, latDeg) {
+  const out = [];
+  for (const b of bodies) {
+    const v = equatorialToVector(b.ra, b.dec, lstHours, latDeg);
+    const { alt, az } = vectorToAltAz(v);
+    // Two neighbours a quarter-degree away, toward celestial north and
+    // celestial east. Projecting those alongside the body itself gives the
+    // directions north and east point ON SCREEN, wherever the view is turned,
+    // which is what a position angle is measured against.
+    //
+    // Measured rather than reasoned about ON PURPOSE. Working out which way
+    // east runs in a projection of the sky -- seen from inside, not from
+    // outside like a map -- is a handedness argument that is very easy to get
+    // backwards, and a mirrored crescent is wrong in a way people notice
+    // instantly without being able to say why.
+    const dec = Math.min(89.5, Math.max(-89.5, b.dec));
+    const vNorth = equatorialToVector(b.ra, dec + 0.25, lstHours, latDeg);
+    const vEast = equatorialToVector(
+      b.ra + 0.25 / Math.cos(dec * DEG), dec, lstHours, latDeg);
+    out.push({ ...b, v, alt, az, vNorth, vEast });
   }
   return out;
 }

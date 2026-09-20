@@ -51,7 +51,7 @@ const GLYPH_BUTTONS = new Set(['textSmaller', 'textBigger']);
  */
 const VERBS = new Set([
   'use', 'turn', 'show', 'hide', 'enter', 'look', 'find', 'read', 'follow',
-  'stop', 'make', 'switch', 'change', 'move',
+  'stop', 'make', 'switch', 'change', 'move', 'plan', 'fill', 'leave',
 ]);
 
 /** Every <button> in the page: id, visible text, aria-label if it has one. */
@@ -78,17 +78,14 @@ function buttonsInHtml(src) {
  */
 function runtimeLabels(src, id) {
   const out = [];
-  const names = [`\\$\\('${id}'\\)`];
-  for (const a of src.matchAll(new RegExp(`const (\\w+) = \\$\\('${id}'\\)`, 'g'))) {
-    names.push(a[1]);
-  }
-  for (const name of names) {
+
+  const scan = (text, name) => {
     // Both the visible text AND the accessible name. Where a control's visible
     // word is shortened to fit a row, the aria-label is the real label, and a
     // test that only read textContent would be checking the abbreviation.
     for (const prop of ['\\.textContent\\s*=', "\\.setAttribute\\('aria-label',"]) {
       const re = new RegExp(`${name}${prop}([\\s\\S]*?);`, 'g');
-      for (const m of src.matchAll(re)) {
+      for (const m of text.matchAll(re)) {
         // Join string concatenations first. A sentence written as
         // `'Switch to ' + 'Dark Mode.'` is ONE label; read literal by literal
         // it looks like a second label starting with the word "Dark".
@@ -96,6 +93,20 @@ function runtimeLabels(src, id) {
         for (const lit of rhs.matchAll(/'((?:[^'\\]|\\.)*)'/g)) out.push(lit[1]);
       }
     }
+  };
+
+  scan(src, `\\$\\('${id}'\\)`);
+
+  // An alias is only live from where it is declared until the same name is
+  // declared again. Collecting alias names globally and matching them across
+  // the whole file was wrong the moment two functions both used `btn`: the
+  // theme button was credited with the planning button's labels. Scoped.
+  for (const a of src.matchAll(new RegExp(`const (\\w+) = \\$\\('${id}'\\)`, 'g'))) {
+    const name = a[1];
+    const from = a.index + a[0].length;
+    const rest = src.slice(from);
+    const next = rest.search(new RegExp(`const ${name} = \\$\\(`));
+    scan(next === -1 ? rest : rest.slice(0, next), name);
   }
   return out;
 }
@@ -150,11 +161,15 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['compassBtn', 'Turn on the compass', 'Turn off the compass'],
     ['skyConst', 'Show the constellations', 'Hide the constellations'],
     ['skyMilky', 'Show the Milky Way', 'Hide the Milky Way'],
+    ['skyPlanets', 'Show the planets', 'Hide the planets'],
+    ['skyMoon', 'Show the Moon', 'Hide the Moon'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],
     ['padToggle', 'Move the view by hand', 'Hide the hand controls'],
+    ['fullBtn', 'Fill the screen', 'Leave full screen'],
     // Its visible word is short so it shares a row with the coordinates; the
     // accessible name is the full phrase, and that is the label under test.
     ['placeChange', 'Change where I am', 'Hide the position boxes'],
+    ['whenChange', 'Plan another night', 'Hide the date boxes'],
   ];
   const shipped = new Map(
     buttonsInHtml(html).filter((b) => b.id).map((b) => [b.id, b.text]),

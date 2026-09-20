@@ -102,6 +102,68 @@ the view is over there.
 Which side you were last on is remembered, so the app opens where you left
 it rather than where its author thought you should start.
 
+Planning a night that has not happened yet
+------------------------------------------
+
+Set a date and the whole app answers for that instant — where the stars, the
+Moon and the planets will be, and where the mount will need to point. One field,
+above both panes, next to where you are: the two questions every other number
+depends on.
+
+It is deliberately not remembered. Everything else here persists — position,
+text size, theme, which pane you were on — but a stale planned date is the one
+setting whose wrong value is dangerous. Open the app in a field at midnight,
+having planned a trip a fortnight ago, and it would hand you a complete,
+confident set of mount numbers for the wrong night with nothing obviously wrong
+on screen. Every load starts at "right now".
+
+While a date is set, the app says so in three places — the bar turns and
+names the date, the mount numbers say "not for right now", and the sky view's
+own status line leads with the date it is drawing.
+
+**Two things refuse to answer for a future night, rather than answering
+wrongly:**
+
+- The ISS is disabled and says why. Where the station is can only be asked
+  for, not predicted; that needs orbit propagation from a fresh element set,
+  which this app does not do.
+- The compass bearing is flagged past 2030, where the magnetic model stops
+  being a model and starts being an extrapolation. True north, the star
+  positions and the dial reading are unaffected — they never use it.
+
+Time zones are the honest limitation. The date is read in the device's
+current zone, and the app cannot tell that you will be somewhere on a different
+clock. The field says so, in those words.
+
+Filling the screen
+------------------
+
+**Turn the phone sideways and the sky view fills the screen. Turn it back and it
+does not.** No press required — turning a phone to look at something is already
+the gesture.
+
+Fill the screen does it by hand and pins that choice, so rotating no longer
+changes it; Follow the phone's rotation hands it back, and only appears once
+there is something to hand back. A control that does nothing is worse than a
+missing one.
+
+**It is a CSS overlay, not the Fullscreen API — and that is the whole reason it
+works.** The API requires a user gesture, and an orientation change is not one
+any browser accepts, so a rotation-driven fullscreen request fails silently.
+Pressing the button is a gesture, so that path additionally asks for real
+fullscreen; when the request is refused, the overlay is already doing the job.
+
+The canvas is resized to the box it is drawn into, rather than a fixed
+720×480 stretched by CSS. That was soft on a phone and outright distorted the
+moment the aspect ratio changed — a circle drawn round the pole would have come
+out an oval, on the one view whose entire promise is that things are where they
+really are.
+
+The caption is not deleted in full screen, it is moved out of sight and left
+for a screen reader, exactly as the reticle's description is. A full-screen view
+with no text alternative would be the one part of this app that is
+picture-only.
+
 Seeing it
 ---------
 
