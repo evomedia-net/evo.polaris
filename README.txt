@@ -102,6 +102,35 @@ static site pins every returning visitor to the first build they ever loaded, so
 a deploy would reach nobody until they cleared site data. Bump VERSION in
 sw.js with each release so old caches are dropped on activate.
 
+The link-preview card
+~~~~~~~~~~~~~~~~~~~~~
+
+site/og-card.png is what LinkedIn, Slack and X render when the link is
+shared. It is generated, not hand-made — the previous card was a JPEG
+committed with nothing behind it, so it could only be re-encoded, never
+rebuilt, and its chart was the 420px on-screen canvas scaled up.
+
+It is rendered by the fleet card generator from a spec named polaris:
+
+    python ..\scripts\make_og_card.py polaris --shot media\og-shot.png --out site\og-card.png
+
+media/og-shot.png is the chart it insets — 800x1260, drawn by this app's own
+drawSkyChart at 740px rather than screenshotted, so the stars are pinpoints
+instead of blobs. It lives outside site/ because the deploy ships site/
+only; it is an input, not a served asset.
+
+Two things to get right when regenerating it:
+
+- Render the chart at a northern latitude. The card says find Polaris,
+  and Polaris is not visible from the southern hemisphere. A southern chart
+  contradicts the words beside it, which shipped once.
+- Re-scrape after deploying. LinkedIn and X cache a preview against its
+  image URL. Changing the filename bypasses that; changing only the bytes does
+  not.
+
+PNG, not JPEG: the card is flat colour and text on a dark ground, which is what
+PNG keeps sharp and what JPEG's chroma subsampling smears.
+
 Accessibility
 -------------
 
