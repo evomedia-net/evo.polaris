@@ -13,6 +13,16 @@ const store = {
               catch { /* private mode: preferences just don't persist */ } },
 };
 
+// Where the hand-entry fields start from when there is nothing saved yet.
+// ZIP 77339, Humble / Kingwood TX -- coordinates from zippopotam.us, elevation
+// from the same Open-Meteo lookup the button uses.
+//
+// It is PREFILLED, never auto-applied. Filling the boxes costs a returning user
+// nothing and saves them typing; silently adopting it would hand a first-time
+// user in Sydney a Texas solution that is confidently wrong in every number,
+// and this app has no business guessing where anyone is standing.
+const DEFAULT_SITE = { lat: 30.0563, lon: -95.2107, altitude: 26 };
+
 let stars = [];
 let site = store.get('site', null);
 let solution = null;
@@ -106,11 +116,17 @@ $('locateBtn').onclick = () => {
 $('manualToggle').onclick = () => {
   const box = $('manualEntry');
   box.hidden = !box.hidden;
-  if (!box.hidden && site) {
-    $('inLat').value = site.lat.toFixed(4);
-    $('inLon').value = site.lon.toFixed(4);
-    $('inAlt').value = Math.round(site.altitude || 0);
-  }
+  if (box.hidden) return;
+  // Your saved position if you have one, the default if you do not, so the
+  // boxes are never blank and applying them is a tap rather than typing.
+  const from = site || DEFAULT_SITE;
+  $('inLat').value = from.lat.toFixed(4);
+  $('inLon').value = from.lon.toFixed(4);
+  $('inAlt').value = Math.round(from.altitude || 0);
+  $('prefillNote').textContent = site
+    ? 'Filled in with your saved position.'
+    : 'Filled in with a starting point — replace it with yours, or use the '
+      + 'location button above.';
 };
 
 // Altitude lookup. Deliberately a button rather than automatic: it is the only
