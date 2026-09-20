@@ -180,6 +180,29 @@
     </div>
     <button id="compassBtn" class="big-btn primary">Turn on compass</button>
 
+    <div id="liveSkyWrap" class="live-sky" hidden>
+      <canvas id="liveSky" width="720" height="480"
+              role="img" aria-labelledby="liveSkyDesc"></canvas>
+      <p class="caption" id="liveSkyDesc">
+        A live window on the sky. Hold the phone up and move it around; the
+        stars sit where they really are, and the ringed marker is the pole.
+      </p>
+      <p class="hint" id="skyMode"></p>
+      <div class="sky-pad">
+        <button id="skyUp" class="big-btn pad-up">Look up</button>
+        <button id="skyLeft" class="big-btn pad-left">Look left</button>
+        <button id="skyPole" class="big-btn pad-mid">Find the pole</button>
+        <button id="skyRight" class="big-btn pad-right">Look right</button>
+        <button id="skyDown" class="big-btn pad-down">Look down</button>
+      </div>
+      <div class="sky-controls">
+        <button id="skyWider" class="big-btn">Wider view</button>
+        <button id="skyNarrower" class="big-btn">Closer in</button>
+      </div>
+      <button id="skyFollow" class="big-btn ghost">Follow the phone instead</button>
+    </div>
+    <button id="liveSkyBtn" class="big-btn">Show the live sky view</button>
+
     <figure class="canvas-wrap">
       <canvas id="sky" width="420" height="420"
               role="img" aria-labelledby="skyDesc"></canvas>

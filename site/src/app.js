@@ -5,6 +5,8 @@ import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
+import { buildSkyVectors } from './skyview.js';
+import { drawSkyView } from './skydraw.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 
@@ -32,6 +34,16 @@ let solution = null;
 let compassOn = false;
 let heading = null;          // true heading the phone is pointing, degrees
 let tilt = null;             // DeviceOrientation beta, or null if unreported
+let roll = null;             // gamma
+let rawAlpha = null;         // alpha as reported, for the sky view's own basis
+let skyVectors = null;       // star directions, recomputed on a slow timer
+let skyOn = false;
+let skyFov = 65;
+// Manual aim is the DEFAULT. Following the phone is opt-in, because holding a
+// phone up and sweeping it around is exactly the gesture this app exists to
+// avoid needing, and on a desktop there is no sensor to follow at all.
+let skyFollow = false;
+let skyAim = { az: 0, alt: 45 };
 let lastOnTarget = false;
 
 // --- appearance -------------------------------------------------------------
@@ -494,6 +506,9 @@ function onOrientation(e) {
   // beta is captured even when alpha is missing: a phone can report tilt
   // without a usable compass, and the altitude half is still worth having.
   if (typeof e.beta === 'number' && !Number.isNaN(e.beta)) tilt = e.beta;
+  if (typeof e.gamma === 'number' && !Number.isNaN(e.gamma)) roll = e.gamma;
+  if (typeof e.alpha === 'number' && !Number.isNaN(e.alpha)) rawAlpha = e.alpha;
+  if (skyOn && skyFollow) drawLiveSky();
   if (e.alpha == null) { updateGuide(); return; }
   const magnetic = e.webkitCompassHeading != null
     ? e.webkitCompassHeading                    // already true north on iOS
@@ -584,3 +599,114 @@ async function boot() {
 }
 
 boot();
+
+
+// --- the live sky view ------------------------------------------------------
+//
+// An ADDITION, never a replacement. It asks for the one thing the rest of this
+// app is built to avoid -- holding a phone up, steadily, and looking at it --
+// so it is behind a button, off by default, and everything it shows still
+// exists as numbers, as the arrows and as the circumpolar chart.
+
+function refreshSkyVectors() {
+  if (!site || !stars.length) return;
+  const lst = lstHours(julianDay(new Date()), site.lon);
+  skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5);
+}
+
+function drawLiveSky() {
+  if (!skyOn || !solution) return;
+  if (!skyVectors) refreshSkyVectors();
+  if (!skyVectors) return;
+  const c = $('liveSky');
+  const useDevice = skyFollow && rawAlpha !== null;
+  drawSkyView(c.getContext('2d'), {
+    aim: useDevice ? null : skyAim,
+    sky: skyVectors,
+    alpha: rawAlpha ?? 0,
+    beta: tilt ?? 90,
+    gamma: roll ?? 0,
+    declination: solution.declination,
+    targetAlt: Math.abs(solution.latitudeSetting),
+    targetAz: solution.poleAzimuth,
+    targetName: solution.hemisphere === 'south' ? 'South pole' : 'Polaris',
+    w: c.width, h: c.height, fov: skyFov, night,
+  });
+}
+
+function aimAtPole() {
+  if (!solution) return;
+  skyAim = { az: solution.poleAzimuth, alt: Math.abs(solution.latitudeSetting) };
+}
+
+function updateSkyMode() {
+  const following = skyFollow && rawAlpha !== null;
+  $('skyMode').textContent = following
+    ? 'Following the phone. The buttons take over again if you press one.'
+    : `Looking ${Math.round(skyAim.az)}° round and ${Math.round(skyAim.alt)}° up. `
+      + 'Use the buttons or the arrow keys — nothing needs to be held up.';
+  $('skyFollow').textContent = following
+    ? 'Stop following the phone' : 'Follow the phone instead';
+  for (const id of ['skyUp', 'skyDown', 'skyLeft', 'skyRight']) {
+    $(id).disabled = following;
+  }
+}
+
+function pan(dAz, dAlt) {
+  // Any button press drops out of follow mode: the alternative is fighting the
+  // sensor for control, which is worse than either mode alone.
+  skyFollow = false;
+  skyAim = {
+    az: ((skyAim.az + dAz) % 360 + 360) % 360,
+    alt: Math.max(-30, Math.min(89, skyAim.alt + dAlt)),
+  };
+  updateSkyMode();
+  drawLiveSky();
+}
+
+const STEP = 15;
+$('skyUp').onclick = () => pan(0, STEP);
+$('skyDown').onclick = () => pan(0, -STEP);
+$('skyLeft').onclick = () => pan(-STEP, 0);
+$('skyRight').onclick = () => pan(STEP, 0);
+$('skyPole').onclick = () => { skyFollow = false; aimAtPole(); updateSkyMode(); drawLiveSky(); };
+$('skyFollow').onclick = () => {
+  skyFollow = !skyFollow;
+  if (skyFollow && !compassOn) $('compassBtn').click();
+  updateSkyMode();
+  drawLiveSky();
+};
+
+// Arrow keys, one key at a time, no modifiers. Same reasoning as the buttons.
+window.addEventListener('keydown', (e) => {
+  if (!skyOn || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea') return;
+  const moves = {
+    ArrowUp: [0, STEP], ArrowDown: [0, -STEP],
+    ArrowLeft: [-STEP, 0], ArrowRight: [STEP, 0],
+  };
+  if (moves[e.key]) { e.preventDefault(); pan(...moves[e.key]); }
+});
+
+$('liveSkyBtn').onclick = () => {
+  skyOn = !skyOn;
+  $('liveSkyWrap').hidden = !skyOn;
+  $('liveSkyBtn').textContent = skyOn
+    ? 'Hide the live sky view' : 'Show the live sky view';
+  if (!skyOn) return;
+  refreshSkyVectors();
+  // Open looking at the pole: it is what the whole app is about, and it means
+  // the view is useful before anyone touches a control.
+  aimAtPole();
+  updateSkyMode();
+  drawLiveSky();
+};
+
+// Zoom by button. Pinching is a two-finger gesture and this app uses none.
+$('skyWider').onclick = () => { skyFov = Math.min(110, skyFov + 15); drawLiveSky(); };
+$('skyNarrower').onclick = () => { skyFov = Math.max(25, skyFov - 15); drawLiveSky(); };
+
+// The sky turns a quarter of a degree a minute, so the expensive half is on a
+// slow timer while the projection runs per orientation event.
+setInterval(() => { if (skyOn) { refreshSkyVectors(); drawLiveSky(); } }, 20000);

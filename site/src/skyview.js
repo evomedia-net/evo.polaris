@@ -1,0 +1,191 @@
+// A live window on the sky: hold the phone up and see the stars where they
+// actually are, the way Stellarium and its kin work.
+//
+// This is a gnomonic (rectilinear) projection -- the same one a camera lens
+// performs -- of the sky onto the screen, centred on wherever the phone is
+// aimed. Straight lines in the sky stay straight, and the scale is set by a
+// field of view rather than by squeezing the whole hemisphere into a disc the
+// way the circumpolar chart does.
+//
+// IT IS AN ADDITION, NOT A REPLACEMENT. Everything it shows also exists as
+// numbers and as the arrows, because it asks for something the rest of this
+// app deliberately never asks for: holding a phone up, steadily, and looking
+// at it. Some people cannot do that at all. The chart, the reticle and the
+// spoken briefing stay exactly as they were.
+//
+// WHY A FULL ROTATION MATRIX RATHER THAN THREE ANGLES. It is tempting to take
+// heading for left/right and beta for up/down and be done, which is what the
+// arrows do. That works for "which way do I turn" and falls apart here: tip
+// the phone sideways and the sky must roll with it, and near the zenith the
+// naive version gimbals and the view snaps around. Building the device's
+// actual basis and projecting onto it costs a dozen lines and has neither
+// problem.
+
+const DEG = Math.PI / 180;
+
+/**
+ * The device's orientation as three world-frame axes.
+ *
+ * The world frame here is the one DeviceOrientation uses: X east, Y north,
+ * Z up. The device frame is X right, Y top, Z out of the screen toward you --
+ * so the direction the BACK of the phone is aimed at, the one you point at
+ * things, is minus Z.
+ *
+ * @param {number} alphaDeg  compass rotation
+ * @param {number} betaDeg   front-back tilt
+ * @param {number} gammaDeg  left-right roll
+ * @param {number} declDeg   magnetic declination, east positive
+ * @returns {{right:number[], up:number[], forward:number[]}} unit vectors [E,N,U]
+ */
+export function deviceBasis(alphaDeg, betaDeg, gammaDeg, declDeg = 0) {
+  const a = (alphaDeg || 0) * DEG;
+  const b = (betaDeg || 0) * DEG;
+  const g = (gammaDeg || 0) * DEG;
+  const cA = Math.cos(a), sA = Math.sin(a);
+  const cB = Math.cos(b), sB = Math.sin(b);
+  const cG = Math.cos(g), sG = Math.sin(g);
+
+  // W3C's ZXY composition, R = Rz(alpha) Rx(beta) Ry(gamma), written out as
+  // columns because the columns are exactly the axes we want.
+  const right = [cA * cG - sA * sB * sG, cG * sA + cA * sB * sG, -cB * sG];
+  const up = [-cB * sA, cA * cB, sB];
+  const toward = [cA * sG + cG * sA * sB, sA * sG - cA * cG * sB, cB * cG];
+  const forward = [-toward[0], -toward[1], -toward[2]];
+
+  // The device reports against MAGNETIC north on most hardware, and the sky is
+  // catalogued against true north. Rotating the basis about the up axis is the
+  // whole correction; azimuth increases eastward, so a positive declination
+  // turns each vector that way.
+  if (!declDeg) return { right, up, forward };
+  const d = declDeg * DEG, cD = Math.cos(d), sD = Math.sin(d);
+  const spin = (v) => [v[0] * cD + v[1] * sD, -v[0] * sD + v[1] * cD, v[2]];
+  return { right: spin(right), up: spin(up), forward: spin(forward) };
+}
+
+/** A horizontal coordinate as a unit vector in [east, north, up]. */
+export function altAzToVector(altDeg, azDeg) {
+  const alt = altDeg * DEG, az = azDeg * DEG;
+  const c = Math.cos(alt);
+  return [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)];
+}
+
+/** The altitude and azimuth a unit vector points at. */
+export function vectorToAltAz(v) {
+  return {
+    alt: Math.asin(Math.max(-1, Math.min(1, v[2]))) / DEG,
+    az: ((Math.atan2(v[0], v[1]) / DEG) % 360 + 360) % 360,
+  };
+}
+
+/** Focal length in pixels for a horizontal field of view across `width`. */
+export function focalLength(width, fovDeg) {
+  return (width / 2) / Math.tan((fovDeg / 2) * DEG);
+}
+
+/**
+ * Project a direction onto the screen.
+ *
+ * Returns null when the direction is behind the phone. That test is not
+ * optional decoration: without it every star behind you is mirrored through
+ * the origin and drawn in front, which produces a plausible-looking sky that
+ * is upside down and back to front.
+ *
+ * @returns {{x:number, y:number, depth:number}|null} pixels from the centre
+ */
+export function projectToScreen(vec, basis, focal) {
+  const { right, up, forward } = basis;
+  const depth = vec[0] * forward[0] + vec[1] * forward[1] + vec[2] * forward[2];
+  if (depth <= 1e-6) return null;
+  const rx = vec[0] * right[0] + vec[1] * right[1] + vec[2] * right[2];
+  const ry = vec[0] * up[0] + vec[1] * up[1] + vec[2] * up[2];
+  return { x: (rx / depth) * focal, y: -(ry / depth) * focal, depth };
+}
+
+/** Apparent size of a star, in pixels, for a magnitude. */
+export function starRadius(mag, limitMag = 5.5) {
+  return Math.max(0.6, (limitMag + 0.9 - mag) * 0.62);
+}
+
+/** Star colour from B-V, matching the circumpolar chart. */
+export function starColour(bv, night) {
+  if (night) return '#cc0000';
+  if (bv < -0.1) return '#a8c8ff';
+  if (bv < 0.3) return '#ffffff';
+  if (bv < 0.6) return '#fff6e0';
+  if (bv < 1.0) return '#ffe0a8';
+  if (bv < 1.5) return '#ffc080';
+  return '#ff9e6e';
+}
+
+/**
+ * Pre-compute every star's direction once per tick.
+ *
+ * The sky turns a quarter of a degree a minute; the phone moves far faster
+ * than that. Recomputing hour angles for three thousand stars on every
+ * orientation event would be most of the work for none of the benefit, so the
+ * expensive half is done on a timer and only the projection runs per frame.
+ */
+export function buildSkyVectors(stars, lstHours, latDeg, limitMag = 5.5) {
+  const out = [];
+  const lat = latDeg * DEG;
+  const sinLat = Math.sin(lat), cosLat = Math.cos(lat);
+  for (const s of stars) {
+    const [raDeg, decDeg, mag, bv, hr] = s;
+    if (mag > limitMag) continue;
+    const ha = (lstHours * 15 - raDeg) * DEG;
+    const dec = decDeg * DEG;
+    const sinDec = Math.sin(dec), cosDec = Math.cos(dec);
+    const sinAlt = sinDec * sinLat + cosDec * cosLat * Math.cos(ha);
+    const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+    const az = Math.atan2(-cosDec * cosLat * Math.sin(ha),
+                          sinDec - sinLat * sinAlt);
+    const c = Math.cos(alt);
+    out.push({
+      v: [c * Math.sin(az), c * Math.cos(az), Math.sin(alt)],
+      mag, bv, hr,
+    });
+  }
+  return out;
+}
+
+/**
+ * A basis from a look direction rather than from a device.
+ *
+ * This is what makes the sky view usable without moving anything: buttons and
+ * arrow keys drive an azimuth and altitude, and the same projection runs. On a
+ * desktop there are no orientation sensors at all, and plenty of people cannot
+ * hold a phone up and sweep it around -- which is most of the point of this
+ * app -- so pointing must never be the only way to look at the sky.
+ *
+ * @param {number} azDeg    where to look, degrees true
+ * @param {number} altDeg   how high, degrees
+ * @param {number} rollDeg  rotation about the view axis
+ */
+export function basisFromAim(azDeg, altDeg, rollDeg = 0) {
+  // Straight up and straight down have no defined "which way is up" on screen,
+  // and the cross products below collapse there. Stopping just short keeps the
+  // view continuous instead of flipping as it crosses the zenith.
+  const alt = Math.max(-89.9, Math.min(89.9, altDeg));
+  const forward = altAzToVector(alt, azDeg);
+
+  const cross = (a, b) => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const norm = (v) => {
+    const l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / l, v[1] / l, v[2] / l];
+  };
+
+  let right = norm(cross(forward, [0, 0, 1]));
+  let up = norm(cross(right, forward));
+
+  if (rollDeg) {
+    const r = rollDeg * DEG, c = Math.cos(r), s = Math.sin(r);
+    const nr = right.map((v, i) => v * c + up[i] * s);
+    const nu = right.map((v, i) => -v * s + up[i] * c);
+    right = nr; up = nu;
+  }
+  return { right, up, forward };
+}

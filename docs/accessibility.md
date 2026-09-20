@@ -177,6 +177,55 @@ it is the only honest way to find out what a given phone's `beta` actually
 means — like the compass reference question, that is **not verified on real
 hardware** and the number is shown so it can be.
 
+## The live sky view
+
+Hold the phone up and the stars sit where they really are, the way Stellarium
+and its kin work — a rectilinear projection of the sky centred on wherever the
+phone is aimed, with the pole ringed and named.
+
+**Holding the phone up is the OPT-IN, not the default.** That gesture — holding
+a phone up, steadily, and sweeping it around — is exactly the one the rest of
+this app exists to avoid needing, and plenty of people cannot do it at all. A
+sky view that only works that way is a sky view most of this app's intended
+users cannot open. It is also dead on a desktop, where there is no orientation
+sensor to follow.
+
+So the view opens **already aimed at the pole** and is driven by a directional
+pad: *Look up / down / left / right*, a *Find the pole* button that recentres,
+and the **arrow keys** — one key at a time, no modifiers, which is the input
+this app is written for. *Follow the phone instead* is there for anyone who
+wants it, and pressing any pad button takes control back rather than fighting
+the sensor for it.
+
+Three smaller choices follow from the same rule:
+
+- **Zoom is two buttons, not a pinch.** Pinching is a two-finger gesture and
+  this app uses none.
+- **When the pole is off-screen there is an arrow at the edge** pointing at it.
+  An empty sky and a sky pointed the wrong way look identical, and leaving
+  someone to work out which is which is the failure mode.
+- **Everything it shows still exists elsewhere** — as numbers, as the arrows,
+  and as the circumpolar chart. None of those changed.
+
+### Why a rotation matrix rather than two angles
+
+The arrows take heading for left/right and tilt for up/down, which is right for
+"which way do I turn". It falls apart for a sky view: tip the phone sideways
+and the sky must roll with it, and near the zenith the naive version gimbals
+and the view snaps around. Building the device's actual basis and projecting
+onto it costs a dozen lines and has neither problem.
+
+One thing worth recording, because "gamma is roll" is the natural assumption
+and it is wrong: `gamma` rotates about the phone's **top-to-bottom** axis, so it
+always moves where the back points. A roll that leaves the aim fixed would be
+rotation about the view axis, which DeviceOrientation does not report. Held
+upright the phone's long axis is vertical, so gamma becomes a pure yaw — the
+ZXY convention's gimbal degeneracy, pinned by a test.
+
+Stars behind you are dropped rather than projected. Without that test every
+star behind the phone is mirrored through the origin and drawn in front, which
+produces a plausible-looking sky that is upside down and back to front.
+
 ## Not needing a compass at all
 
 The strongest accessibility decision in the app is a factual one.
