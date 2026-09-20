@@ -4,6 +4,7 @@ import { alignmentSolution, julianDay, lstHours, solarNoon, sunNow } from './ast
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
+import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 
@@ -30,6 +31,7 @@ let site = store.get('site', null);
 let solution = null;
 let compassOn = false;
 let heading = null;          // true heading the phone is pointing, degrees
+let tilt = null;             // DeviceOrientation beta, or null if unreported
 let lastOnTarget = false;
 
 // --- appearance -------------------------------------------------------------
@@ -489,7 +491,10 @@ $('compassBtn').onclick = async () => {
 };
 
 function onOrientation(e) {
-  if (e.alpha == null) return;
+  // beta is captured even when alpha is missing: a phone can report tilt
+  // without a usable compass, and the altitude half is still worth having.
+  if (typeof e.beta === 'number' && !Number.isNaN(e.beta)) tilt = e.beta;
+  if (e.alpha == null) { updateGuide(); return; }
   const magnetic = e.webkitCompassHeading != null
     ? e.webkitCompassHeading                    // already true north on iOS
     : (360 - e.alpha) % 360;
@@ -502,32 +507,40 @@ function onOrientation(e) {
 function updateGuide() {
   if (!solution) return;
   const box = $('guideBox'), arrow = $('guideArrow'), text = $('guideText');
-  if (heading == null) {
-    text.textContent = compassOn
-      ? 'Waiting for the compass…'
-      : 'Turn on the compass for live directions, or use the chart below.';
-    arrow.textContent = '•';
-    box.classList.remove('on-target');
-    return;
-  }
-  const target = solution.polarisAz;
-  let d = ((target - heading + 540) % 360) - 180;      // signed, −180..180
-  const onTarget = Math.abs(d) <= 5;
+  const tiltEl = $('guideTilt');
 
-  if (onTarget) {
-    arrow.textContent = '▲';
-    text.textContent =
-      `Facing Polaris. Now look ${Math.abs(solution.polarisAlt).toFixed(0)}° up.`;
+  // Aim at the POLE, not at the pole star. In the north they are within half a
+  // degree so it makes no odds; in the south Sigma Octantis is magnitude 5.5
+  // and there is nothing to see, so the pole itself is the only honest target.
+  const targetName = solution.hemisphere === 'south'
+    ? 'the south pole' : 'Polaris';
+
+  const g = pointingGuidance({
+    targetAz: solution.poleAzimuth,
+    targetAlt: Math.abs(solution.latitudeSetting),
+    heading,
+    beta: tilt,
+  });
+
+  arrow.textContent = guidanceArrow(g);
+  text.textContent = guidanceText(g, targetName, Math.abs(solution.latitudeSetting));
+
+  // The live tilt reading, shown whether or not it is on target: it doubles as
+  // an inclinometer for the mount's altitude scale, and it is the only way to
+  // find out on real hardware whether this phone's beta means what we think.
+  if (g.pointingAlt === null) {
+    tiltEl.textContent = '';
   } else {
-    arrow.textContent = d > 0 ? '▶' : '◀';
-    text.textContent =
-      `Turn ${d > 0 ? 'right' : 'left'} ${Math.abs(d).toFixed(0)}°, ` +
-      `then look ${Math.abs(solution.polarisAlt).toFixed(0)}° up.`;
+    tiltEl.textContent =
+      `Phone is aimed ${g.pointingAlt >= 0 ? '' : 'below the horizon, '}`
+      + `${Math.abs(g.pointingAlt).toFixed(0)}° `
+      + `${g.pointingAlt >= 0 ? 'above the horizon' : 'down'}`
+      + ` · target ${Math.abs(solution.latitudeSetting).toFixed(0)}°`;
   }
-  box.classList.toggle('on-target', onTarget);
 
-  if (onTarget && !lastOnTarget && navigator.vibrate) navigator.vibrate(120);
-  lastOnTarget = onTarget;
+  box.classList.toggle('on-target', g.onTarget);
+  if (g.onTarget && !lastOnTarget && navigator.vibrate) navigator.vibrate(120);
+  lastOnTarget = g.onTarget;
 }
 
 // --- speech -----------------------------------------------------------------

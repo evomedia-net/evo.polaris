@@ -400,6 +400,15 @@ canvas {
 }
 .guide.on-target .guide-arrow { color: var(--accent); }
 .guide-text { font-size: 1.15rem; font-weight: 600; text-align: left; }
+/* The live tilt reading. Kept quieter than the instruction above it, but
+   always present: it doubles as an inclinometer against the mount's altitude
+   scale, and it is how you find out what this phone's beta actually means. */
+.guide-tilt {
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
 
 .foot { margin: 2rem 0 0; padding: 0 0.3rem; color: var(--ink-dim); font-size: 0.88rem; }
 

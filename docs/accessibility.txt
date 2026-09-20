@@ -139,6 +139,48 @@ Octantis is magnitude 5.5 and the Southern Cross is the way to find the pole.
 Haptic confirmation fires once when the live arrows reach Polaris, so
 "you're pointing at it" arrives without looking at the screen at all.
 
+Pointing the phone at the sky
+-----------------------------
+
+Hold the phone up like a camera and it guides both axes at once: turn
+left/right, and raise/lower. When both are right it says so, vibrates, and
+shows a star.
+
+Before this the compass was the only live signal, so the app could say "turn
+left 20 degrees" while the altitude was a constant printed in the same
+sentence — "then look 46 degrees up" — with no idea whether you were anywhere
+near it. That reads like guidance and is not.
+
+The tilt convention, which is the part that is easy to get backwards:
+
+    beta =   0   flat on a table, screen up
+    beta =  90   upright, screen facing you
+    beta = 180   flat, screen down
+
+    altitude the BACK of the phone is aimed at  =  beta - 90
+
+So aiming at Polaris from 46°N wants beta near 136 — the phone tilted well
+back, screen toward your face, looking "through" it.
+
+Three deliberate behaviours:
+
+- The target is the pole, not the pole star. In the north they are within
+  half a degree so it makes no difference; in the south Sigma Octantis is
+  magnitude 5.5 and there is nothing to see, so the pole itself is the only
+  honest thing to aim at.
+- It corrects the bigger error first. Chasing both axes at once is how
+  people oscillate and never settle.
+- A phone with no tilt sensor is told so. If the heading is right but tilt
+  is unavailable, the app says the altitude is not being checked rather than
+  reporting "on target" — that is how someone ends up confidently aimed at the
+  ground.
+
+The live tilt reading stays on screen whether or not it is on target. It
+doubles as an inclinometer you can hold against the mount's altitude scale, and
+it is the only honest way to find out what a given phone's beta actually
+means — like the compass reference question, that is **not verified on real
+hardware** and the number is shown so it can be.
+
 Not needing a compass at all
 ----------------------------
 
