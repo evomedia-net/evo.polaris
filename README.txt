@@ -161,6 +161,20 @@ To regenerate the bundled data from its public sources:
 The app is a plain PWA — no build step, no framework, no dependencies. It works
 offline once loaded, which is the normal case in a dark field.
 
+Documentation
+-------------
+
+- docs/accuracy.md — what is validated against what, the
+  three WMM bugs NOAA's test vectors caught, the two traps that produce
+  correct-looking output, and the one residual that is still unexplained.
+- docs/accessibility.md — the input model, why night
+  mode is red, why the compass is optional, and the known gaps.
+- docs/deploying.md — the two-phase certificate dance, the
+  .json whitelist trap, and why siteDir is site and not the repo root.
+
+Every .md here has a generated .txt twin, kept in sync by
+npm run docs:twins and enforced by the test suite.
+
 Data and licence
 ----------------
 

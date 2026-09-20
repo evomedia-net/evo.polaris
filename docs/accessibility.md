@@ -1,0 +1,100 @@
+# Accessibility
+
+This is the reason the project exists, not a pass made over it afterwards.
+
+Every polar-alignment app on the stores costs money and quietly assumes a body
+that cooperates: that you can hold a phone steady, crouch behind an eyepiece,
+hit a small target in the dark, and read dim grey text on black. Plenty of
+astronomers can do none of those things. This app is free, and it is built for
+them first.
+
+## Input model
+
+Assume the least capable input, not the most:
+
+- **Single taps only.** No drag, no pinch, no swipe, no double-tap, no
+  press-and-hold. Nothing needs two fingers or two hands.
+- **No chords.** Nothing needs a modifier key held while another is pressed.
+- **Big targets with big gaps.** Minimum 3.4 rem, full-width buttons.
+- **Targets never move.** Values update in place and nothing reflows under the
+  pointer, because re-acquiring a target that has shifted is expensive for
+  someone using a mouthstick or a trackball.
+- **Nothing is timed.** No control disappears, collapses or advances on its own.
+
+## Seeing it
+
+- **Text scales 0.8×–1.8×** from two permanent buttons in the header, and the
+  choice persists.
+- **Red night mode.** White light destroys dark adaptation, which takes twenty
+  minutes to recover. An app you cannot use twice in one night without ruining
+  your own observing is not usable. The whole surface shifts to red on black and
+  dims, rather than merely recolouring the text.
+- **The numbers are the interface.** The reticle drawing and the sky chart are
+  support, never the only source of anything. Each canvas carries a text
+  alternative that states the same values in words, so the app is fully usable
+  by someone who cannot see either graphic.
+- **Prefers-reduced-motion** is honoured.
+
+## Hearing it
+
+**"Read these out loud"** speaks the latitude setting, the compass bearing and
+the reticle position through the browser's speech synthesis. The case this is
+for is real and specific: you are at the mount, in the dark, and the phone is
+not where your eyes are.
+
+**Haptic confirmation** fires once when the live arrows reach Polaris, so
+"you're pointing at it" arrives without looking at the screen at all.
+
+## Not needing a compass at all
+
+The strongest accessibility decision in the app is a factual one.
+
+People assume they need to know where north is in order to find Polaris. It
+works the other way round: **Polaris is within about 0.6° of the true pole, so
+pointing at it is pointing true north.** Star-hop to it from the Big Dipper
+using the chart and the mount is aligned, with no compass, no declination and
+no magnetometer anywhere in the loop.
+
+That matters practically as well as physically. A desktop browser has no
+magnetometer at all, plenty of phone compasses are badly calibrated, and holding
+a phone flat and steady to read one is itself a demand not everyone can meet.
+So the app offers three routes to north and only one of them involves a compass:
+
+1. Polaris itself — nothing required.
+2. A shadow at solar noon, computed to the minute — nothing required.
+3. A magnetic compass, with declination already applied.
+
+## Not making people type
+
+Typing is expensive. Every field that can be filled some other way, is:
+
+- **GPS fills position** in one tap on a phone — latitude, longitude and
+  altitude, no typing whatsoever.
+- **Altitude can be looked up** from the coordinates, so nobody has to go and
+  find their own elevation. (It is a button rather than automatic because it is
+  the only network request the app makes and it carries the user's coordinates
+  off-device — see [deploying](deploying.md).)
+- **Position is remembered** between visits, so the common case is zero input.
+- **Rejected entries keep their values.** A bad latitude produces a message and
+  leaves every field exactly as typed. Wiping a form someone paid for keystroke
+  by keystroke is the worst thing an error handler can do.
+
+## Working where it is used
+
+A dark field has no signal. The app is offline-first: everything, including the
+9,096-star catalogue and the magnetic model, is on the device after the first
+load. No network call is required to produce any number it shows.
+
+It installs to a home screen from the browser, so there is no app store account,
+no purchase, and no update anyone has to approve.
+
+## Known gaps
+
+- **Screen-reader testing has not been done with a real screen reader.** The
+  semantics are there — landmarks, live regions, labelled controls, text
+  alternatives on both canvases — but that is not the same as having used it
+  with TalkBack, and should not be claimed as such until someone has.
+- **No high-contrast mode distinct from night mode.** Night mode is red-on-black
+  for dark adaptation, which is not the same requirement as maximum contrast.
+- The compass reference question in [accuracy](accuracy.md) is unresolved on
+  real Android hardware.

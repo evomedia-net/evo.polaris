@@ -1,0 +1,148 @@
+# Accuracy, and how it is checked
+
+Positional astronomy is easy to get subtly, confidently wrong. Every formula
+here produces plausible-looking output when it is broken: a star chart that is
+mirrored still looks like a star chart, and a declination that is off by √2
+still looks like a declination.
+
+So nothing in this app is validated against itself. Both pieces of real
+mathematics are checked against **published values from the people who define
+them**, and those checks run in `npm test`.
+
+## Magnetic declination — NOAA's own test vectors
+
+`site/src/geomag.js` is a degree-12 spherical harmonic synthesis of the World
+Magnetic Model 2025, valid through 2030.
+
+NOAA ships `WMM2025_TestValues.txt` inside `WMM2025COF.zip` — 100 points with
+expected declination, inclination and field components. That file is committed
+to `test/fixtures/` and every one of those vectors is checked:
+
+| Quantity | Agreement |
+| --- | --- |
+| Declination | better than **0.01°** |
+| Inclination | better than **0.01°** |
+| X, Y, Z, H, F | better than **1 nT** |
+
+### Three bugs those vectors caught
+
+All three were found from the *shape* of the error rather than by re-reading
+the algorithm, which is the argument for having reference vectors at all.
+
+1. **Schmidt normalisation, √2.** The quasi-normalisation carries a √2 for
+   m ≥ 1, and it enters the sectoral chain exactly once — at P(1,1) = sin θ.
+   Seeding it as √½·sin θ leaves every m ≥ 1 term low by √2. The signature was
+   unmistakable: the **east component alone** was wrong, by exactly 1.414.
+
+2. **B_φ sign.** It is
+   `(1/sin θ) Σ m[g·sin(mλ) − h·cos(mλ)]P`, and it had been negated.
+
+3. **Geodetic vs geocentric latitude.** `psi` is *geodetic minus geocentric*.
+   With the sign reversed, X and Z carried a latitude-shaped error — zero at the
+   equator **and** at the poles, largest near 45° — while Y stayed perfect. That
+   pattern is the rotation and nothing else.
+
+## Polaris — proper motion and precession
+
+`polarisReticle()` applies proper motion and IAU-1976 precession to a Hipparcos
+J2000 position. Sidereal time is anchored to the textbook GMST at J2000
+(18h 41m 50.55s), which is tested directly.
+
+The Bright Star Catalog we ship for the chart rounds positions to 0.1 s of RA
+and 1″ of declination. That is fine for drawing dots and **not** fine for
+alignment, so the alignment path uses the high-precision constant instead of the
+catalogue row. Two different jobs, two different sources.
+
+### The published iOptron vector, and an unexplained residual
+
+iOptron's SkyTracker Pro manual (#3322, section 3) publishes a worked example:
+Boston, 2016-08-10 17:50:18 EDT, N42°30′28″ W71°08′49″ → **00hr 18.4m, radius
+40.2′**.
+
+| | Computed | Published | Delta |
+| --- | --- | --- | --- |
+| Radius | 39.9′ | 40.2′ | **0.3′** |
+| Dial position | 00h 13.7m | 00h 18.4m | **≈2.4°** |
+
+2.4° of position angle is about **1.6′ of alignment error** at Polaris' radius —
+acceptable for a camera lens on a tracker, not something to be smug about.
+
+**This residual is not explained.** The two candidates:
+
+- The manual's figure is read off a *screenshot* in a PDF, and 2.4° is 9.5
+  minutes of clock. A screenshot taken a few minutes from the timestamp printed
+  beside it would account for all of it.
+- iOptron may apply an atmospheric refraction correction we do not.
+
+The test bounds are deliberately loose (3°) and say why in a comment.
+**Cross-check against Stellarium before tightening them or before trusting the
+dial position to better than a few arcminutes.**
+
+## Two traps that produce correct-looking output
+
+Both are locked down by tests, because neither is visible by inspection.
+
+### The dial is 30° per hour, not 15°
+
+The iOptron AccuAlign reticle is a **12-hour dial spanning a full circle**. One
+dial hour is therefore 30°, while one hour of hour-angle is 15°. Mapping
+hour-angle hours straight onto dial hours is a silent factor-of-two error that
+still lands Polaris somewhere plausible on the reticle.
+
+This is also why iOptron tell users of Takahashi's 24-hour reticle to halve
+their reading: both dials span the same circle with different numbering.
+
+`test('dial hours are 30 degrees each, not 15')` advances time by two sidereal
+hours and asserts the dial moves exactly one hour.
+
+### The chart is drawn facing north, so west is on the left
+
+Up is the zenith; down is the horizon. A star at hour angle 0 is at upper
+culmination — directly *above* the pole — so it must land at the **top**. As its
+hour angle grows it moves west, which is to your **left** when you are facing
+north rather than reading a map.
+
+The first version of this was 180° out. It was not caught by looking at it — a
+rotated star chart is still a perfectly convincing star chart. It was caught by
+checking against the real sky: on a September evening at 42°N, Cassiopeia is
+high in the northeast and the Big Dipper low in the northwest, and the chart
+showed precisely the reverse.
+
+`test('chart orientation: up is the zenith, west is on the left')` now asserts
+all four quadrants, so both a rotation and a mirroring fail.
+
+## What altitude is worth
+
+Almost nothing, and the app says so rather than implying otherwise.
+
+Measured across five sites, moving from sea level to 3000 m shifts magnetic
+declination by **under 0.01°**. A good polar alignment is about 0.1°. So
+altitude is an order of magnitude below the threshold that matters, and leaving
+it at sea level costs nothing.
+
+The lookup exists because nobody should have to go and find their own elevation
+and type it in — not because it makes the answer better.
+
+## Solar position
+
+Low-precision Astronomical Almanac, good to about 0.01° through 2050 — far
+better than is needed to find north from a shadow.
+
+Solar noon is found by iterating the Sun's hour angle to zero, which reuses the
+sidereal-time code the rest of the suite already covers rather than introducing
+a second path. Tested at four sites including the southern hemisphere and the
+equator; the Sun lands on the meridian to within 0.2° at each.
+
+Which way the noon shadow falls is read off the computed azimuth, **not**
+assumed from hemisphere: inside the tropics the Sun passes north of the zenith
+for part of the year and the shadow flips with it.
+
+## Still open
+
+Whether Android's `deviceorientationabsolute` reports **magnetic** or **true**
+north varies between devices. The app applies declination itself, which is
+correct for most Androids and would double-correct on one that had already done
+it. **This needs checking against a known bearing on real hardware.**
+
+Nothing else depends on it: the reticle, the star chart, and both compass-free
+routes to true north are unaffected either way.
