@@ -23,6 +23,46 @@ Assume the least capable input, not the most:
   someone using a mouthstick or a trackball.
 - Nothing is timed. No control disappears, collapses or advances on its own.
 
+Every button says what pressing it does
+---------------------------------------
+
+One rule, no exceptions: a label is an **imperative verb phrase naming the
+action**. Not the state you are in, not the name of the thing, not a question.
+
+| Instead of | It says |
+| --- | --- |
+| Dark Mode | Use Night Mode |
+| Constellations: on | Hide the constellations |
+| Milky Way: on | Hide the Milky Way |
+| Wider view / Closer in | Show more sky / Show less sky |
+| Where is the ISS? | Find the ISS |
+
+The app used to do both at once. The theme button read Dark Mode, meaning
+you are in Dark Mode. The compass button, one card below, read
+Turn on compass, meaning you are not in compass mode. Same shape,
+opposite sense — so neither label could be trusted without first working out
+which kind it was.
+
+Why the action and not the state, here. A state label only works if you can
+also perceive which state you are in. Read aloud by a screen reader,
+"button, Dark Mode" says nothing about what happens next. At 1.8× text in a
+dark field, the highlight that was carrying the state may be exactly the part
+that is hard to make out. An action label needs neither the highlight nor the
+context.
+
+The one exception, named rather than left as drift. A segmented value
+picker — North/South, East/West — is labelled with the value, because the
+value is what you are choosing; the selection is carried by aria-pressed.
+Those four buttons are listed by id in test/labels.test.mjs, so the exception
+is a decision on the record rather than an inconsistency nobody got round to.
+
+It is enforced, not remembered. test/labels.test.mjs reads index.html
+and app.js off disk, collects every button's label — including the ones
+swapped in at runtime, and following a const btn = $('id') alias — and fails
+the build on a state label, a question mark, or an opening word that is not on
+the list of verbs the app uses. A new button cannot quietly introduce a sixth
+convention.
+
 Seeing it
 ---------
 
@@ -334,6 +374,31 @@ load. No network call is required to produce any number it shows.
 
 It installs to a home screen from the browser, so there is no app store account,
 no purchase, and no update anyone has to approve.
+
+The site header is not an app control
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On polaris.evomedia.net the app is preceded by the Evomedia.net site header —
+the mark, the wordmark linking home, and the portfolio nav. It is injected by
+src/evomedia-chrome.js, mounts only on *.evomedia.net, and no-ops anywhere
+else, so nobody self-hosting this gets a header advertising someone else's
+business.
+
+It is deliberately not sized with --tap. The 3.4 rem minimum exists
+because the app's controls are pressed outdoors, in the dark, with an unsteady
+hand or a mouthstick. Portfolio links are pressed once, indoors, by someone who
+has already decided to leave. Sizing them as if they were mount controls put
+three 58 px rows above the fold and spent 265 px of an 812 px phone screen
+before the app began. They are 2 rem instead — 34 px, comfortably past the
+WCAG 2.2 AA target-size floor of 24 px — and they still scale with the
+text-size buttons, so at 1.8× they grow like everything else. The header is now
+82 px on a phone and 45 px on a desktop.
+
+The Evomedia mark is a white rounded square, and in Night Mode it was the one
+thing left on screen emitting white: #ffffff behind the 0.7 brightness filter
+is about #b3b3b3, with green and blue in it, landing where rods are most
+sensitive. It now gets the same treatment as every button — unfilled, pure red,
+said with a line instead of a block.
 
 Known gaps
 ----------

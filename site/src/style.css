@@ -156,43 +156,89 @@ html[data-night='on'] .figure.accent { border-color: var(--ink); }
    only; these rules are inert everywhere else. It sits ABOVE the app's own
    sticky header so the app keeps its identity and the site keeps its nav, and
    it scrolls away while the app header does not -- the app's controls are the
-   ones that must stay reachable. */
+   ones that must stay reachable.
+
+   Same shape as the header on ablecamera.evomedia.net -- mark, wordmark home
+   link, bordered pill nav -- at a smaller scale.
+
+   IT DOES NOT USE --tap, AND THAT IS THE POINT. --tap is 3.4rem because the
+   APP's controls are pressed outdoors, in the dark, with an unsteady hand or a
+   mouthstick. These are portfolio links, pressed once, indoors, by someone who
+   has already decided to leave. Sizing them as mount controls stacked three
+   58px rows above the fold and spent a third of a phone screen before the app
+   started -- 265px of an 812px screen. 2rem is 34px, comfortably past the WCAG
+   2.2 AA target-size floor of 24px, and it still scales with the text-size
+   buttons like everything else.
+
+   The APP's own bar below keeps --tap. Those buttons get pressed in the dark
+   with a mouthstick; these do not. */
 .evo-chrome {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  padding: 0.55rem 0.9rem;
+  gap: 0.25rem 1rem;
+  padding: 0.3rem 0.7rem;
   background: #0d1420;
   border-bottom: 1px solid var(--line);
 }
 .evo-chrome-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   font-weight: 650;
-  font-size: 1rem;
+  font-size: 0.88rem;
   color: var(--ink);
   text-decoration: none;
-  min-height: var(--tap);
+  min-height: 2rem;
 }
+/* Overrides the width/height attributes on the inlined mark, so the brand
+   scales with the text-size buttons instead of staying a fixed 24px. */
+.evo-chrome-brand svg { width: 1.2rem; height: 1.2rem; }
 .evo-chrome-tld { color: var(--ink-dim); font-weight: 500; }
-.evo-chrome-nav { display: flex; flex-wrap: wrap; gap: 0.2rem; }
+.evo-chrome-nav { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .evo-chrome-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: var(--tap);
-  padding: 0 0.7rem;
-  border-radius: 0.6rem;
+  min-height: 2rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
   color: var(--ink-dim);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
-.evo-chrome-nav a:hover, .evo-chrome-nav a:focus-visible { color: var(--ink); }
+.evo-chrome-nav a:hover, .evo-chrome-nav a:focus-visible {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+/* Phones: the brand takes one row and all five links the next, rather than
+   wrapping four-and-one and leaving Contact stranded on a third row. Media
+   queries resolve rem against the initial 16px, not the scaled root, so this
+   breakpoint is a fixed 432px however large the text is set. */
+@media (max-width: 27rem) {
+  .evo-chrome { gap: 0.2rem; }
+  .evo-chrome-brand, .evo-chrome-nav { width: 100%; }
+  .evo-chrome-nav { justify-content: space-between; gap: 0.25rem; }
+  .evo-chrome-nav a { padding: 0 0.4rem; }
+}
 html[data-night='on'] .evo-chrome { background: #0a0000; }
 html[data-night='on'] .evo-chrome-brand,
 html[data-night='on'] .evo-chrome-nav a { color: var(--ink); }
+/* The Evomedia mark is a white rounded square with a blue glyph in it, and in
+   Night Mode it was the one thing on screen still emitting white: #ffffff
+   behind the 0.7 brightness filter is about #b3b3b3, with green and blue in it
+   -- landing exactly where rods are most sensitive, which is the single thing
+   this theme exists to prevent. It gets the same treatment as every button:
+   unfilled, pure red, said with a line instead of a block. */
+html[data-night='on'] .evo-chrome-brand svg rect {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+html[data-night='on'] .evo-chrome-brand svg g { stroke: var(--ink); }
+html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
 
 .bar {
   position: sticky;
@@ -228,6 +274,17 @@ html[data-night='on'] .evo-chrome-nav a { color: var(--ink); }
   border: 1px solid var(--line);
   border-radius: 0.7rem;
   cursor: pointer;
+}
+/* The theme button says what pressing it does ("Use Night Mode"), which is
+   four words where the others are one glyph. It gets a smaller face and tight
+   leading so it wraps to two short lines inside the existing bar height rather
+   than pushing the bar taller -- the same two lines "Dark Mode" already
+   wrapped to. */
+#nightToggle {
+  font-size: 0.85rem;
+  line-height: 1.1;
+  max-width: 6.5rem;
+  padding: 0.25rem 0.5rem;
 }
 .icon-btn.is-night {
   background: var(--accent);

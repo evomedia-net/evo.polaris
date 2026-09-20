@@ -38,9 +38,9 @@
 <header class="bar">
   <h1>evo<span class="dot">.</span>polaris</h1>
   <div class="bar-actions">
-    <button id="textSmaller" class="icon-btn" aria-label="Smaller text">A−</button>
-    <button id="textBigger" class="icon-btn" aria-label="Larger text">A+</button>
-    <button id="nightToggle" class="icon-btn">Dark Mode</button>
+    <button id="textSmaller" class="icon-btn" aria-label="Make the text smaller">A−</button>
+    <button id="textBigger" class="icon-btn" aria-label="Make the text bigger">A+</button>
+    <button id="nightToggle" class="icon-btn">Use Night Mode</button>
   </div>
 </header>
 
@@ -162,6 +162,7 @@
 
     <p class="status" id="timeNote" aria-live="polite"></p>
     <button id="speakBtn" class="big-btn" aria-describedby="spokenText">Read these out loud</button>
+    <p class="hint" id="speakNote"></p>
     <p class="spoken" id="spokenText"></p>
   </section>
 
@@ -173,12 +174,12 @@
       <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>
       <div>
         <div class="guide-text" id="guideText">
-          Turn on the compass to get live directions.
+          Turn on the compass for live directions, or use the chart below.
         </div>
         <div class="guide-tilt" id="guideTilt"></div>
       </div>
     </div>
-    <button id="compassBtn" class="big-btn primary">Turn on compass</button>
+    <button id="compassBtn" class="big-btn primary">Turn on the compass</button>
 
     <div id="liveSkyWrap" class="live-sky" hidden>
       <canvas id="liveSky" width="720" height="480"
@@ -196,13 +197,13 @@
         <button id="skyDown" class="big-btn pad-down">Look down</button>
       </div>
       <div class="sky-controls">
-        <button id="skyWider" class="big-btn">Wider view</button>
-        <button id="skyNarrower" class="big-btn">Closer in</button>
-        <button id="skyConst" class="big-btn">Constellations: on</button>
-        <button id="skyMilky" class="big-btn">Milky Way: on</button>
+        <button id="skyWider" class="big-btn">Show more sky</button>
+        <button id="skyNarrower" class="big-btn">Show less sky</button>
+        <button id="skyConst" class="big-btn">Hide the constellations</button>
+        <button id="skyMilky" class="big-btn">Hide the Milky Way</button>
       </div>
       <button id="skyFollow" class="big-btn ghost">Follow the phone instead</button>
-      <button id="issBtn" class="big-btn ghost">Where is the ISS?</button>
+      <button id="issBtn" class="big-btn ghost">Find the ISS</button>
       <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is.
         It is the one thing here that needs the network — everything else works
         with the radio off.</p>

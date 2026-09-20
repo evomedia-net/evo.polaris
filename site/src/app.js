@@ -80,21 +80,26 @@ function applyAppearance() {
   document.documentElement.style.setProperty('--scale', scale);
   document.documentElement.dataset.night = night ? 'on' : 'off';
 
-  // The button names the theme you are currently IN, not the one you would
-  // switch to. Both are dark; only one is dark-adaptation safe, so they need
-  // different names -- "Night Mode" in both states told you nothing.
+  // THE LABEL IS THE ACTION, as on every other button here -- it names the
+  // theme you would switch TO, never the one you are in. It used to name the
+  // current state, which made it the exact opposite of the compass button one
+  // card below, and a state label only works if you can also SEE which state
+  // you are in. Read aloud, "button, Dark Mode" says nothing about what
+  // happens next; at 1.8x text in the dark, the highlight carrying that state
+  // may be the part you cannot make out.
+  //
+  // Both themes are dark and only one is dark-adaptation safe, so both still
+  // need naming -- "Use Night Mode" does that and says which way it goes.
   //
   // No aria-pressed: a toggle whose label changes AND carries a pressed state
-  // reads as a double negative ("Dark Mode, not pressed"). The accessible name
-  // spells out the state and the action instead, which is unambiguous either
-  // way round.
+  // reads as a double negative ("Use Night Mode, not pressed").
   const btn = $('nightToggle');
-  btn.textContent = night ? 'Night Mode' : 'Dark Mode';
+  btn.textContent = night ? 'Use Dark Mode' : 'Use Night Mode';
   btn.setAttribute('aria-label', night
-    ? 'Night Mode is on: pure red on black, which preserves dark adaptation. '
-      + 'Activate to switch to Dark Mode.'
-    : 'Dark Mode is on. Activate to switch to Night Mode, which is pure red on '
-      + 'black and preserves dark adaptation.');
+    ? 'Switch to Dark Mode. Night Mode is on now: pure red on black, which '
+      + 'preserves dark adaptation.'
+    : 'Switch to Night Mode, which is pure red on black and preserves dark '
+      + 'adaptation. Dark Mode is on now.');
   btn.classList.toggle('is-night', night);
   render();
 }
@@ -210,6 +215,11 @@ $('inLon').addEventListener('change', () => {
 $('manualToggle').onclick = () => {
   const box = $('manualEntry');
   box.hidden = !box.hidden;
+  // It opens and closes, so the label has to move with it. It did not, which
+  // left a button reading "Enter it by hand instead" sitting directly above
+  // the boxes it had already opened.
+  $('manualToggle').textContent = box.hidden
+    ? 'Enter it by hand instead' : 'Hide the hand-entry boxes';
   if (box.hidden) return;
   // Your saved position if you have one, the default if you do not, so the
   // boxes are never blank and applying them is a tap rather than typing.
@@ -532,7 +542,7 @@ function stopCompass() {
   sAlpha = sBeta = sGamma = null;
   sawSensor = false;
   skyFollow = false;                        // fall back to the pad
-  $('compassBtn').textContent = 'Turn on compass';
+  $('compassBtn').textContent = 'Turn on the compass';
   $('compassBtn').classList.add('primary');
   $('skyDiag').textContent = '';
   updateGuide();
@@ -557,7 +567,7 @@ async function startCompass() {
   window.addEventListener(orientEvent, onOrientation);
   sensorInfo.event = orientEvent;
   compassOn = true;
-  $('compassBtn').textContent = 'Turn the compass off';
+  $('compassBtn').textContent = 'Turn off the compass';
   $('compassBtn').classList.remove('primary');
 }
 
@@ -648,8 +658,12 @@ $('speakBtn').onclick = () => {
   const say = spokenBriefing(solution);      // the same string shown on screen
   if (!window.speechSynthesis) {
     // No speech engine. The text is already on screen, so say so rather than
-    // letting the button look broken.
-    $('speakBtn').textContent = 'This browser has no speech — the words are below';
+    // letting the button look broken -- but say it BESIDE the button, not in
+    // it. Overwriting the label with a sentence left a control that no longer
+    // named its own action, which is the thing every label here promises.
+    $('speakNote').textContent =
+      'This browser has no speech engine. The words are below.';
+    $('speakBtn').disabled = true;
     return;
   }
   speechSynthesis.cancel();
@@ -860,12 +874,14 @@ $('issBtn').onclick = async () => {
 
 $('skyConst').onclick = () => {
   skyConstellations = !skyConstellations;
-  $('skyConst').textContent = `Constellations: ${skyConstellations ? 'on' : 'off'}`;
+  $('skyConst').textContent = skyConstellations
+    ? 'Hide the constellations' : 'Show the constellations';
   drawLiveSky();
 };
 $('skyMilky').onclick = () => {
   skyMilkyWay = !skyMilkyWay;
-  $('skyMilky').textContent = `Milky Way: ${skyMilkyWay ? 'on' : 'off'}`;
+  $('skyMilky').textContent = skyMilkyWay
+    ? 'Hide the Milky Way' : 'Show the Milky Way';
   drawLiveSky();
 };
 
