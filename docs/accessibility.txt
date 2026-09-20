@@ -153,11 +153,14 @@ any browser accepts, so a rotation-driven fullscreen request fails silently.
 Pressing the button is a gesture, so that path additionally asks for real
 fullscreen; when the request is refused, the overlay is already doing the job.
 
-Zoom stays reachable in full screen. The pane's Show more sky / *Show
-less sky* buttons sit below the canvas, and in full screen there is no below.
-Two large glyph buttons — + and −, 4 rem square, stacked in the
-bottom-right corner so one thumb reaches both — carry the same two actions
-with the same accessible names, and exist only while the screen is filled.
+Zoom and pan stay reachable in full screen. The pane's controls sit
+below the canvas, and in full screen there is no below. Two large glyph
+buttons — + and −, 4 rem square, stacked bottom-right — carry the zoom,
+and a directional cluster — ▲ ◀ ◎ ▶ ▼, the pad's own five actions in the pad's
+own arrangement — sits bottom-left, so each thumb has its own corner. All of
+them delegate to the pane's buttons, carry the same accessible names, and
+exist only while the screen is filled. A filled screen that could be zoomed but
+not moved was the second real-phone report.
 
 The canvas is resized to the box it is drawn into, rather than a fixed
 720×480 stretched by CSS. That was soft on a phone and outright distorted the
@@ -366,6 +369,14 @@ orientation sensor, and open when there is nothing to follow: every desktop,
 and any phone that declines the permission. That is not a default anyone has to
 discover, it is the state that matches the device. Move the view by hand
 opens it anyway, and that choice outranks the guess from then on.
+
+And it is never disabled. While the phone is steering, a press on the pad
+hands control to the buttons — that is what a press means. An earlier
+version greyed the pad out during following, and on a dark screen at arm's
+length greyed reads as gone: the first real-phone report was *"the controls to
+move the screen are not visible."* Someone lying down who can lift a phone but
+cannot sweep it had a view pointed at the ceiling and four dead buttons under
+it.
 
 There is no longer a button to open the sky view, because the view is the
 Tonight's sky pane. A press whose only job was to reveal the thing you had just

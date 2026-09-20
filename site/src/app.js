@@ -1162,9 +1162,14 @@ function updateSkyMode() {
   $('skyPad').hidden = !padVisible;
   $('padToggle').textContent = padVisible
     ? 'Hide the hand controls' : 'Move the view by hand';
-  for (const id of ['skyUp', 'skyDown', 'skyLeft', 'skyRight']) {
-    $(id).disabled = following;
-  }
+  // THE PAD IS NEVER DISABLED. It used to be greyed out while the phone was
+  // steering, and on a dark screen at arm's length greyed reads as gone --
+  // "the controls to move the screen are not visible". Worse, it contradicted
+  // pan() two functions down, which has always dropped follow mode on a press:
+  // disabling the buttons made that hand-off unreachable from the one place
+  // anyone would look for it, and left "Stop following the phone", a different
+  // button in a different place, as the only way back. A press now means what
+  // it says: the buttons take over.
 }
 
 function pan(dAz, dAlt) {
@@ -1329,6 +1334,14 @@ $('skyNarrower').onclick = () => { skyFov = Math.max(25, skyFov - 15); drawLiveS
 // handler each, delegated, so the limits live in exactly one place.
 $('fullIn').onclick = () => $('skyNarrower').click();
 $('fullOut').onclick = () => $('skyWider').click();
+// And the pan cluster: the pad's own handlers, so the step and the hand-off
+// from the sensor live in one place. This is also why the pad can never be
+// disabled -- a delegated click on a disabled button goes nowhere.
+$('fullUp').onclick = () => $('skyUp').click();
+$('fullDown').onclick = () => $('skyDown').click();
+$('fullLeft').onclick = () => $('skyLeft').click();
+$('fullRight').onclick = () => $('skyRight').click();
+$('fullPole').onclick = () => $('skyPole').click();
 
 // The sky turns a quarter of a degree a minute, so the expensive half is on a
 // slow timer while the projection runs per orientation event.

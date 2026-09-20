@@ -158,6 +158,16 @@
           <button id="fullIn" class="big-btn full-zoom-btn" aria-label="Show less sky">+</button>
           <button id="fullOut" class="big-btn full-zoom-btn" aria-label="Show more sky">&minus;</button>
         </div>
+        <!-- Pan, in full screen only: the same five actions as the pad, in the
+             opposite corner from the zoom so each thumb has its own cluster.
+             Without these the filled screen could be zoomed but not moved. -->
+        <div class="full-pan" aria-label="Move the view">
+          <button id="fullUp" class="big-btn full-pan-btn pad-up" aria-label="Look up">&#9650;</button>
+          <button id="fullLeft" class="big-btn full-pan-btn pad-left" aria-label="Look left">&#9664;</button>
+          <button id="fullPole" class="big-btn full-pan-btn pad-mid" aria-label="Find the pole">&#9678;</button>
+          <button id="fullRight" class="big-btn full-pan-btn pad-right" aria-label="Look right">&#9654;</button>
+          <button id="fullDown" class="big-btn full-pan-btn pad-down" aria-label="Look down">&#9660;</button>
+        </div>
         <figcaption class="caption" id="liveSkyDesc">
           A live window on the sky. Hold the phone up and move it around; the
           stars sit where they really are, and the ringed marker is the pole.

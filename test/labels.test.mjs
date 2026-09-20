@@ -42,7 +42,10 @@ const VALUE_PICKERS = new Set([
 ]);
 
 /** Glyph buttons. Their words live in aria-label, which is checked instead. */
-const GLYPH_BUTTONS = new Set(['textSmaller', 'textBigger', 'fullIn', 'fullOut']);
+const GLYPH_BUTTONS = new Set([
+  'textSmaller', 'textBigger', 'fullIn', 'fullOut',
+  'fullUp', 'fullDown', 'fullLeft', 'fullRight', 'fullPole',
+]);
 
 /**
  * The verbs this app's buttons actually start with. A closed list on purpose:
