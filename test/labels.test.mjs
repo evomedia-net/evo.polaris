@@ -54,7 +54,7 @@ const GLYPH_BUTTONS = new Set([
  */
 const VERBS = new Set([
   'use', 'turn', 'show', 'hide', 'enter', 'look', 'find', 'read', 'follow',
-  'stop', 'make', 'switch', 'change', 'move', 'plan', 'fill', 'leave',
+  'stop', 'make', 'switch', 'change', 'move', 'plan', 'fill', 'leave', 'set',
 ]);
 
 /** Every <button> in the page: id, visible text, aria-label if it has one. */
@@ -167,12 +167,16 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['skyPlanets', 'Show the planets', 'Hide the planets'],
     ['skyMoon', 'Show the Moon', 'Hide the Moon'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],
-    ['padToggle', 'Move the view by hand', 'Hide the hand controls'],
     ['fullBtn', 'Fill the screen', 'Leave full screen'],
+    // Auto Mode is the phone steering, Manual Mode is the arrows. One
+    // control, action-labelled -- it replaced two buttons whose names were
+    // near-identical and meant entirely different things.
+    // Short on the face, the whole phrase in the accessible name.
+    ['modeBtn', 'Use Auto Mode', 'Use Manual Mode'],
     // Its visible word is short so it shares a row with the coordinates; the
     // accessible name is the full phrase, and that is the label under test.
-    ['placeChange', 'Change where I am', 'Hide the position boxes'],
-    ['whenChange', 'Plan another night', 'Hide the date boxes'],
+    ['placeChange', 'Set your location', 'Hide the position boxes'],
+    ['whenChange', 'Change the date', 'Hide the date boxes'],
   ];
   const shipped = new Map(
     buttonsInHtml(html).filter((b) => b.id).map((b) => [b.id, b.text]),
@@ -213,4 +217,21 @@ test('the compass button the guide text names is the compass button', () => {
   assert.ok(named, 'guide.js no longer names the compass button');
   assert.ok(html.includes('>Turn on the compass<'),
     'the button guide.js names is not the one in the page');
+});
+
+test('the docs link hands the theme over, and points at the fleet docs host', () => {
+  // Night Mode protects dark adaptation: twenty minutes to build, one bright
+  // screen to lose. A docs link that opened a white page would undo the whole
+  // point of the theme at the moment someone reached for help, outdoors, in
+  // the dark. So the theme travels with the link.
+  assert.match(html, /id="docsLink"[^>]*href="https:\/\/docs\.evomedia\.net\/polaris\/"/,
+    'the docs link must point at docs.evomedia.net/<project>/, the fleet shape');
+  assert.match(appJs, /docsLink'\)\.href = `\$\{DOCS_URL\}\?night=\$\{night \? 'on' : 'off'\}`/,
+    'the docs link must carry the current theme, in both directions');
+  // And it must be re-derived whenever the theme changes, not set once at
+  // boot -- a link stamped at load says "night" all day after one toggle.
+  const appearance = appJs.slice(appJs.indexOf('function applyAppearance'),
+    appJs.indexOf('$(\'textBigger\')'));
+  assert.ok(appearance.includes("$('docsLink').href"),
+    'the href must be set inside applyAppearance, so it follows the toggle');
 });

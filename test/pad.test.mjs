@@ -27,6 +27,18 @@ test('the pan buttons are never disabled', () => {
     'the loop that greyed the pad out during following is back');
 });
 
+test('the arrows are shown by the mode, not by a switch of their own', () => {
+  // "In manual mode arrows appear" -- so the mode is the only thing that
+  // decides it. The old padToggle was a second, independent switch over the
+  // same thing, which is how a pad ends up hidden in the one mode that needs
+  // it.
+  assert.ok(!appJs.includes("$('padToggle')"), 'padToggle is back');
+  assert.ok(/\$\('skyPad'\)\.hidden = following;/.test(appJs),
+    'the below-canvas pad must be hidden exactly when the phone is steering');
+  assert.ok(/\$\('fullPan'\)\.hidden = following;/.test(appJs),
+    'the on-map pan cluster must follow the same rule');
+});
+
 test('full screen carries the pad, in the pad arrangement, delegating to it', () => {
   const twins = [
     ['fullUp', 'skyUp', 'Look up', 'pad-up'],

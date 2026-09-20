@@ -7,6 +7,10 @@
   "private": false,
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
+    "version:print": "node scripts/bump-version.mjs get",
+    "bump-version": "node scripts/bump-version.mjs bump",
+    "version:stage": "node scripts/bump-version.mjs bump-stage",
+    "version:tag": "node scripts/bump-version.mjs tag-command",
     "build-data": "python scripts/build-data.py",
     "serve": "node scripts/serve.mjs",
     "docs:twins": "node scripts/md-txt.mjs",

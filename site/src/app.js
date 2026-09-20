@@ -9,7 +9,7 @@ import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
 import {
-  buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies,
+  buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
 } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
@@ -18,14 +18,19 @@ import { mountEvomediaChrome } from './evomedia-chrome.js';
 // say; this reports elapsed seconds to our own origin and nothing else, and
 // stays silent for anyone sending Do Not Track or Global Privacy Control.
 import { startDwellBeacon } from './dwell.js';
-import { fetchIss, lookAngles, describePass } from './iss.js';
+import {
+  fetchIss, fetchIssTrack, orbitLookAngles, lookAngles, describePass,
+} from './iss.js';
+import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
 import { drawSkyView, drawMoonDisc } from './skydraw.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
+  moonRiseSet, describeMoonTimes,
 } from './moon.js';
 import { planetPositions, describePlanets } from './planets.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
+import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -44,6 +49,10 @@ const store = {
 // user in Sydney a Texas solution that is confidently wrong in every number,
 // and this app has no business guessing where anyone is standing.
 const DEFAULT_SITE = { lat: 30.0563, lon: -95.2107, altitude: 26 };
+
+// The fleet's docs live at docs.evomedia.net/<project>/ -- the same shape as
+// /ablecamera/, /evo-ai/ and the rest.
+const DOCS_URL = 'https://docs.evomedia.net/polaris/';
 
 let stars = [];
 let site = store.get('site', null);
@@ -102,9 +111,11 @@ let lastOnTarget = false;
 // four cards down, which is a long way to go to find the Big Dipper.
 let mode = store.get('mode', 'sky');
 
-// null means "work it out from whether the phone is steering"; true or false
-// is a choice someone made, and a choice outranks the guess.
-let padOpen = store.get('padOpen', null);
+// The paths bodies move along, rebuilt on the slow tick with everything else.
+let skyTracks = [];
+// The station's sampled orbit, kept raw so the path can be re-laid whenever
+// the time or the place changes without asking the network again.
+let issSamples = null;
 
 // --- when you are looking ---------------------------------------------------
 //
@@ -159,6 +170,20 @@ function applyAppearance() {
     : 'Switch to Night Mode, which is pure red on black and preserves dark '
       + 'adaptation. Dark Mode is on now.');
   btn.classList.toggle('is-night', night);
+
+  // THE DOCS OPEN IN THE THEME YOU ARE ALREADY IN.
+  //
+  // Night Mode exists to protect dark adaptation, which takes twenty to
+  // thirty minutes to build and one bright screen to lose. A docs link that
+  // opened a white page would undo the whole point of the theme at the moment
+  // someone reached for help -- outdoors, in the dark, mid-setup.
+  //
+  // The theme travels as a query parameter and the docs site applies it
+  // BEFORE first paint, so there is not even one white frame. It is sent in
+  // both directions rather than only when dark: switching the app back to
+  // day and then opening the docs should not leave them red either.
+  $('docsLink').href = `${DOCS_URL}?night=${night ? 'on' : 'off'}`;
+
   render();
 }
 
@@ -173,6 +198,23 @@ $('textSmaller').onclick = () => {
 $('nightToggle').onclick = () => {
   night = !night; store.set('night', night); applyAppearance();
 };
+
+// --- collapsible cards ------------------------------------------------------
+//
+// <details> does the work: no click handler, in the tab order for free, and
+// announced as expanded or collapsed without being told to. All this adds is
+// remembering the choice -- a card you collapsed should still be collapsed
+// next time, which is the whole point of collapsing it.
+//
+// The map card starts open. Everything else starts shut: the reason for
+// collapsing them is that they are walls of text, and a wall of text that
+// greets you is the thing being fixed.
+const CARDS_OPEN_BY_DEFAULT = new Set(['skyCard']);
+for (const card of document.querySelectorAll('details.card')) {
+  if (!card.id) continue;
+  card.open = store.get(`open.${card.id}`, CARDS_OPEN_BY_DEFAULT.has(card.id));
+  card.addEventListener('toggle', () => store.set(`open.${card.id}`, card.open));
+}
 
 // --- location ---------------------------------------------------------------
 
@@ -221,9 +263,11 @@ function setSite(next, note) {
  */
 function setPlaceChangeLabel(open) {
   const btn = $('placeChange');
-  btn.textContent = open ? 'Hide' : 'Change';
+  // Two lines, so the button can say what it does without crowding the
+  // coordinates beside it. The accessible name is the same words unbroken.
+  btn.innerHTML = open ? 'Hide the<br>boxes' : 'Set your<br>location';
   btn.setAttribute('aria-label',
-    open ? 'Hide the position boxes' : 'Change where I am');
+    open ? 'Hide the position boxes' : 'Set your location');
 }
 
 $('placeChange').onclick = () => {
@@ -255,9 +299,9 @@ function longWhen(d) {
 
 function setWhenChangeLabel(open) {
   const btn = $('whenChange');
-  btn.textContent = open ? 'Hide' : 'Plan';
+  btn.innerHTML = open ? 'Hide the<br>boxes' : 'Change<br>date';
   btn.setAttribute('aria-label',
-    open ? 'Hide the date boxes' : 'Plan another night');
+    open ? 'Hide the date boxes' : 'Change the date');
 }
 
 function paintWhen() {
@@ -341,8 +385,14 @@ function applyMode() {
     sizeSkyCanvas();
     syncFullScreen();
     aimAtPole();
-    // Following needs the orientation listener, so asking for it is part of
-    // opening the view rather than a second thing to discover.
+    // AUTO MODE IS ON FROM THE MOMENT THE VIEW OPENS. The listener is attached
+    // here rather than behind a press, so the sky is already following which
+    // way the phone is pointed by the time anyone looks at it.
+    //
+    // iOS is the exception and cannot be helped from here: it requires a user
+    // gesture before it will hand over orientation, so the request is refused
+    // on load and the Use Auto Mode button -- which IS a gesture -- is what
+    // asks again. Android grants it without asking.
     if (skyFollow && !compassOn) startCompass();
     updateSkyMode();
     drawLiveSky();
@@ -766,6 +816,11 @@ function render() {
   $('moonText').textContent =
     `${describeMoon(moon, moonHz.alt)} Bearing ${moonHz.az.toFixed(0)}°, `
     + `${Math.round(moon.distanceKm).toLocaleString()} km away.`;
+  // Rise and set for the day being shown -- which is the planned date when
+  // one is set, not today, because every other number on the page already is.
+  $('moonTimes').textContent =
+    describeMoonTimes(moonRiseSet(now, site.lat, site.lon));
+
   const md = $('moonDisc');
   drawMoonDisc(md.getContext('2d'), {
     illuminated: moon.illuminated, waxing: moon.waxing, size: md.width, night,
@@ -943,7 +998,7 @@ async function boot() {
   }
   const v = modelValidity();
   $('buildLine').textContent =
-    `v0.0.0.1.0 · WMM${v.epoch} magnetic model, valid to ${v.validUntil} · ` +
+    `${VERSION} · WMM${v.epoch} magnetic model, valid to ${v.validUntil} · ` +
     `${stars.length} stars`;
 
   if (site) setSite(site, 'Using your last saved position.');
@@ -997,6 +1052,41 @@ function refreshSkyVectors() {
   skyPlanetList = bodies.filter((b) => !b.isMoon);
   skyMoonBody = bodies.find((b) => b.isMoon) || null;
   $('planetsOut').textContent = describePlanets(skyPlanetList);
+
+  // --- the paths they move along ------------------------------------------
+  //
+  // A planet is one dot among nine thousand. Its PATH is what says which dot
+  // it is, and the tracks follow the same switches the bodies do -- hiding the
+  // planets hides their paths, because a labelled line to an invisible dot is
+  // worse than neither.
+  skyTracks = [];
+  if (skyShowPlanets) {
+    for (const { name, points } of allPlanetTracks(when)) {
+      skyTracks.push({
+        points: placeTrack(points, lst, site.lat, precess),
+        colour: '#ffe9a0', nightColour: '#8b0000',
+        label: name, labelEvery: 12, width: 1.4,
+      });
+    }
+  }
+  if (skyShowMoon) {
+    skyTracks.push({
+      points: placeTrack(moonTrack(when), lst, site.lat),   // already of date
+      colour: '#e6e6e6', nightColour: '#a00000',
+      label: 'Moon', labelEvery: 16, width: 1.6,
+    });
+  }
+  if (issSamples) {
+    // Re-laid from the samples rather than re-fetched: the geometry depends on
+    // the time and the place, the samples do not.
+    skyTracks.push({
+      points: orbitLookAngles(issSamples,
+        { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
+        when).map((p) => ({ v: altAzToVector(p.alt, p.az), up: p.up })),
+      colour: '#7fd4ff', nightColour: '#c00000',
+      label: 'ISS', labelEvery: 22, width: 2, dash: [5, 5],
+    });
+  }
 }
 
 /**
@@ -1024,10 +1114,14 @@ function sizeSkyCanvas() {
 function applyFullScreen() {
   const wrap = $('liveSkyWrap');
   wrap.classList.toggle('full', fullOn);
-  $('fullBtn').textContent = fullOn ? 'Leave full screen' : 'Fill the screen';
-  // Offered only when there is something to hand back. A control that does
-  // nothing is worse than a missing one.
-  $('fullAuto').hidden = fullLock === null;
+  // The mode button is not a child of the overlay -- it lives in the flow
+  // under the map -- so it needs a hook of its own to lift onto the picture.
+  document.documentElement.dataset.skyfull = fullOn ? 'on' : 'off';
+  // Outward arrows to fill the screen, a cross to come back -- the corner and
+  // the symbols every video player uses.
+  $('fullGlyph').textContent = fullOn ? '✕' : '⛶';
+  $('fullBtn').setAttribute('aria-label',
+    fullOn ? 'Leave full screen' : 'Fill the screen');
   sizeSkyCanvas();
   drawLiveSky();
 }
@@ -1061,7 +1155,12 @@ function syncFullScreen() {
 // binding so nothing can collect it.
 function onViewportChanged() {
   if (!skyOn) return;
-  syncFullScreen();               // no-op unless the answer actually changed
+  // Turning the phone hands control back to the rotation. It is the same
+  // gesture that asks for full screen in the first place, so treating it as a
+  // fresh instruction is what people expect -- and it gives the pinned state a
+  // way out without a third button to explain itself.
+  fullLock = null;
+  syncFullScreen();
   if (sizeSkyCanvas()) drawLiveSky();
 }
 
@@ -1088,12 +1187,6 @@ $('fullBtn').onclick = async () => {
     if (fullOn) await $('liveSkyWrap').requestFullscreen?.();
     else if (document.fullscreenElement) await document.exitFullscreen?.();
   } catch { /* the overlay stands on its own */ }
-};
-
-$('fullAuto').onclick = () => {
-  fullLock = null;
-  syncFullScreen();
-  applyFullScreen();
 };
 
 // Leaving real fullscreen by the browser's own gesture -- the Escape key, or a
@@ -1128,6 +1221,7 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     milkyWay: skyMilkyWay ? milkyWay : null,
+    tracks: skyTracks,
     planets: skyShowPlanets ? skyPlanetList : null,
     moon: skyShowMoon ? skyMoonBody : null,
     iss: issMark,
@@ -1145,23 +1239,53 @@ function updateSkyMode() {
   // for a different date is the one way this view can mislead, and the whole
   // point of it is that what you see is where things really are.
   const when = plannedFor ? `Showing ${longWhen(appTime())}. ` : '';
-  $('skyMode').textContent = following
-    ? `${when}Following the phone. The buttons take over again if you press one.`
-    : `${when}Looking ${Math.round(skyAim.az)}° round and `
-      + `${Math.round(skyAim.alt)}° up. Use the buttons or the arrow keys — `
-      + 'nothing needs to be held up.';
-  $('skyFollow').textContent = following
-    ? 'Stop following the phone' : 'Follow the phone instead';
+  const aimed = `${when}Looking ${Math.round(skyAim.az)}° round and `
+    + `${Math.round(skyAim.alt)}° up. Use the arrows or the arrow keys — `
+    + 'nothing needs to be held up.';
+  if (following) {
+    $('skyMode').textContent =
+      `${when}Auto Mode: following the phone. The arrows take over if you `
+      + 'press one.';
+  } else if (skyFollow) {
+    // Auto is on and the phone has not reported yet -- either the first
+    // reading is still coming, or this device has no compass to report with.
+    // Either way the arrows are already on screen, so the view is usable
+    // while it waits rather than frozen looking broken.
+    $('skyMode').textContent =
+      `${when}Auto Mode is on, waiting for the phone's compass. If nothing `
+      + 'moves, this device is not reporting one — the arrows work meanwhile.';
+  } else {
+    $('skyMode').textContent = `${when}Manual Mode. ${aimed.slice(when.length)}`;
+  }
+  // AUTO MODE is the phone steering; MANUAL MODE is the arrows. One control,
+  // and its label says which way pressing it goes -- the rule every other
+  // button here follows.
+  //
+  // It replaces two buttons whose names were a genuine trap: "Follow the phone
+  // instead" meant the sky view follows where the phone POINTS, and "Follow
+  // the phone's rotation" meant full screen follows whether the phone is
+  // turned SIDEWAYS. Two unrelated settings, near-identical wording.
+  //
+  // THE LABEL FOLLOWS THE INTENT, NOT THE ACHIEVED STATE. Auto Mode is on from
+  // the moment the view opens, so between load and the phone's first
+  // orientation reading `following` is false while `skyFollow` is already
+  // true. Labelling from `following` there offered "Use Auto Mode" when Auto
+  // was ALREADY the mode, and pressing it would have turned Auto off -- a
+  // button pointing the opposite way to the one it named.
+  const modeBtn = $('modeBtn');
+  // Short on the map where space is tight, the whole phrase under it where
+  // there is room. The accessible name is the full phrase either way.
+  modeBtn.textContent = fullOn
+    ? (skyFollow ? 'Use Manual' : 'Use Auto')
+    : (skyFollow ? 'Use Manual Mode' : 'Use Auto Mode');
+  modeBtn.setAttribute('aria-label',
+    skyFollow ? 'Use Manual Mode' : 'Use Auto Mode');
 
-  // The pad is five full-width buttons -- most of a phone screen. While the
-  // phone itself is steering they do nothing, so they are not on screen. The
-  // moment there is no sensor to follow they are the ONLY way to move the view
-  // -- every desktop, and any phone that declines the permission -- so they
-  // open themselves rather than waiting to be found.
-  const padVisible = padOpen === null ? !following : padOpen;
-  $('skyPad').hidden = !padVisible;
-  $('padToggle').textContent = padVisible
-    ? 'Hide the hand controls' : 'Move the view by hand';
+  // In Manual Mode the arrows appear; in Auto Mode the phone is doing it and
+  // five full-width buttons would be most of a screen doing nothing. There is
+  // no third state and nothing to persist: the mode IS the setting.
+  $('skyPad').hidden = following;
+  $('fullPan').hidden = following;
   // THE PAD IS NEVER DISABLED. It used to be greyed out while the phone was
   // steering, and on a dark screen at arm's length greyed reads as gone --
   // "the controls to move the screen are not visible". Worse, it contradicted
@@ -1223,7 +1347,7 @@ $('skyDown').onclick = () => pan(0, -STEP);
 $('skyLeft').onclick = () => pan(-STEP, 0);
 $('skyRight').onclick = () => pan(STEP, 0);
 $('skyPole').onclick = () => { skyFollow = false; aimAtPole(); updateSkyMode(); drawLiveSky(); };
-$('skyFollow').onclick = () => {
+$('modeBtn').onclick = () => {
   skyFollow = !skyFollow;
   if (skyFollow) {
     if (!compassOn) startCompass();
@@ -1235,14 +1359,6 @@ $('skyFollow').onclick = () => {
   }
   updateSkyMode();
   drawLiveSky();
-};
-
-$('padToggle').onclick = () => {
-  const following = skyFollow && rawAlpha !== null;
-  const visible = padOpen === null ? !following : padOpen;
-  padOpen = !visible;
-  store.set('padOpen', padOpen);
-  updateSkyMode();
 };
 
 // Arrow keys, one key at a time, no modifiers. Same reasoning as the buttons.
@@ -1275,6 +1391,12 @@ $('issBtn').onclick = async () => {
     const look = lookAngles(
       { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
       iss);
+    // And the orbit it is on. A second request, and a failure here must not
+    // lose the position the first one already found -- the marker is the
+    // answer to the question, the path is the bonus.
+    try {
+      issSamples = await fetchIssTrack(fetch, appTime());
+    } catch { issSamples = null; }
     // Only mark it on the sky when it is actually up there. Drawing a marker
     // below the horizon would be drawing the inside of the Earth.
     issMark = look.aboveHorizon
@@ -1328,8 +1450,16 @@ $('skyMoon').onclick = () => {
   drawLiveSky();
 };
 
-$('skyWider').onclick = () => { skyFov = Math.min(110, skyFov + 15); drawLiveSky(); };
-$('skyNarrower').onclick = () => { skyFov = Math.max(25, skyFov - 15); drawLiveSky(); };
+// Twenty-six steps between a 10-degree field and a 140-degree one. It was six
+// steps of 15 degrees over 25-110: a jump big enough that the sky leaps rather
+// than zooms, with no way to frame one constellation.
+const FOV_MIN = 10, FOV_MAX = 140, FOV_STEP = 5;
+$('skyWider').onclick = () => {
+  skyFov = Math.min(FOV_MAX, skyFov + FOV_STEP); drawLiveSky();
+};
+$('skyNarrower').onclick = () => {
+  skyFov = Math.max(FOV_MIN, skyFov - FOV_STEP); drawLiveSky();
+};
 // The full-screen corner buttons are the same two actions under a glyph. One
 // handler each, delegated, so the limits live in exactly one place.
 $('fullIn').onclick = () => $('skyNarrower').click();

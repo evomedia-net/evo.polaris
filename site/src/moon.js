@@ -18,6 +18,8 @@
 // position, because it depends on the Sun-Moon angle rather than on either
 // body's exact place.
 
+import { julianDay, lstHours, equatorialToHorizontal } from './astro.js';
+
 const DEG = Math.PI / 180;
 
 function daysSinceJ2000(date) {
@@ -188,4 +190,124 @@ export function describeMoon(phase, altDeg) {
   }
   return `${phase.name}, ${pct}% lit and ${where}. Bright enough to wash out `
     + 'faint targets — worth waiting for it to set.';
+}
+
+// --- when it rises and when it sets -----------------------------------------
+//
+// THE ALTITUDE AT MOONRISE IS NOT ZERO, AND IT IS NOT NEGATIVE EITHER.
+//
+// For a star, rise is the centre at -0.5667 degrees: refraction lifts it over
+// the horizon before it is geometrically there. For the Sun, -0.8333, adding
+// its own half-degree radius. The Moon goes the other way, and this is the
+// trap: it is close enough that PARALLAX matters. Seen from the surface rather
+// than from the centre of the Earth it sits about 0.95 degrees LOWER than the
+// geocentric position this module computes -- more than refraction and
+// semidiameter together lift it. Meeus gives
+//
+//     h0 = 0.7275 * parallax - 0.5667 degrees ~= +0.125 degrees
+//
+// so the geocentric centre must be slightly ABOVE the horizon at the moment
+// the topocentric upper limb touches it. Using 0, or borrowing the Sun's
+// -0.8333, puts every time out by several minutes in the same direction.
+const MOONRISE_ALT = 0.125;
+
+/** The Moon's geocentric altitude from one place at one instant. */
+function altitudeAt(t, latDeg, lonDeg) {
+  const m = moonPosition(t);
+  return equatorialToHorizontal(m.ra, m.dec, lstHours(julianDay(t), lonDeg), latDeg).alt;
+}
+
+/** Bisect a bracketed crossing down to about a second. */
+function refine(t0, t1, latDeg, lonDeg) {
+  let a = t0.getTime(), b = t1.getTime();
+  const above = (t) => altitudeAt(new Date(t), latDeg, lonDeg) >= MOONRISE_ALT;
+  const startAbove = above(a);
+  for (let i = 0; i < 24 && b - a > 1000; i++) {
+    const mid = (a + b) / 2;
+    if (above(mid) === startAbove) a = mid; else b = mid;
+  }
+  return new Date(Math.round((a + b) / 2));
+}
+
+/**
+ * Moonrise and moonset for the LOCAL DAY containing `date`.
+ *
+ * EITHER CAN BE NULL, AND THAT IS NOT AN ERROR. The Moon rises about fifty
+ * minutes later each day, so roughly once a month a calendar day contains no
+ * moonrise at all -- it rose at 23:5x yesterday and will rise at 00:4x
+ * tomorrow. Inside the polar circles it can stay up or stay down for days.
+ * Reporting a time for those days means inventing one.
+ *
+ * Accuracy is a few minutes: the position itself is a truncated series good to
+ * about a quarter of a degree, and near the horizon the Moon's own motion is
+ * slow, so a small position error becomes a larger time error. Good enough to
+ * plan a night around, not good enough to time an occultation.
+ */
+export function moonRiseSet(date, latDeg, lonDeg, stepMinutes = 10) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const steps = Math.round((24 * 60) / stepMinutes);
+
+  let rise = null, set = null;
+  let prevT = start;
+  let prevAbove = altitudeAt(start, latDeg, lonDeg) >= MOONRISE_ALT;
+  for (let i = 1; i <= steps; i++) {
+    const t = new Date(start.getTime() + i * stepMinutes * 60000);
+    const nowAbove = altitudeAt(t, latDeg, lonDeg) >= MOONRISE_ALT;
+    if (nowAbove !== prevAbove) {
+      const when = refine(prevT, t, latDeg, lonDeg);
+      if (nowAbove && !rise) rise = when;
+      if (!nowAbove && !set) set = when;
+    }
+    prevT = t; prevAbove = nowAbove;
+  }
+  // Which side it stayed on, for the days when it does neither. "It does not
+  // rise today" is only half an answer: up all day and down all day are
+  // opposite pieces of news for anyone planning a photograph.
+  const middayAlt = altitudeAt(new Date(start.getTime() + 12 * 3600000),
+    latDeg, lonDeg);
+  return { rise, set, day: start, alwaysUp: !rise && !set && middayAlt >= MOONRISE_ALT };
+}
+
+/**
+ * The rise and set times in words, in the reader's own clock.
+ *
+ * Every instant here is a Date -- an absolute moment, which is UTC underneath
+ * -- and only toLocaleTimeString turns it into a wall clock. So the same
+ * computation reads correctly whatever zone the browser is in, and a planned
+ * night in another month still prints the times for the day it names.
+ */
+export function describeMoonTimes({ rise, set, day, alwaysUp }) {
+  const clock = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const date = day.toLocaleDateString([], {
+    weekday: 'short', day: 'numeric', month: 'short',
+  });
+  if (!rise && !set) {
+    return alwaysUp
+      ? `${date}: the Moon is above the horizon all day — it neither rises `
+        + 'nor sets.'
+      : `${date}: the Moon stays below the horizon all day — it does not rise.`;
+  }
+  // IN THE ORDER THEY HAPPEN, not rise-then-set. Within one calendar day the
+  // Moon usually SETS first -- it rose the previous afternoon -- so listing
+  // rise first printed "rises 3:52 PM, sets 1:13 AM" and read as though the
+  // set followed the rise by nine hours backwards.
+  const parts = [];
+  if (rise) parts.push({ at: +rise, text: `rises ${clock(rise)}` });
+  if (set) parts.push({ at: +set, text: `sets ${clock(set)}` });
+  parts.sort((a, b) => a.at - b.at);
+  const missing = !rise ? ' It does not rise again until tomorrow.'
+    : (!set ? ' It does not set again until tomorrow.' : '');
+  // THE CAVEAT TRAVELS WITH THE NUMBER. A time printed to the minute reads as
+  // accurate to the minute, and this one is not: the position is a truncated
+  // series good to about a quarter of a degree, and near the horizon the Moon
+  // moves slowly enough that a small error in where it is becomes a larger one
+  // in when it got there. Saying so in the docstring only tells the people who
+  // read the source; saying it here tells the person planning the night.
+  // The tolerance attaches to the TIMES, not to the end of the paragraph.
+  // Appended last it produced "sets 11:19 AM. It does not rise again until
+  // tomorrow. +/- a few minutes." -- a qualifier floating after a sentence it
+  // has nothing to do with.
+  return `${date}: ${parts.map((p) => p.text).join(', ')}, `
+    + `± a few minutes.${missing}`;
 }

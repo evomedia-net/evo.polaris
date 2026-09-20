@@ -38,6 +38,9 @@
 <header class="bar">
   <h1>evo<span class="dot">.</span>polaris</h1>
   <div class="bar-actions">
+    <a id="docsLink" class="icon-btn" href="https://docs.evomedia.net/polaris/"
+       target="_blank" rel="noopener"
+       aria-label="Read the documentation">?</a>
     <button id="textSmaller" class="icon-btn" aria-label="Make the text smaller">A−</button>
     <button id="textBigger" class="icon-btn" aria-label="Make the text bigger">A+</button>
     <button id="nightToggle" class="icon-btn">Use Night Mode</button>
@@ -50,17 +53,23 @@
        both jobs below, so it sits above the pickers rather than inside one of
        them, and collapses to a summary the moment it is answered. -->
   <div class="place" id="placeBar" hidden>
-    <span class="place-where" id="placeWhere">—</span>
+    <div class="place-text">
+      <span class="place-what">Where you are</span>
+      <span class="place-where" id="placeWhere">—</span>
+    </div>
     <button id="placeChange" class="place-btn"
-            aria-label="Change where I am">Change</button>
+            aria-label="Set your location">Set your<br>location</button>
   </div>
 
   <!-- When you are looking. Mirrors the place bar above: a one-line answer
        with the boxes one press behind it. -->
   <div class="place" id="whenBar" hidden>
-    <span class="place-where" id="whenText">Right now</span>
+    <div class="place-text">
+      <span class="place-what">When you are looking</span>
+      <span class="place-where" id="whenText">Right now</span>
+    </div>
     <button id="whenChange" class="place-btn"
-            aria-label="Plan another night">Plan</button>
+            aria-label="Change the date">Change<br>date</button>
   </div>
 
   <!-- The two jobs. Aligning a mount happens once, at the start of a night,
@@ -144,29 +153,36 @@
        =================================================================== -->
   <div id="paneSky" role="tabpanel" aria-labelledby="modeSkyBtn" tabindex="-1" hidden>
 
-    <section class="card" aria-labelledby="h-sky">
-      <h2 id="h-sky">Tonight’s sky</h2>
+    <details class="card" id="skyCard" aria-labelledby="h-sky" open>
+      <summary class="card-head"><h2 id="h-sky">Tonight’s sky</h2></summary>
 
       <figure class="live-sky" id="liveSkyWrap">
+        <div class="sky-stage">
         <canvas id="liveSky" width="720" height="480"
                 role="img" aria-labelledby="liveSkyDesc"></canvas>
-        <button id="fullBtn" class="big-btn full-btn">Fill the screen</button>
-        <!-- Zoom, in full screen only. The pane's own "Show more sky" and "Show
-             less sky" buttons are below the canvas, which in full screen is
-             nowhere. These are big enough to hit with a thumb in the dark. -->
+
+        <!-- ON-MAP CONTROLS. They live on the picture because in full screen
+             there is nowhere else -- and because "change what I am looking at"
+             belongs where you are looking, not under a wall of text. -->
+
+        <!-- Bottom right: fill the screen, and leave it again. -->
+        <button id="fullBtn" class="map-btn map-full"
+                aria-label="Fill the screen"><span id="fullGlyph" aria-hidden="true">&#9974;</span></button>
+
+        <!-- Right edge, full screen only: the field of view. -->
         <div class="full-zoom" aria-label="Zoom">
-          <button id="fullIn" class="big-btn full-zoom-btn" aria-label="Show less sky">+</button>
-          <button id="fullOut" class="big-btn full-zoom-btn" aria-label="Show more sky">&minus;</button>
+          <button id="fullIn" class="map-btn map-zoom-btn" aria-label="Show less sky">+</button>
+          <button id="fullOut" class="map-btn map-zoom-btn" aria-label="Show more sky">&minus;</button>
         </div>
-        <!-- Pan, in full screen only: the same five actions as the pad, in the
-             opposite corner from the zoom so each thumb has its own cluster.
-             Without these the filled screen could be zoomed but not moved. -->
-        <div class="full-pan" aria-label="Move the view">
-          <button id="fullUp" class="big-btn full-pan-btn pad-up" aria-label="Look up">&#9650;</button>
-          <button id="fullLeft" class="big-btn full-pan-btn pad-left" aria-label="Look left">&#9664;</button>
-          <button id="fullPole" class="big-btn full-pan-btn pad-mid" aria-label="Find the pole">&#9678;</button>
-          <button id="fullRight" class="big-btn full-pan-btn pad-right" aria-label="Look right">&#9654;</button>
-          <button id="fullDown" class="big-btn full-pan-btn pad-down" aria-label="Look down">&#9660;</button>
+
+        <!-- Bottom left, full screen and Manual Mode: where to look. -->
+        <div class="full-pan" id="fullPan" aria-label="Move the view">
+          <button id="fullUp" class="map-btn map-pan-btn pad-up" aria-label="Look up">&#9650;</button>
+          <button id="fullLeft" class="map-btn map-pan-btn pad-left" aria-label="Look left">&#9664;</button>
+          <button id="fullPole" class="map-btn map-pan-btn pad-mid" aria-label="Find the pole">&#9678;</button>
+          <button id="fullRight" class="map-btn map-pan-btn pad-right" aria-label="Look right">&#9654;</button>
+          <button id="fullDown" class="map-btn map-pan-btn pad-down" aria-label="Look down">&#9660;</button>
+        </div>
         </div>
         <figcaption class="caption" id="liveSkyDesc">
           A live window on the sky. Hold the phone up and move it around; the
@@ -174,8 +190,11 @@
           The Moon is drawn larger than life so its phase can be read at all.
         </figcaption>
       </figure>
-      <button id="fullAuto" class="big-btn ghost" hidden>Follow the phone's rotation</button>
-      <p class="hint" id="skyMode"></p>
+
+      <!-- The buttons come straight after the picture they change. The words
+           that describe what is up there follow them. -->
+      <button id="modeBtn" class="big-btn mode-btn"
+              aria-label="Use Manual Mode">Use Manual Mode</button>
 
       <div class="sky-controls">
         <button id="skyWider" class="big-btn">Show more sky</button>
@@ -185,16 +204,7 @@
         <button id="skyPlanets" class="big-btn">Hide the planets</button>
         <button id="skyMoon" class="big-btn">Hide the Moon</button>
       </div>
-      <p class="hint" id="planetsOut"></p>
 
-      <button id="skyFollow" class="big-btn ghost">Follow the phone instead</button>
-
-      <!-- The pad is hidden while the phone is doing the steering, because it
-           is five full-width buttons of screen doing nothing. It opens itself
-           the moment there is no sensor to follow -- every desktop, and any
-           phone that declines the permission -- since then it is the only way
-           to move the view at all. -->
-      <button id="padToggle" class="big-btn ghost">Move the view by hand</button>
       <div class="sky-pad" id="skyPad" hidden>
         <button id="skyUp" class="big-btn pad-up">Look up</button>
         <button id="skyLeft" class="big-btn pad-left">Look left</button>
@@ -204,20 +214,24 @@
       </div>
 
       <button id="issBtn" class="big-btn ghost">Find the ISS</button>
+
+      <p class="hint" id="skyMode"></p>
+      <p class="hint" id="planetsOut"></p>
       <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is.
         It is the one thing here that needs the network — everything else works
         with the radio off.</p>
       <p class="hint" id="skyDiag"></p>
-    </section>
+    </details>
 
-    <section class="card" aria-labelledby="h-moon">
-      <h2 id="h-moon">The Moon tonight</h2>
+    <details class="card" id="moonCard" aria-labelledby="h-moon">
+      <summary class="card-head"><h2 id="h-moon">The Moon tonight</h2></summary>
       <div class="moon-row">
         <canvas id="moonDisc" width="120" height="120" role="img"
                 aria-labelledby="moonText"></canvas>
         <p class="status" id="moonText">—</p>
       </div>
-    </section>
+      <p class="status" id="moonTimes">—</p>
+    </details>
   </div>
 
   <!-- ===================================================================
@@ -226,8 +240,8 @@
   <div id="paneAlign" role="tabpanel" aria-labelledby="modeAlignBtn" tabindex="-1" hidden>
 
     <!-- 1 ---------------------------------------------------------------- -->
-    <section class="card" id="northCard" aria-labelledby="h-north">
-      <h2 id="h-north"><span class="step">1</span> Which way is <span id="poleWord2">true north</span>?</h2>
+    <details class="card" id="northCard" aria-labelledby="h-north">
+      <summary class="card-head"><h2 id="h-north"><span class="step">1</span> Which way is <span id="poleWord2">true north</span>?</h2></summary>
 
       <p class="status" id="northIntro">Your mount points at <strong>true</strong>
         north, not magnetic north. Any one of these gets you there — and the first
@@ -250,11 +264,11 @@
         <div class="fig-value small" id="outCompass">—</div>
         <div class="fig-note" id="outDeclination">—</div>
       </div>
-    </section>
+    </details>
 
     <!-- 2 ---------------------------------------------------------------- -->
-    <section class="card" id="settingsCard" aria-labelledby="h-set">
-      <h2 id="h-set"><span class="step">2</span> Set your tracker</h2>
+    <details class="card" id="settingsCard" aria-labelledby="h-set">
+      <summary class="card-head"><h2 id="h-set"><span class="step">2</span> Set your tracker</h2></summary>
 
       <div class="figure big-figure">
         <div class="fig-label">Latitude / altitude knob</div>
@@ -297,11 +311,11 @@
       <button id="speakBtn" class="big-btn" aria-describedby="spokenText">Read these out loud</button>
       <p class="hint" id="speakNote"></p>
       <p class="spoken" id="spokenText"></p>
-    </section>
+    </details>
 
     <!-- 3 ---------------------------------------------------------------- -->
-    <section class="card" id="findCard" aria-labelledby="h-find">
-      <h2 id="h-find"><span class="step">3</span> Find <span id="poleWord4">Polaris</span> in the sky</h2>
+    <details class="card" id="findCard" aria-labelledby="h-find">
+      <summary class="card-head"><h2 id="h-find"><span class="step">3</span> Find <span id="poleWord4">Polaris</span> in the sky</h2></summary>
 
       <div class="guide" id="guideBox" role="status" aria-live="polite">
         <div class="guide-arrow" id="guideArrow" aria-hidden="true">•</div>
@@ -324,7 +338,7 @@
       </figure>
 
       <p class="status" id="starhopText"></p>
-    </section>
+    </details>
   </div>
 
   <footer class="foot">

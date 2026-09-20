@@ -177,6 +177,10 @@ export function drawSkyView(ctx, o) {
     }
   }
 
+  // Paths. Drawn after the constellation figures and before the stars, so a
+  // track passes over the joining lines and under the things it is a track OF.
+  if (o.tracks) for (const t of o.tracks) drawTrack(ctx, t, basis, focal, cx, cy, w, h, night);
+
   // Planets. ALWAYS NAMED: "which of those dots is Jupiter" is the entire
   // question, and an unlabelled planet is just a star that happens to be in
   // the wrong catalogue. Drawn a little larger than a star of the same
@@ -357,6 +361,65 @@ function moonFace(ctx, r, illuminated, night) {
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.stroke();
+}
+
+/**
+ * One body's path across the sky, dashed, and named along its length.
+ *
+ * WHY THE NAME REPEATS. Every planet path runs close to the ecliptic, so half
+ * a dozen of them share one stripe of sky. A single label at one end leaves
+ * you tracing a line with your finger to find out which planet it belongs to;
+ * a name every so often answers that wherever you happen to be looking.
+ *
+ * THE LINE BREAKS AT THE HORIZON AND BEHIND YOU. A path that runs under the
+ * ground is drawn faint rather than dropped -- "it comes up over there in
+ * twenty minutes" is the useful half of a station's orbit -- but the segment
+ * that would join the last visible point to one behind your head is not drawn
+ * at all, because projectToScreen refuses anything behind the viewer and
+ * joining across that gap draws a line through the middle of the picture.
+ */
+function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night) {
+  const { points, colour, label, labelEvery = 14, width = 1.6, dash = [7, 6] } = track;
+  if (!points || points.length < 2) return;
+
+  const ink = night ? (track.nightColour || '#8b0000') : colour;
+  ctx.save();
+  ctx.setLineDash(dash);
+  ctx.lineWidth = Math.max(1, width * (w / 720));
+  ctx.strokeStyle = ink;
+
+  let prev = null, prevUp = true;
+  const seen = [];
+  for (const p of points) {
+    const q = projectToScreen(p.v, basis, focal);
+    if (!q) { prev = null; continue; }
+    const x = cx + q.x, y = cy + q.y;
+    if (prev) {
+      // Below the horizon it stays drawn, but faintly: it is where the thing
+      // is going to come up from, not where it can be seen.
+      ctx.globalAlpha = (p.up && prevUp) ? 0.85 : 0.3;
+      ctx.beginPath();
+      ctx.moveTo(prev[0], prev[1]);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+    prev = [x, y]; prevUp = p.up;
+    if (p.up && x > 0 && x < w && y > 0 && y < h) seen.push([x, y]);
+  }
+
+  if (label && seen.length) {
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = ink;
+    ctx.font = `600 ${Math.round(h / 38)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (let i = Math.floor(labelEvery / 2); i < seen.length; i += labelEvery) {
+      ctx.fillText(label, seen[i][0], seen[i][1] - 4);
+    }
+    ctx.textBaseline = 'middle';
+  }
+  ctx.restore();
 }
 
 export function drawMoonDisc(ctx, { illuminated, waxing, size, night = false }) {
