@@ -84,14 +84,14 @@ html[data-night='on'] body { filter: brightness(0.7); }
 html[data-night='on'] .big-btn,
 html[data-night='on'] .big-btn.primary,
 html[data-night='on'] .icon-btn,
-html[data-night='on'] .icon-btn[aria-pressed='true'],
+html[data-night='on'] .icon-btn.is-night,
 html[data-night='on'] .step {
   background: transparent;
   color: var(--ink);
   border: 2px solid var(--ink);
 }
-html[data-night='on'] .icon-btn[aria-pressed='true'] {
-  /* The pressed state can no longer be a fill, so say it with weight. */
+html[data-night='on'] .icon-btn.is-night {
+  /* The active state can no longer be a fill, so say it with weight. */
   border-width: 3px;
 }
 html[data-night='on'] .card,
@@ -137,7 +137,7 @@ html[data-night='on'] .figure.accent { border-color: var(--ink); }
   border-radius: 0.7rem;
   cursor: pointer;
 }
-.icon-btn[aria-pressed='true'] {
+.icon-btn.is-night {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: var(--accent);

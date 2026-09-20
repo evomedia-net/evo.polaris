@@ -28,7 +28,23 @@ let night = store.get('night', false);
 function applyAppearance() {
   document.documentElement.style.setProperty('--scale', scale);
   document.documentElement.dataset.night = night ? 'on' : 'off';
-  $('nightToggle').setAttribute('aria-pressed', String(night));
+
+  // The button names the theme you are currently IN, not the one you would
+  // switch to. Both are dark; only one is dark-adaptation safe, so they need
+  // different names -- "Night Mode" in both states told you nothing.
+  //
+  // No aria-pressed: a toggle whose label changes AND carries a pressed state
+  // reads as a double negative ("Dark Mode, not pressed"). The accessible name
+  // spells out the state and the action instead, which is unambiguous either
+  // way round.
+  const btn = $('nightToggle');
+  btn.textContent = night ? 'Night Mode' : 'Dark Mode';
+  btn.setAttribute('aria-label', night
+    ? 'Night Mode is on: pure red on black, which preserves dark adaptation. '
+      + 'Activate to switch to Dark Mode.'
+    : 'Dark Mode is on. Activate to switch to Night Mode, which is pure red on '
+      + 'black and preserves dark adaptation.');
+  btn.classList.toggle('is-night', night);
   render();
 }
 
@@ -264,7 +280,7 @@ function render() {
 
   // --- everything to physically set, in the units the mount asks for -------
   const set = solution.settings;
-  $('setAlt').textContent = `${set.altitudeAxis.text}  (${set.altitudeAxisDeg.toFixed(2)}°)`;
+  $('setAlt').textContent = `${set.altitudeAxis.text} (${set.altitudeAxisDeg.toFixed(2)}°)`;
   $('setAz').textContent = `${set.azimuthTrue}° — ${poleName}`;
   $('setAzMag').textContent = `${set.azimuthOnCompass.toFixed(1)}°`;
   $('setLat').textContent = set.latitude.text;

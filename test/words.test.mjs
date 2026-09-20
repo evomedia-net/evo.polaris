@@ -49,3 +49,19 @@ test('minutes carry into degrees rather than printing 60', () => {
   assert.equal(Math.round(dm.min * 10), 0);
   assert.equal(spellAngle(dm), 'forty-three degrees north');
 });
+
+test('the altitude axis carries no hemisphere letter', () => {
+  // The mount's wedge scale is an UNSIGNED angle. It was derived from
+  // Math.abs(latitude) and then labelled with the positive hemisphere, which
+  // printed "33 52.1' N" for Sydney -- a southern latitude labelled north,
+  // on the one number that ruins the whole night if it is set wrong.
+  const noHemi = toDM(Math.abs(-33.8688), '', '');
+  assert.equal(noHemi.text, "33° 52.1'");
+  assert.equal(noHemi.hemi, '');
+  assert.equal(spellAngle(noHemi),
+    'thirty-three degrees, fifty-two point one minutes');
+
+  // The separate latitude row keeps its letter, and keeps the right one.
+  assert.equal(toDM(-33.8688, 'N', 'S').text, "33° 52.1' S");
+  assert.equal(toDM(42.5078, 'N', 'S').text, "42° 30.5' N");
+});

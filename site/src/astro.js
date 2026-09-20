@@ -188,16 +188,17 @@ export const polarisReticle = (date, latDeg, lonDeg) =>
  * {deg: 42, min: 30.5, hemi: 'N', text: "42° 30.5' N"}.
  */
 export function toDM(valueDeg, positive, negative) {
+  // Pass empty labels for a quantity that has no hemisphere -- the mount's
+  // altitude scale is one of those: it is an unsigned angle, and stamping "N"
+  // on it is wrong everywhere south of the equator.
   const hemi = valueDeg < 0 ? negative : positive;
   const abs = Math.abs(valueDeg);
   let deg = Math.floor(abs);
   let min = (abs - deg) * 60;
   if (min >= 59.95) { min = 0; deg += 1; }        // carry, so 42 59.96' is 43 00.0'
   const pad = negative === 'W' ? 3 : 2;           // longitude runs to 180
-  return {
-    deg, min, hemi,
-    text: `${String(deg).padStart(pad, '0')}° ${min.toFixed(1).padStart(4, '0')}' ${hemi}`,
-  };
+  const base = `${String(deg).padStart(pad, '0')}° ${min.toFixed(1).padStart(4, '0')}'`;
+  return { deg, min, hemi, text: hemi ? `${base} ${hemi}` : base };
 }
 
 /** Hours as h/m/s, for a sidereal clock or an RA setting circle. */
@@ -271,7 +272,10 @@ export function alignmentSolution(date, site, declinationDeg) {
     // app exists to remove.
     settings: {
       // Altitude axis: the unsigned latitude. This is the scale on the wedge.
-      altitudeAxis: toDM(Math.abs(site.lat), 'N', 'S'),
+      // No hemisphere letter: this is the unsigned angle on the wedge scale.
+      // Deriving it from Math.abs() and then labelling it 'N' printed
+      // "33 52.1' N" for Sydney, which is confidently wrong.
+      altitudeAxis: toDM(Math.abs(site.lat), '', ''),
       altitudeAxisDeg: poleAltitude,
       // Azimuth axis: swing the mount to this TRUE bearing. Exactly 0 or 180 --
       // the pole is on the meridian by definition, which is why azimuth is a
