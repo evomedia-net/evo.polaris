@@ -151,6 +151,13 @@
         <canvas id="liveSky" width="720" height="480"
                 role="img" aria-labelledby="liveSkyDesc"></canvas>
         <button id="fullBtn" class="big-btn full-btn">Fill the screen</button>
+        <!-- Zoom, in full screen only. The pane's own "Show more sky" and "Show
+             less sky" buttons are below the canvas, which in full screen is
+             nowhere. These are big enough to hit with a thumb in the dark. -->
+        <div class="full-zoom" aria-label="Zoom">
+          <button id="fullIn" class="big-btn full-zoom-btn" aria-label="Show less sky">+</button>
+          <button id="fullOut" class="big-btn full-zoom-btn" aria-label="Show more sky">&minus;</button>
+        </div>
         <figcaption class="caption" id="liveSkyDesc">
           A live window on the sky. Hold the phone up and move it around; the
           stars sit where they really are, and the ringed marker is the pole.

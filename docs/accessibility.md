@@ -147,6 +147,12 @@ any browser accepts, so a rotation-driven fullscreen request fails silently.
 Pressing the button *is* a gesture, so that path additionally asks for real
 fullscreen; when the request is refused, the overlay is already doing the job.
 
+**Zoom stays reachable in full screen.** The pane's *Show more sky* / *Show
+less sky* buttons sit below the canvas, and in full screen there is no below.
+Two large glyph buttons — **+** and **−**, 4 rem square, stacked in the
+bottom-right corner so one thumb reaches both — carry the same two actions
+with the same accessible names, and exist only while the screen is filled.
+
 **The canvas is resized to the box it is drawn into**, rather than a fixed
 720×480 stretched by CSS. That was soft on a phone and outright distorted the
 moment the aspect ratio changed — a circle drawn round the pole would have come

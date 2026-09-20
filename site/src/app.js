@@ -1325,6 +1325,10 @@ $('skyMoon').onclick = () => {
 
 $('skyWider').onclick = () => { skyFov = Math.min(110, skyFov + 15); drawLiveSky(); };
 $('skyNarrower').onclick = () => { skyFov = Math.max(25, skyFov - 15); drawLiveSky(); };
+// The full-screen corner buttons are the same two actions under a glyph. One
+// handler each, delegated, so the limits live in exactly one place.
+$('fullIn').onclick = () => $('skyNarrower').click();
+$('fullOut').onclick = () => $('skyWider').click();
 
 // The sky turns a quarter of a degree a minute, so the expensive half is on a
 // slow timer while the projection runs per orientation event.

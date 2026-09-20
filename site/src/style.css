@@ -629,6 +629,36 @@ html[data-night='on'] .live-sky canvas { background: #000; }
   z-index: 2;
 }
 html[data-night='on'] .live-sky.full .full-btn { background: transparent; }
+
+/* ZOOM IN FULL SCREEN. The pane's field-of-view buttons sit below the canvas,
+   and in full screen there is no "below the canvas". Two big glyph buttons in
+   the bottom-right corner instead -- stacked so one thumb reaches both, sized
+   for a thumb in the dark, and only present in full screen so they are never
+   a second copy of controls already on the page. */
+.full-zoom { display: none; }
+.live-sky.full .full-zoom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  position: absolute;
+  right: max(0.8rem, env(safe-area-inset-right));
+  bottom: max(0.8rem, env(safe-area-inset-bottom));
+  z-index: 2;
+}
+.live-sky.full .full-zoom-btn {
+  width: 4rem;
+  min-width: 4rem;
+  height: 4rem;
+  min-height: 4rem;
+  margin: 0;
+  padding: 0;
+  font-size: 2.2rem;
+  line-height: 1;
+  font-weight: 600;
+  background: var(--card);
+  border-radius: 1rem;
+}
+html[data-night='on'] .live-sky.full .full-zoom-btn { background: transparent; }
 /* Two buttons rather than pinch-to-zoom: pinching is a two-finger gesture and
    this app does not use any. */
 /* A directional pad, because the sky view must be drivable by someone who
