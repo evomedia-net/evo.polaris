@@ -17,6 +17,21 @@ const NAMED = new Map([
 const CARDINALS = [[0, 'N'], [45, 'NE'], [90, 'E'], [135, 'SE'],
                    [180, 'S'], [225, 'SW'], [270, 'W'], [315, 'NW']];
 
+// HOW FAR DOWN A BODY CAN BE AND STILL BE PAINTED.
+//
+// Exported because the app has to say the same thing in words that this file
+// says in pixels. Reported as "moon is gone": the Moon was 57 degrees under
+// the ground, so it was correctly not drawn -- but the app still let you
+// target it, travelled the view to it, ringed it and captioned it "Moon",
+// with nothing inside the ring and not a word about why. A ring around
+// nothing is the app looking broken while it is in fact being accurate.
+//
+// The Moon gets a degree of slack because refraction genuinely lifts it into
+// view when it is geometrically just below; a planet is a point of light and
+// gets none.
+export const MOON_MIN_ALT = -1;
+export const PLANET_MIN_ALT = 0;
+
 /**
  * Paint one frame.
  *
@@ -38,7 +53,7 @@ const CARDINALS = [[0, 'N'], [45, 'NE'], [90, 'E'], [135, 'SE'],
  */
 export function drawSkyView(ctx, o) {
   const { sky, alpha, beta, gamma, declination, targetAlt, targetAz,
-          targetName, w, h, fov = 65, night = false } = o;
+          targetName, reticleR, w, h, fov = 65, night = false } = o;
 
   const ink = night ? '#ff0000' : '#e8ecf4';
   const dim = night ? '#8b0000' : '#5b6b86';
@@ -222,7 +237,7 @@ export function drawSkyView(ctx, o) {
   // twinkling point.
   if (o.planets) {
     for (const p of o.planets) {
-      if (p.alt <= 0) continue;                 // under your feet, not off-screen
+      if (p.alt <= PLANET_MIN_ALT) continue;    // under your feet, not off-screen
       const q = projectToScreen(p.v, basis, focal);
       if (!q) continue;
       const x = cx + q.x, y = cy + q.y;
@@ -247,7 +262,7 @@ export function drawSkyView(ctx, o) {
   // phase from at all. It gets a floor of h/20 instead, the way a chart
   // exaggerates a symbol it needs you to recognise. Its POSITION is exact; its
   // size is not, and the caption says so rather than leaving it to be noticed.
-  if (o.moon && o.moon.alt > -1) {
+  if (o.moon && o.moon.alt > MOON_MIN_ALT) {
     const q = projectToScreen(o.moon.v, basis, focal);
     if (q) {
       const x = cx + q.x, y = cy + q.y;
@@ -316,7 +331,13 @@ export function drawSkyView(ctx, o) {
   if (tp) {
     const x = cx + tp.x, y = cy + tp.y;
     onScreen = x > 0 && x < w && y > 0 && y < h;
-    const r = ref / 14;
+    // FROM THE VIEWPORT, NOT FROM THIS CANVAS. A reticle that changes size
+    // when the same view is made bigger is one you have to re-read every time
+    // it does; min(w, h) grew with the canvas, so full screen on a desktop
+    // drew it at 1.6x the windowed size. The caller measures the window,
+    // which full screen does not change. Falls back to the old rule only if
+    // nobody said -- and a test holds the app to passing it.
+    const r = reticleR || ref / 14;
     ctx.strokeStyle = accent;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -474,7 +495,7 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
   };
   if (o.planets) {
     for (const p of o.planets) {
-      if (p.alt <= 0) continue;
+      if (p.alt <= PLANET_MIN_ALT) continue;
       const q = projectToScreen(p.v, basis, focal);
       if (!q) continue;
       const x = cx + q.x, y = cy + q.y;
@@ -483,7 +504,10 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
       claim(p.name, x + r + 5, y, Math.round(ref / 32));
     }
   }
-  if (o.moon) {
+  // THE SAME GATE THE MOON IS DRAWN BY. This had none, so with the Moon under
+  // the ground the layout still shoved other labels aside to keep room for a
+  // word that was never painted.
+  if (o.moon && o.moon.alt > MOON_MIN_ALT) {
     const q = projectToScreen(o.moon.v, basis, focal);
     if (q) {
       const x = cx + q.x, y = cy + q.y;

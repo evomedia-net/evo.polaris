@@ -24,6 +24,8 @@ import { drawSkyView } from '../site/src/skydraw.js';
 
 const skydraw = readFileSync(
   fileURLToPath(new URL('../site/src/skydraw.js', import.meta.url)), 'utf8');
+const appSrc = readFileSync(
+  fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
 
 const ACCENT = '#7CFFB2';
 
@@ -54,7 +56,7 @@ function stubCtx() {
 }
 
 /** Render one frame and return the radius of the accent-stroked ring. */
-function ringRadius(w, h) {
+function ringRadius(w, h, reticleR) {
   const ctx = stubCtx();
   drawSkyView(ctx, {
     sky: [], constellations: null, milkyWay: null, tracks: null,
@@ -62,6 +64,7 @@ function ringRadius(w, h) {
     aim: { az: 0, alt: 45 },
     alpha: 0, beta: 90, gamma: 0, declination: 0,
     targetAlt: 45, targetAz: 0, targetName: 'Polaris',
+    reticleR,
     w, h, fov: 65, night: false,
   });
   const ring = ctx.arcs.filter((a) => String(a.stroke).toLowerCase() === ACCENT.toLowerCase());
@@ -69,19 +72,42 @@ function ringRadius(w, h) {
   return ring[0].r;
 }
 
-test('the ring is the same size whatever shape the canvas is', () => {
-  // A phone at dpr 2: the windowed 3:2 canvas, full screen landscape, and
-  // full screen portrait. The last one is the case that broke.
-  const windowed = ringRadius(780, 520);
-  const landscape = ringRadius(1688, 780);
-  const portrait = ringRadius(780, 1688);
+test('the ring is the same size in every mode, not just every shape', () => {
+  // THE THIRD TIME THIS SIZE HAS BEEN WRONG, and the first two fixes are why
+  // the rule is now what it is. min(w, h) held the ring still when the phone
+  // was TURNED, but not when the same view was made BIGGER: going full screen
+  // grows the canvas, so the ring grew with it -- 71 CSS px windowed against
+  // 114 full screen, measured on a 1280x800 desktop, reported as "it's very
+  // large on pc in full screen" and "I want reticle same screen size in every
+  // mode".
+  //
+  // So the ruler is no longer the canvas at all. The caller measures the
+  // WINDOW, which going full screen does not change, and hands the radius in.
+  // These are the same three canvases as before -- windowed, full screen
+  // landscape, full screen portrait -- on one device, so one radius:
+  const r = 28;
+  const windowed = ringRadius(780, 520, r);
+  const landscape = ringRadius(1688, 780, r);
+  const portrait = ringRadius(780, 1688, r);
+  assert.equal(windowed, r);
+  assert.equal(landscape, r,
+    `${landscape}px full screen against ${windowed}px windowed -- the ring `
+    + 'still grows when the view does');
   assert.equal(portrait, landscape,
-    `portrait ${portrait}px vs landscape ${landscape}px -- the ring changes `
-    + 'size when the phone is turned, and turning it is what fills the screen');
-  // The windowed canvas is shorter than either, so it is legitimately smaller;
-  // what matters is that it uses the same ruler.
-  assert.equal(windowed, 520 / 14);
-  assert.equal(portrait, 780 / 14);
+    'the ring changes size when the phone is turned');
+});
+
+test('the app measures the window for it, not the canvas', () => {
+  // The canvas is the thing that changes between the two modes; the window is
+  // the thing that does not. Keying it to the canvas is the bug, so this
+  // pins WHAT is measured, not merely that something is passed.
+  assert.match(appSrc, /reticleR: \(Math\.min\(window\.innerWidth, window\.innerHeight\)/,
+    'the reticle must be sized from the viewport');
+  assert.ok(!/reticleR:[^\n]*c\.(width|height)/.test(appSrc),
+    'sizing it from the canvas is the bug this replaced');
+  // The short side, so turning a phone does not resize it either -- which was
+  // the SECOND of the three bugs, and must not be undone by fixing the third.
+  assert.match(appSrc, /Math\.min\(window\.innerWidth, window\.innerHeight\)/);
 });
 
 test('the ring does not depend on the zoom either', () => {

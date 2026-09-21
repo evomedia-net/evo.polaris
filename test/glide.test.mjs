@@ -82,9 +82,12 @@ test('the journey is short enough to be a move, not a wait', () => {
   const m = appJs.match(/const GLIDE_MS = (\d+);/);
   assert.ok(m, 'GLIDE_MS is gone');
   const ms = Number(m[1]);
-  // Started at 450ms and was reported as "way too fast"; halved to 900. The
-  // upper bound is where a move stops being a move and becomes a wait.
-  assert.ok(ms >= 200 && ms <= 1400,
+  // Started at 450ms and was reported as "way too fast", then halved to 900,
+  // then 1125, then 1406 -- three separate "slower again" reports from
+  // actually using it. The bound is raised deliberately rather than the value
+  // trimmed to fit it: 1400 was a guess about where a move becomes a wait,
+  // and the person using the thing has now said four times where it is.
+  assert.ok(ms >= 200 && ms <= 2000,
     `${ms}ms is outside the range where this reads as one movement`);
 });
 

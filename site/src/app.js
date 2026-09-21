@@ -23,7 +23,9 @@ import {
   fetchIss, fetchIssTrack, orbitLookAngles, lookAngles, describePass, issLookAt,
 } from './iss.js';
 import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
-import { drawSkyView, drawMoonDisc } from './skydraw.js';
+import {
+  drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_MIN_ALT,
+} from './skydraw.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
   moonRiseSet, describeMoonTimes,
@@ -70,13 +72,17 @@ let skyFov = 65;
 // sky view and it is the thing that makes it feel like a window rather than a
 // picture. It falls back to manual on its own when the device reports no
 // orientation -- every desktop, and any phone that declines the permission --
-// and any press on the pad takes control back. The accessible layout, for
+// after COMPASS_GRACE_MS with nothing heard, because there is no event for
+// "no compass here" and silence is the only signal there is. (That sentence
+// was in this comment for a long time before it was true: sawSensor only
+// triggered a redraw, so a desktop sat in Auto Mode for ever.) Any press on
+// the pad takes control back. The accessible layout, for
 // people who cannot sweep a phone around, layers on top of that rather than
 // replacing it.
 let skyFollow = true;
 // What the Manual Controls card was last told. null means "never set", so the
 // first update opens or shuts it once and then leaves it alone.
-let lastFollowing = null;
+let lastFollowMode = null;
 let skyAim = { az: 0, alt: 45 };
 // Both on by default: the figures are how people recognise what they are
 // looking at, and the band is what most of them are pointing a camera at.
@@ -213,6 +219,16 @@ function updateTargetName() {
   const el = $('fullTargetName');
   if (!el) return;
   const t = solution ? aimTarget(issNow()) : null;
+  // THE NAME ONLY, HERE. Each surface says as much as it has room for: this
+  // caption is the name, the label beside the ring adds "has set", and the
+  // status line explains it in full.
+  //
+  // MEASURED, NOT ASSUMED. Putting the longer wording here wrapped it to two
+  // and a half lines inside the column's 34% and pushed it down OVER the pan
+  // pad on a 375x812 phone -- a caption covering the controls, which is a
+  // worse bug than the one being fixed and lands on exactly the people who
+  // can least afford it. The non-visual path loses nothing: #skyTarget is a
+  // live region and carries the whole sentence.
   el.textContent = t ? t.name : '';
   const pole = $('tgtPole');
   if (pole && solution) {
@@ -1089,8 +1105,49 @@ async function startCompass({ gesture = false } = {}) {
   window.addEventListener(orientEvent, onOrientation);
   sensorInfo.event = orientEvent;
   compassOn = true;
+  // Listening is not the same as hearing. From here we are entitled to a
+  // reading, so start counting.
+  watchForNoCompass();
   $('compassBtn').textContent = 'Turn off the compass';
   $('compassBtn').classList.remove('primary');
+}
+
+// AUTO MODE NEEDS A SENSOR, AND A DESKTOP WILL NEVER SAY SO.
+//
+// There is no event for "this device has no compass" -- readings simply never
+// arrive, which is indistinguishable from one that has not reported YET until
+// enough time passes. So the app sat in Auto Mode for ever on every desktop,
+// following nothing, with the button offering to switch to Manual as though
+// Auto were working. The comment on skyFollow claimed this fallback already
+// existed; sawSensor only ever triggered a redraw, so it did not.
+//
+// Reported obliquely -- "click and click drag works in auto-mode on PC, do we
+// care since auto can't work on pc?". The gestures were right: they are the
+// only way to steer where nothing is steering. It was the MODE that was lying.
+const COMPASS_GRACE_MS = 2500;
+let compassWatchdog = null;
+// Once per page, and only for the attempt the view makes by itself. Someone
+// who PRESSES Use Auto Mode on a laptop has been told what this device can do
+// and is entitled to be left there; yanking them back would read as the
+// button not working.
+let autoFellBack = false;
+
+function watchForNoCompass() {
+  if (autoFellBack || compassWatchdog !== null) return;
+  compassWatchdog = setTimeout(() => {
+    compassWatchdog = null;
+    if (rawAlpha !== null) return;       // it reported after all
+    if (!skyFollow) return;              // already steering by hand
+    // NOT WHILE A HUMAN IS THE REASON. On iOS nothing arrives until the
+    // permission tap, and dropping to Manual while the prompt is still owed
+    // would answer a question the user has not been asked yet.
+    if (compassPending) return;
+    if (compassNeedsAsking() && !compassGranted) return;
+    autoFellBack = true;
+    skyFollow = false;
+    updateSkyMode();
+    drawLiveSky();
+  }, COMPASS_GRACE_MS);
 }
 
 // A toggle, not a one-way switch. It was the latter, so once the compass was
@@ -1121,6 +1178,11 @@ function onOrientation(e) {
   // all, so the label has to be refreshed then -- otherwise the view follows
   // the phone while the text underneath still says to use the buttons.
   if (skyOn && !sawSensor) { sawSensor = true; updateSkyMode(); }
+  // It reported, so the "this device has no compass" countdown is moot.
+  if (compassWatchdog !== null) {
+    clearTimeout(compassWatchdog);
+    compassWatchdog = null;
+  }
 
   // One redraw per frame, not one per event. Orientation fires faster than the
   // display refreshes, and projecting three thousand stars for frames nobody
@@ -1445,7 +1507,25 @@ function drawLiveSky() {
     declination: solution.declination,
     targetAlt: target.alt,
     targetAz: target.az,
-    targetName: target.name,
+    // The same words as the caption under the buttons, from the same call:
+    // the label on the picture is the one actually being read while looking
+    // at an empty ring, and a bare "Moon" there is the app naming something
+    // it has not drawn.
+    targetName: targetLabel(target),
+    // THE RETICLE IS THE SAME SIZE ON SCREEN IN EVERY MODE.
+    //
+    // It used to be min(canvas)/14, which grows when the canvas does: on this
+    // 1280x800 desktop that was 71 CSS px across windowed and 114 full
+    // screen, reported as "it's very large on pc in full screen". Keying it
+    // to the VIEWPORT instead holds it still, because going full screen
+    // changes the canvas and not the window -- 57 px in both.
+    //
+    // The viewport's short side, so turning a phone does not resize it
+    // either. On a 390x844 phone that is 390/14 = 28 CSS px, which at dpr 2
+    // is the 56 device px the ring measured everywhere except the one case
+    // that was reported as too big.
+    reticleR: (Math.min(window.innerWidth, window.innerHeight)
+               * Math.min(window.devicePixelRatio || 1, 2)) / 28,
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     milkyWay: skyMilkyWay ? milkyWay : null,
@@ -1497,6 +1577,27 @@ function aimTarget(issLook) {
   return poleTarget();
 }
 
+/**
+ * Is the thing the ring is on actually painted on the map?
+ *
+ * "moon is gone" -- it was 57 degrees under the ground, drawn by nobody and
+ * explained by nothing. The gates are imported from the renderer rather than
+ * repeated here: a copy of a threshold is a copy that drifts, and the one
+ * place it had already drifted was the label reserver, which kept room for a
+ * "Moon" it never painted.
+ */
+function targetLabel(t) {
+  if (!t) return '';
+  return targetIsPainted(t) ? t.name : `${t.name} — has set`;
+}
+
+function targetIsPainted(t) {
+  if (!t) return false;
+  if (guideTarget === 'moon') return t.alt > MOON_MIN_ALT;
+  if (PLANET_NAMES.includes(guideTarget)) return t.alt > PLANET_MIN_ALT;
+  return true;                     // the pole is a place, not a body; the ISS
+}                                  // has said this for itself all along
+
 function aimAtPole() {
   if (!solution) return;
   // Clamped like every other way of aiming. At the poles the setting is 90,
@@ -1516,6 +1617,7 @@ function updateSkyMode() {
     + 'nothing needs to be held up.';
   // What the ring is on, and the honest version of "it is not in the sky".
   const issLook = issNow();
+  const ringOn = solution ? aimTarget(issLook) : null;
   if (guideTarget === 'iss' && issLook) {
     const az = Math.round((issLook.az + 360) % 360);
     $('skyTarget').textContent = issLook.aboveHorizon
@@ -1523,6 +1625,16 @@ function updateSkyMode() {
       : `Tracking the ISS: ${az}° round and ${Math.round(-issLook.alt)}° BELOW `
         + 'the horizon — it is under the ground from here, and the arrow '
         + 'points down at it. Press "Find the pole" to go back.';
+  } else if (ringOn && !targetIsPainted(ringOn)) {
+    // THE SAME COURTESY THE ISS HAS ALWAYS HAD, FOR EVERYTHING ELSE. The ring
+    // lands on the Moon or a planet, the caption names it, and the circle is
+    // empty because the body is under the ground. Without this the app reads
+    // as broken at the exact moment it is being most accurate.
+    const az = Math.round(((ringOn.az % 360) + 360) % 360);
+    $('skyTarget').textContent =
+      `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
+      + 'horizon — it is under the ground from here, so the ring is empty and '
+      + 'the arrow points down at it. It is not missing; it has set.';
   } else {
     $('skyTarget').textContent = '';
   }
@@ -1533,16 +1645,25 @@ function updateSkyMode() {
   } else if (skyFollow) {
     // Auto is on and the phone has not reported yet -- either the first
     // reading is still coming, or this device has no compass to report with.
-    // Either way the arrows are already on screen, so the view is usable
-    // while it waits rather than frozen looking broken.
+    // The second case is PERMANENT on a device without one, not a pause, so
+    // this text has to leave the reader somewhere to go. It used to end "the
+    // arrows work meanwhile", which was true when the pad was always on
+    // screen and false once it moved inside a collapsed card -- so it names
+    // the card now.
     $('skyMode').textContent =
       compassPending
         ? `${when}Auto Mode is on. Tap anywhere to let this phone share which `
-          + 'way it is pointing — it will ask once. The arrows work either way.'
+          + 'way it is pointing — it will ask once. The arrows under Manual '
+          + 'Controls work either way.'
         : `${when}Auto Mode is on, waiting for the phone's compass. If nothing `
-          + 'moves, this device is not reporting one — the arrows work meanwhile.';
+          + 'moves, this device is not reporting one — open Manual Controls '
+          + 'below, or press Use Manual Mode, and the arrows steer it.';
   } else {
-    $('skyMode').textContent = `${when}Manual Mode. ${aimed.slice(when.length)}`;
+    $('skyMode').textContent = autoFellBack
+      ? `${when}Manual Mode — this device does not report which way it is `
+        + `pointing, so Auto Mode had nothing to follow. `
+        + `${aimed.slice(when.length)}`
+      : `${when}Manual Mode. ${aimed.slice(when.length)}`;
   }
   // AUTO MODE is the phone steering; MANUAL MODE is the arrows. One control,
   // and its label says which way pressing it goes -- the rule every other
@@ -1581,10 +1702,17 @@ function updateSkyMode() {
   // hidden attribute used to. Set only when the MODE CHANGES: updateSkyMode
   // runs on every redraw, and forcing it each time would snap the card shut
   // under anyone who opened it by hand while the phone was steering.
-  if (following !== lastFollowing) {
-    lastFollowing = following;
+  //
+  // FROM skyFollow, THE MODE -- NOT `following`, WHICH IS THE MODE AND A
+  // READING HAVING ARRIVED. On load skyFollow is already true and rawAlpha is
+  // still null, so `following` is false and the card sprang open while the
+  // button beside it said Auto Mode: "manual controls are expanded on load but
+  // system is in auto mode". The same trap was caught once already for the
+  // button's own label, and the note about it is six lines below this.
+  if (skyFollow !== lastFollowMode) {
+    lastFollowMode = skyFollow;
     const card = $('manualCard');
-    if (card) card.open = !following;
+    if (card) card.open = !skyFollow;
   }
   $('fullPan').hidden = following;
   // THE PAD IS NEVER DISABLED. It used to be greyed out while the phone was
@@ -1614,6 +1742,7 @@ function setAim(az, alt) {
   // Any hand steering drops out of follow mode: the alternative is fighting
   // the sensor for control, which is worse than either mode alone.
   cancelGlide();                 // a hand on the controls beats an animation
+  if (!flingOwnMove) cancelFling();   // ...and beats a coast, but is not one
   skyFollow = false;
   skyAim = clampAim(az, alt);
   updateSkyMode();
@@ -1635,7 +1764,10 @@ function setAim(az, alt) {
 // and a full-screen sky sliding under you is about the largest moving field
 // this app can produce. The rest of the app already honours the setting in
 // CSS, so honouring it here is not an extra kindness, it is consistency.
-const GLIDE_MS = 1125;
+// 450 to start with, halved to 900 on "it scrolls way too fast", then 1125,
+// then this. Each step was asked for after using it, which is the only way
+// this number was ever going to be found.
+const GLIDE_MS = 1406;
 // { raf, to } -- the pending frame AND where it was going, because a journey
 // that gets interrupted still has to end somewhere sensible.
 let glide = null;
@@ -1652,6 +1784,62 @@ const wantsStill = () => !!(window.matchMedia
  * stalls, and coming back to a view stranded half way between where you were
  * and where you asked to go is the worst of both.
  */
+// --- letting go of a drag ---------------------------------------------------
+//
+// A drag that stops dead the instant the finger leaves is a drag that fights
+// you: the sky is a big thing to move, the screen is small, and crossing it
+// means several strokes where the physical gesture is one. Reported as "on
+// click drag it just stops when released, it should de-accelerate".
+//
+// NOT AN EASING. A glide has a destination and eases INTO it; this has no
+// destination at all -- it carries the speed the hand was already moving at
+// and bleeds it away, so where it stops depends on how hard it was thrown.
+// That is the whole difference between a fling and an animation, and it is
+// why it gets its own handle rather than borrowing the glide's.
+const FLING_TAU = 220;        // ms for the speed to fall to about a third
+const FLING_MIN = 0.004;      // deg/ms -- below this it has stopped
+const FLING_MAX_MS = 900;     // a hard end, so nothing coasts for ever
+// A finger that came to rest before lifting threw nothing. Without this, a
+// careful drag-and-hold ends with the sky drifting away under the hand.
+const FLING_STALE_MS = 90;
+let fling = null;             // { raf } while coasting
+// setAim cancels a fling, because a hand on the controls beats an animation.
+// The fling steers THROUGH setAim, so it has to be able to say "this one is
+// me" -- otherwise its own first frame would cancel it.
+let flingOwnMove = false;
+
+function cancelFling() {
+  if (!fling) return;
+  cancelAnimationFrame(fling.raf);
+  fling = null;
+}
+
+/** Coast on from a release, in degrees per millisecond. */
+function flingFrom(vAz, vAlt) {
+  cancelFling();
+  // Same rule as the glide: a large moving field is a vertigo trigger, and
+  // motion nobody asked to continue is the easiest kind to do without.
+  if (wantsStill() || document.hidden) return;
+  if (Math.hypot(vAz, vAlt) < FLING_MIN) return;
+  const started = performance.now();
+  let prev = started;
+  const step = (now) => {
+    // Clamped, because a dropped frame must not teleport the sky.
+    const dt = Math.min(now - prev, 50);
+    prev = now;
+    const k = Math.exp(-(now - started) / FLING_TAU);
+    if (Math.hypot(vAz, vAlt) * k < FLING_MIN || now - started > FLING_MAX_MS) {
+      fling = null;
+      return;
+    }
+    flingOwnMove = true;
+    setAim(skyAim.az + vAz * k * dt, skyAim.alt + vAlt * k * dt);
+    flingOwnMove = false;
+    fling = { raf: requestAnimationFrame(step) };
+  };
+  fling = { raf: requestAnimationFrame(step) };
+}
+
 function cancelGlide(arrive = false) {
   if (glide === null) return;
   cancelAnimationFrame(glide.raf);
@@ -1750,6 +1938,10 @@ function aimBasis() {
 }
 
 $('liveSky').addEventListener('pointerdown', (e) => {
+  // A finger back on the glass stops the coast where it is, the way it stops
+  // a spinning wheel. Before handSteering(), so it stops even where a drag
+  // would not start.
+  cancelFling();
   if (!handSteering()) return;
   const at = mapOffset(e);
   if (!at) return;
@@ -1776,6 +1968,23 @@ window.addEventListener('pointermove', (e) => {
   const at = mapOffset(e);
   if (!at) return;
   const { az, alt } = aimAfterDrag(drag.grabbed, at.x, at.y, drag.basis, drag.focal);
+  // How fast the sky is being moved, for the coast after the release. In
+  // DEGREES, not pixels, because that is what the release has to keep moving
+  // -- and through signedTurn, or a drag across due north reads as a 359
+  // degree lurch the other way.
+  const now = performance.now();
+  if (drag.prev) {
+    const dt = now - drag.prev.t;
+    if (dt > 0) {
+      const v = { az: signedTurn(drag.prev.az, az) / dt, alt: (alt - drag.prev.alt) / dt };
+      // Lightly smoothed: one jittery frame at the moment of release should
+      // not decide which way the sky sails off.
+      drag.v = drag.v
+        ? { az: drag.v.az * 0.6 + v.az * 0.4, alt: drag.v.alt * 0.6 + v.alt * 0.4 }
+        : v;
+    }
+  }
+  drag.prev = { t: now, az, alt };
   setAim(az, alt);
 });
 
@@ -1786,7 +1995,14 @@ window.addEventListener('pointerup', (e) => {
   drag = null;
   // A swipe is not a tap even where dragging is switched off, or scrolling the
   // page windowed would fling the view somewhere on release.
-  if (far >= TAP_SLOP || !handSteering()) return;
+  if (far >= TAP_SLOP || !handSteering()) {
+    // It was a swipe: keep going, and slow down. Only where the drag actually
+    // moved the sky -- windowed, the finger was scrolling the page and the
+    // view never moved, so there is nothing to carry on.
+    const fresh = d.prev && (performance.now() - d.prev.t) < FLING_STALE_MS;
+    if (fullOn && handSteering() && d.v && fresh) flingFrom(d.v.az, d.v.alt);
+    return;
+  }
   const at = mapOffset(e);
   if (!at) return;
   const { az, alt } = vectorToAltAz(
@@ -1807,7 +2023,10 @@ document.addEventListener('visibilitychange', () => {
   // one. Drop it and redraw once, rather than trusting it to arrive.
   // Going away mid-journey: land it now rather than leave the view stranded
   // between where it was and where it was asked to go.
-  if (document.hidden) { cancelGlide(true); return; }
+  // The coast simply ends: unlike a journey it has nowhere it was going, so
+  // there is nothing to land and finishing it on return would move the sky
+  // for a gesture made minutes ago.
+  if (document.hidden) { cancelFling(); cancelGlide(true); return; }
   if (skyFrame !== null) { cancelAnimationFrame(skyFrame); skyFrame = null; }
   if (skyOn) drawLiveSky();
 });

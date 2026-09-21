@@ -108,15 +108,22 @@ test('the browser taking the pointer away is not a tap either', () => {
     'a cancelled pointer must clear the drag');
 });
 
-test('the gestures are live exactly when the pad is', () => {
-  // The pad is hidden while the phone is steering; the gestures must be off in
-  // the same breath, or a stray touch fights the compass. Same expression, so
-  // they cannot drift apart.
+test('the gestures are live exactly when the on-map pad is', () => {
+  // The on-map pad is hidden while the phone is steering; the gestures must be
+  // off in the same breath, or a stray touch fights the compass. Same
+  // expression, so they cannot drift apart.
+  //
+  // IT MIRRORS fullPan, NOT THE CARD. The Manual Controls card is opened by
+  // the MODE, so that a card labelled Manual agrees with a button labelled
+  // Auto. Whether a gesture is LIVE is a different question with a different
+  // answer -- it depends on whether anything is actually steering right now,
+  // which is what `following` means. Pointing this assertion at the card tied
+  // two rules together that had quietly stopped being the same rule.
   const fn = appJs.slice(appJs.indexOf('function handSteering()'),
     appJs.indexOf('function handSteering()') + 200);
   assert.match(fn, /skyOn && !\(skyFollow && rawAlpha !== null\)/,
     'handSteering must be the pad\'s own condition');
-  assert.match(appJs, /if \(card\) card\.open = !following;/,
+  assert.match(appJs, /\$\('fullPan'\)\.hidden = following;/,
     'the pad visibility rule this mirrors has moved');
 });
 

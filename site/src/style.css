@@ -917,6 +917,14 @@ html[data-night='on'] .sky-legend {
    worse than no plate. */
 .target-name:empty { display: none; }
 .target-name {
+  /* A LABEL MUST NEVER EAT A TAP. On a 375x812 phone the target column
+     reaches down far enough that this caption's box overlaps the top 12px of
+     the "Look up" button, and with pointer-events it was swallowing presses
+     aimed at a control -- on the one surface where the controls are the whole
+     interface, for the people least able to spare the second attempt. The key
+     in the opposite corner has always done this; the caption should have too.
+     The geometry itself is filed separately: this stops it doing harm. */
+  pointer-events: none;
   margin: 0;
   padding: 0.3rem 0.6rem;
   font-size: 0.95rem;

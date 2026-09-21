@@ -36,15 +36,27 @@ test('the arrows are shown by the mode, not by a switch of their own', () => {
   // The pad lives in the Manual Controls card now, so the card's open state
   // carries what the hidden attribute used to. Still the MODE deciding it,
   // which is the thing this test is about.
-  assert.match(appJs, /if \(card\) card\.open = !following;/,
-    'the Manual Controls card must open exactly when the phone is not steering');
+  //
+  // FROM skyFollow, NOT `following`. The two are not the same: `following` is
+  // the mode AND a compass reading having arrived, so in Auto on a device
+  // that has not reported -- a laptop always, an iPhone until the permission
+  // tap -- it is false while Auto is plainly the mode. Asserting the old
+  // expression here is what kept "manual controls are expanded on load but
+  // system is in auto mode" pinned in place.
+  assert.match(appJs, /if \(card\) card\.open = !skyFollow;/,
+    'the Manual Controls card must open exactly when Manual is the mode');
   assert.ok(!appJs.includes("$('skyPad').hidden ="),
     'the pad must not also be hidden behind the card that already hides it');
+  // ...and the on-map cluster deliberately does NOT follow that rule. The
+  // line is between what the screen SAYS and what is LIVE: a card labelled
+  // Manual Controls must agree with the button labelled Auto Mode, while
+  // full screen has no card to open, so hiding its pad whenever Auto was
+  // merely selected would strand a laptop with no way to steer at all.
   assert.ok(/\$\('fullPan'\)\.hidden = following;/.test(appJs),
-    'the on-map pan cluster must follow the same rule');
+    'the on-map pan cluster must stay driven by whether anything is steering');
   // Only on a change: updateSkyMode runs on every redraw, and forcing the
   // card each time would snap it shut under anyone who opened it by hand.
-  assert.match(appJs, /if \(following !== lastFollowing\)/,
+  assert.match(appJs, /if \(skyFollow !== lastFollowMode\)/,
     'the card must be driven by mode CHANGES, not by every redraw');
 });
 
