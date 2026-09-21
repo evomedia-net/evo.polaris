@@ -821,8 +821,9 @@ html[data-night='on'] .map-btn {
   gap: 0.4rem;
   white-space: nowrap;
 }
-/* In rem, so the swatch grows with the text like the words beside it. */
-.leg-line { width: 1.8rem; height: 0.5rem; flex: 0 0 auto; }
+/* In rem, so the swatch grows with the text like the words beside it. Long
+   enough that the longest dash still reads as a dash rather than a solid. */
+.leg-line { width: 2.7rem; height: 0.5rem; flex: 0 0 auto; }
 /* Still a plate, still red, still nothing filled brightly. The swatch colours
    are set in script from the same table the paths use. */
 html[data-night='on'] .sky-legend {

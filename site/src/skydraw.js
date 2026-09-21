@@ -179,7 +179,15 @@ export function drawSkyView(ctx, o) {
 
   // Paths. Drawn after the constellation figures and before the stars, so a
   // track passes over the joining lines and under the things it is a track OF.
-  if (o.tracks) for (const t of o.tracks) drawTrack(ctx, t, basis, focal, cx, cy, w, h, night);
+  // One list of where names have already been put, shared by every track in
+  // the frame: two different paths crossing the same patch of sky were happy
+  // to write "Uranus" straight over "Mars".
+  if (o.tracks) {
+    const placed = [];
+    for (const t of o.tracks) {
+      drawTrack(ctx, t, basis, focal, cx, cy, w, h, night, placed);
+    }
+  }
 
   // Planets. ALWAYS NAMED: "which of those dots is Jupiter" is the entire
   // question, and an unlabelled planet is just a star that happens to be in
@@ -401,14 +409,23 @@ function moonFace(ctx, r, illuminated, night) {
  * at all, because projectToScreen refuses anything behind the viewer and
  * joining across that gap draws a line through the middle of the picture.
  */
-export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night) {
-  const { points, colour, label, labelEvery = 14, width = 1.6, dash = [7, 6] } = track;
+export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
+                          placed = []) {
+  const { points, colour, label, width = 1.6, dash = [7, 6] } = track;
   if (!points || points.length < 2) return;
 
   const ink = night ? (track.nightColour || '#8b0000') : colour;
   ctx.save();
-  ctx.setLineDash(dash);
-  ctx.lineWidth = Math.max(1, width * (w / 720));
+  // THE DASH SCALES WITH THE CANVAS, LIKE THE LINE IT IS MADE OF.
+  //
+  // The width was scaled here and the dash was not, so on a phone -- where the
+  // backing store is two or three times 720 wide -- the stroke got thicker
+  // while each dash stayed the same few pixels long. The ratio collapsed and
+  // the dashes stopped reading as a broken line and started reading as a row
+  // of blocks. Scaling both keeps a dash a dash at every size.
+  const scale = w / 720;
+  ctx.setLineDash(dash.map((d) => d * scale));
+  ctx.lineWidth = Math.max(1, width * scale);
   ctx.strokeStyle = ink;
 
   let prev = null, prevUp = true;
@@ -434,17 +451,52 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night) {
     ctx.setLineDash([]);
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = ink;
-    ctx.font = `600 ${Math.round(h / 38)}px system-ui, sans-serif`;
+    const fontPx = Math.round(h / 38);
+    ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    // AT LEAST ONE NAME, ALWAYS. The first label sits half an interval in so
-    // repeated names land evenly along a long path -- but a track that only
-    // clips the corner of the view can have fewer on-screen points than that
-    // offset, and the loop then ran zero times and left an anonymous dashed
-    // line, which is the one thing a track must never be.
-    const first = Math.min(Math.floor(labelEvery / 2), seen.length - 1);
-    for (let i = first; i < seen.length; i += labelEvery) {
-      ctx.fillText(label, seen[i][0], seen[i][1] - 4);
+
+    // NAMES ARE SPACED BY DISTANCE ON SCREEN, NOT BY HOW MANY SAMPLES WENT BY.
+    //
+    // They used to be drawn every Nth on-screen point, which assumes the
+    // samples are spread evenly across the picture. They are not. A planet is
+    // sampled every three days over six months, and at a retrograde
+    // stationary point it barely moves for weeks -- so a dozen samples land
+    // within a few pixels and every one of them that hit the interval wrote
+    // the name in the same place. The report was "Uranus" over "Uranus" over
+    // "Uranus" over "Mars".
+    //
+    // `placed` is shared by every track in the frame, so the cross-path half
+    // of that -- two different names in one spot -- is covered by the same
+    // rule as the repeats.
+    const half = ctx.measureText(label).width / 2;
+    const gap = Math.max(fontPx * 3, h / 8);
+    const fits = (x, y) => !placed.some((r) => (
+      Math.abs(r.x - x) < (r.half + half + fontPx) && Math.abs(r.y - y) < fontPx * 1.4
+    ));
+    let drew = 0;
+    let lastX = -1e9, lastY = -1e9;
+    for (const [x, y] of seen) {
+      if (Math.hypot(x - lastX, y - lastY) < gap) continue;
+      if (!fits(x, y - 4)) continue;
+      ctx.fillText(label, x, y - 4);
+      placed.push({ x, y: y - 4, half });
+      lastX = x; lastY = y;
+      drew += 1;
+    }
+    // AT LEAST ONE NAME, ALWAYS -- even when every spot along it was taken.
+    // An unnamed dashed line is the one thing a track must never be.
+    //
+    // Two planets really can sit in the same few pixels; at a stationary point
+    // they sit there for weeks. There is then nowhere along either path to put
+    // a name that is clear of the other, so the name is lifted instead, and
+    // they stack. Stacked reads; overlaid does not.
+    if (drew === 0) {
+      const [x, y0] = seen[Math.floor(seen.length / 2)];
+      let y = y0 - 4;
+      for (let k = 0; k < 8 && !fits(x, y); k++) y -= fontPx * 1.5;
+      ctx.fillText(label, x, y);
+      placed.push({ x, y, half });
     }
     ctx.textBaseline = 'middle';
   }

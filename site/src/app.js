@@ -128,10 +128,16 @@ let mode = store.get('mode', 'sky');
 // colour must not be the only thing carrying a difference, which matters just
 // as much to a red-green colour-blind user in daylight. The Moon and the
 // planets shared a dash before this and were told apart by hue alone.
+// LONG AND THIN, NOT SHORT AND FAT. A dash has to read as a piece of a line,
+// which means it wants to be several times longer than the stroke is thick.
+// These were shorter and heavier and came out as a row of blocks on a phone --
+// half of that was the dash not scaling with the canvas (fixed in skydraw),
+// and half was simply the proportions. The three lengths stay well apart so
+// the key still works with no colour at all.
 const TRACK_STYLE = {
-  iss:     { colour: '#7fd4ff', nightColour: '#c00000', dash: [14, 6], width: 2 },
-  planets: { colour: '#ffe9a0', nightColour: '#8b0000', dash: [7, 6], width: 1.4 },
-  moon:    { colour: '#e6e6e6', nightColour: '#a00000', dash: [2, 5], width: 1.6 },
+  iss:     { colour: '#7fd4ff', nightColour: '#c00000', dash: [20, 10], width: 1.5 },
+  planets: { colour: '#ffe9a0', nightColour: '#8b0000', dash: [10, 8], width: 1.3 },
+  moon:    { colour: '#e6e6e6', nightColour: '#a00000', dash: [4, 8], width: 1.3 },
 };
 
 /**
@@ -1169,7 +1175,7 @@ function refreshSkyVectors() {
       skyTracks.push({
         points: placeTrack(points, lst, site.lat, precess),
         ...TRACK_STYLE.planets,
-        label: name, labelEvery: 12,
+        label: name,
       });
     }
   }
@@ -1177,7 +1183,7 @@ function refreshSkyVectors() {
     skyTracks.push({
       points: placeTrack(moonTrack(when), lst, site.lat),   // already of date
       ...TRACK_STYLE.moon,
-      label: 'Moon', labelEvery: 16,
+      label: 'Moon',
     });
   }
   if (issSamples) {
@@ -1188,7 +1194,7 @@ function refreshSkyVectors() {
         { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
         when).map((p) => ({ v: altAzToVector(p.alt, p.az), up: p.up })),
       ...TRACK_STYLE.iss,
-      label: 'ISS', labelEvery: 22,
+      label: 'ISS',
     });
   }
   updateLegend();
