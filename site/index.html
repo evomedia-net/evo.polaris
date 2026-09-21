@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#080b14">
 <title>evo.polaris — polar alignment</title>
-<meta name="description" content="Free, open-source polar alignment for star trackers and equatorial mounts. Works offline, reads the numbers aloud, and never asks you to pinch, drag or press-and-hold.">
+<meta name="description" content="Free polar alignment for star trackers and equatorial mounts. Works offline, reads the numbers aloud, and never asks you to pinch, drag or press-and-hold.">
 <link rel="canonical" href="https://polaris.evomedia.net/">
 
 <!-- Open Graph. The page is shared by link - in forums, in messages, to one
@@ -15,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="evo.polaris">
 <meta property="og:title" content="evo.polaris — polar alignment">
-<meta property="og:description" content="Free, open-source polar alignment for star trackers and equatorial mounts. Works offline, reads the numbers aloud, and never asks you to pinch, drag or press-and-hold.">
+<meta property="og:description" content="Free polar alignment for star trackers and equatorial mounts. Works offline, reads the numbers aloud, and never asks you to pinch, drag or press-and-hold.">
 <meta property="og:url" content="https://polaris.evomedia.net/">
 <meta property="og:image" content="https://polaris.evomedia.net/og-card.png?v=2">
 <meta property="og:image:type" content="image/png">
@@ -24,7 +24,7 @@
 <meta property="og:image:alt" content="The evo.polaris sky chart: Polaris circled at the pole, with the Big Dipper's pointer stars aimed at it.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="evo.polaris — polar alignment">
-<meta name="twitter:description" content="Free, open-source polar alignment for star trackers and equatorial mounts. Works offline, reads the numbers aloud, and never asks you to pinch, drag or press-and-hold.">
+<meta name="twitter:description" content="Free polar alignment for star trackers and equatorial mounts. Works offline, reads the numbers aloud, and never asks you to pinch, drag or press-and-hold.">
 <meta name="twitter:image" content="https://polaris.evomedia.net/og-card.png?v=2">
 <meta name="twitter:image:alt" content="The evo.polaris sky chart: Polaris circled at the pole, with the Big Dipper's pointer stars aimed at it.">
 
@@ -216,6 +216,9 @@
       <button id="issBtn" class="big-btn ghost">Find the ISS</button>
 
       <p class="hint" id="skyMode"></p>
+      <!-- What the ring and the arrow are locked to, when that is not
+           the pole. Empty (and silent to a screen reader) otherwise. -->
+      <p class="status" id="skyTarget" role="status"></p>
       <p class="hint" id="planetsOut"></p>
       <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is.
         It is the one thing here that needs the network — everything else works
@@ -342,7 +345,7 @@
   </div>
 
   <footer class="foot">
-    <p>Free and open source, for astronomers who can't crouch behind an eyepiece.</p>
+    <p>Free, for astronomers who can't crouch behind an eyepiece. The source is not public yet; it will be released as open source.</p>
     <p id="buildLine" class="hint"></p>
   </footer>
 </main>

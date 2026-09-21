@@ -19,7 +19,7 @@ import { mountEvomediaChrome } from './evomedia-chrome.js';
 // stays silent for anyone sending Do Not Track or Global Privacy Control.
 import { startDwellBeacon } from './dwell.js';
 import {
-  fetchIss, fetchIssTrack, orbitLookAngles, lookAngles, describePass,
+  fetchIss, fetchIssTrack, orbitLookAngles, lookAngles, describePass, issLookAt,
 } from './iss.js';
 import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
 import { drawSkyView, drawMoonDisc } from './skydraw.js';
@@ -93,7 +93,11 @@ let skyMoonBody = null;
 // the automatic rule is right nearly always, and "nearly" is not "always".
 let fullLock = null;
 let fullOn = false;
-let issMark = null;          // {alt, az, sunlit} once asked for, else null
+// The station, once "Find the ISS" has been answered. issFix is the reading
+// the tracker gave; the live position is propagated from issSamples, because a
+// fix is out of date about as fast as it arrives.
+let issOn = false;
+let issFix = null;           // {alt, az, aboveHorizon, sunlit} from the fetch
 // Smoothed copies. Raw orientation readings jitter by a degree or two even on
 // a still phone, and at a 65 degree field that is several pixels of shake on
 // every star -- enough to make the view look broken rather than alive.
@@ -116,6 +120,33 @@ let skyTracks = [];
 // The station's sampled orbit, kept raw so the path can be re-laid whenever
 // the time or the place changes without asking the network again.
 let issSamples = null;
+
+// WHAT THE RING AND THE ARROW ARE POINTING AT: 'pole' or 'iss'.
+//
+// "Find the ISS" moves it to the station and "Find the pole" moves it back,
+// which is why the pole button does more than re-aim the view.
+let guideTarget = 'pole';
+
+/**
+ * Where the station is NOW, or null if it has not been asked for.
+ *
+ * Propagated along the fitted orbit rather than reusing the fetched fix: the
+ * station moves about a degree of look angle per second during a close pass,
+ * so an arrow aimed at where it was thirty seconds ago points at empty sky.
+ * Falls back to the raw fix when the orbit samples could not be fetched --
+ * stale, but a stale direction beats no direction, and the text says so.
+ */
+function issNow() {
+  if (!issOn) return null;
+  if (issSamples && site) {
+    const look = issLookAt(
+      issSamples,
+      { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
+      appTime());
+    if (look) return { ...look, sunlit: issFix ? issFix.sunlit : null };
+  }
+  return issFix;
+}
 
 // --- when you are looking ---------------------------------------------------
 //
@@ -1244,6 +1275,8 @@ function drawLiveSky() {
   const c = $('liveSky');
   const useDevice = skyFollow && rawAlpha !== null;
   if (useDevice) updateSensorReadout();
+  const issLook = issNow();
+  const target = aimTarget(issLook);
   drawSkyView(c.getContext('2d'), {
     aim: useDevice ? null : skyAim,
     screenAngle: sensorInfo.screen,
@@ -1252,17 +1285,42 @@ function drawLiveSky() {
     beta: sBeta ?? tilt ?? 90,
     gamma: sGamma ?? roll ?? 0,
     declination: solution.declination,
-    targetAlt: Math.abs(solution.latitudeSetting),
-    targetAz: solution.poleAzimuth,
-    targetName: solution.hemisphere === 'south' ? 'South pole' : 'Polaris',
+    targetAlt: target.alt,
+    targetAz: target.az,
+    targetName: target.name,
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     milkyWay: skyMilkyWay ? milkyWay : null,
     tracks: skyTracks,
     planets: skyShowPlanets ? skyPlanetList : null,
     moon: skyShowMoon ? skyMoonBody : null,
-    iss: issMark,
+    // The marker is only drawn when the station is actually up there --
+    // a dot below the horizon would be drawing the inside of the Earth. The
+    // TARGET is not so restricted: see below.
+    iss: issLook && issLook.aboveHorizon
+      ? { alt: issLook.alt, az: issLook.az, sunlit: issLook.sunlit } : null,
   });
+}
+
+/**
+ * What the ring and the off-screen arrow are for.
+ *
+ * THE STATION IS TARGETED WHEREVER IT IS, INCLUDING UNDER YOUR FEET. A
+ * negative altitude is a real answer to "which way is it" -- it means turn
+ * round and look down -- and withholding it leaves someone turning on the
+ * spot hunting for something that is not in the sky at all. The arrow is
+ * plain geometry and points down through the ground quite happily; only the
+ * MARKER is held back to the visible sky.
+ */
+function aimTarget(issLook) {
+  if (guideTarget === 'iss' && issLook) {
+    return { alt: issLook.alt, az: issLook.az, name: 'ISS' };
+  }
+  return {
+    alt: Math.abs(solution.latitudeSetting),
+    az: solution.poleAzimuth,
+    name: solution.hemisphere === 'south' ? 'South pole' : 'Polaris',
+  };
 }
 
 function aimAtPole() {
@@ -1279,6 +1337,18 @@ function updateSkyMode() {
   const aimed = `${when}Looking ${Math.round(skyAim.az)}° round and `
     + `${Math.round(skyAim.alt)}° up. Use the arrows or the arrow keys — `
     + 'nothing needs to be held up.';
+  // What the ring is on, and the honest version of "it is not in the sky".
+  const issLook = issNow();
+  if (guideTarget === 'iss' && issLook) {
+    const az = Math.round((issLook.az + 360) % 360);
+    $('skyTarget').textContent = issLook.aboveHorizon
+      ? `Tracking the ISS: ${az}° round, ${Math.round(issLook.alt)}° up.`
+      : `Tracking the ISS: ${az}° round and ${Math.round(-issLook.alt)}° BELOW `
+        + 'the horizon — it is under the ground from here, and the arrow '
+        + 'points down at it. Press "Find the pole" to go back.';
+  } else {
+    $('skyTarget').textContent = '';
+  }
   if (following) {
     $('skyMode').textContent =
       `${when}Auto Mode: following the phone. The arrows take over if you `
@@ -1383,7 +1453,15 @@ $('skyUp').onclick = () => pan(0, STEP);
 $('skyDown').onclick = () => pan(0, -STEP);
 $('skyLeft').onclick = () => pan(-STEP, 0);
 $('skyRight').onclick = () => pan(STEP, 0);
-$('skyPole').onclick = () => { skyFollow = false; aimAtPole(); updateSkyMode(); drawLiveSky(); };
+$('skyPole').onclick = () => {
+  skyFollow = false;
+  // The pole button is the way back: it takes the ring and the arrow off the
+  // station as well as re-aiming the view.
+  guideTarget = 'pole';
+  aimAtPole();
+  updateSkyMode();
+  drawLiveSky();
+};
 $('modeBtn').onclick = () => {
   skyFollow = !skyFollow;
   if (skyFollow) {
@@ -1434,16 +1512,27 @@ $('issBtn').onclick = async () => {
     try {
       issSamples = await fetchIssTrack(fetch, appTime());
     } catch { issSamples = null; }
-    // Only mark it on the sky when it is actually up there. Drawing a marker
-    // below the horizon would be drawing the inside of the Earth.
-    issMark = look.aboveHorizon
-      ? { alt: look.alt, az: look.az, sunlit: iss.sunlit } : null;
-    $('issOut').textContent = `${describePass(look, iss)} Position read at `
-      + `${iss.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}; `
-      + 'it moves about 7 km a second, so this goes stale fast.';
-    if (skyOn) drawLiveSky();
+    issFix = {
+      alt: look.alt, az: look.az, aboveHorizon: look.aboveHorizon,
+      sunlit: iss.sunlit,
+    };
+    issOn = true;
+    // Pressing this means "show me where it is", so it takes the ring and the
+    // arrow with it. "Find the pole" is the way back.
+    guideTarget = 'iss';
+    const readAt = iss.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    $('issOut').textContent = `${describePass(look, iss)} Position read at ${readAt}. `
+      + (issSamples
+        ? 'The ring and the arrow are following it now, and keep following it '
+          + 'as it moves — including when it is below the horizon, where the '
+          + 'arrow points down through the ground.'
+        : 'The orbit could not be fetched, so this is a single reading rather '
+          + 'than a moving one, and it goes stale fast: it moves about 7 km a '
+          + 'second.');
+    if (skyOn) { updateSkyMode(); drawLiveSky(); }
   } catch (err) {
-    issMark = null;
+    issOn = false;
+    issFix = null;
     $('issOut').textContent =
       `Could not reach the station tracker (${err.message}). Everything else `
       + 'in this app works without the network.';
@@ -1513,3 +1602,11 @@ $('fullPole').onclick = () => $('skyPole').click();
 // The sky turns a quarter of a degree a minute, so the expensive half is on a
 // slow timer while the projection runs per orientation event.
 setInterval(() => { if (skyOn) { refreshSkyVectors(); drawLiveSky(); } }, 20000);
+
+// The station crosses the whole sky in minutes, so a target locked to it needs
+// recomputing orders of magnitude more often than the stars do. Only while it
+// is actually the target -- this is a redraw, and the rest of the time the
+// twenty-second timer above is the right rate.
+setInterval(() => {
+  if (skyOn && guideTarget === 'iss' && issOn) { updateSkyMode(); drawLiveSky(); }
+}, 1000);

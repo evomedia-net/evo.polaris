@@ -177,6 +177,100 @@ export async function fetchIssTrack(fetchFn = fetch, from = new Date(), count = 
     }));
 }
 
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/**
+ * The circle the samples lie on, and how fast the station runs round it.
+ *
+ * Returns the orbit in its own terms: a plane, a radius, an in-plane basis
+ * anchored on the FIRST sample, and an angular rate. Everything else here is
+ * a projection of that.
+ *
+ * WHY A FIT AND NOT A PROPAGATOR. There is no orbital element set available
+ * offline -- only a handful of positions from the tracker -- so the orbit is
+ * recovered from the positions themselves. The station's orbit is very nearly
+ * circular (eccentricity about 0.0003), so a circle through the samples is
+ * good to a few km, which is far inside what an arrow on a phone can express.
+ * It is a poor model over hours and a fine one over the minutes of a pass.
+ *
+ * The rate is measured from the samples rather than taken from the nominal
+ * 92.9-minute period, so it carries whatever the real orbit is doing.
+ */
+export function fitOrbit(samples) {
+  // Earth-fixed -> inertial, each at its own sidereal angle.
+  const eci = samples.map((s) => ({
+    p: spinZ(geodeticToEcef(s.lat, s.lon, s.heightKm),
+             gmstHours(julianDay(s.at)) * 15 * DEG),
+    at: s.at,
+  }));
+
+  // The plane's normal, averaged over every consecutive pair rather than taken
+  // from one: a single cross product of two nearly-parallel samples is noisy,
+  // and the tracker's positions carry their own small errors.
+  let n = [0, 0, 0];
+  for (let i = 0; i + 1 < eci.length; i++) {
+    const c = cross(eci[i].p, eci[i + 1].p);
+    // Keep every contribution pointing the same way round the orbit.
+    const sign = (c[0] * n[0] + c[1] * n[1] + c[2] * n[2]) < 0 && i > 0 ? -1 : 1;
+    n = [n[0] + sign * c[0], n[1] + sign * c[1], n[2] + sign * c[2]];
+  }
+  n = norm(n);
+
+  const radius = eci.reduce(
+    (a, v) => a + Math.hypot(v.p[0], v.p[1], v.p[2]), 0) / eci.length;
+  const u = norm(eci[0].p);                 // angle zero, by construction
+  const w = cross(n, u);
+
+  // Where each sample sits round the circle, UNWRAPPED. Without unwrapping,
+  // a set of samples spanning most of an orbit folds back through -pi and the
+  // rate comes out near zero -- the orbit would appear to stand still.
+  let prev = 0, turns = 0;
+  const angles = eci.map((e, i) => {
+    let a = Math.atan2(dot3(e.p, w), dot3(e.p, u));
+    if (i > 0) {
+      while (a + turns * 2 * Math.PI - prev < -Math.PI) turns += 1;
+      while (a + turns * 2 * Math.PI - prev > Math.PI) turns -= 1;
+      a += turns * 2 * Math.PI;
+    }
+    prev = a;
+    return { a, t: (e.at.getTime() - eci[0].at.getTime()) / 1000 };
+  });
+
+  const last = angles[angles.length - 1];
+  const rate = last.t !== 0
+    ? (last.a - angles[0].a) / last.t
+    : (2 * Math.PI) / (ISS_ORBIT_MINUTES * 60);
+
+  return { n, u, w, radius, t0: eci[0].at, rate };
+}
+
+/** Where the station is at an instant, Earth-fixed, along the fitted circle. */
+export function issEcefAt(fit, when) {
+  const a = fit.rate * ((when.getTime() - fit.t0.getTime()) / 1000);
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const p = [
+    fit.radius * (ca * fit.u[0] + sa * fit.w[0]),
+    fit.radius * (ca * fit.u[1] + sa * fit.w[1]),
+    fit.radius * (ca * fit.u[2] + sa * fit.w[2]),
+  ];
+  return spinZ(p, -gmstHours(julianDay(when)) * 15 * DEG);
+}
+
+/**
+ * Which way to look for the station RIGHT NOW, above the horizon or not.
+ *
+ * The altitude is returned negative rather than withheld when the station is
+ * under your feet. That is deliberate: "it is below you and on the far side"
+ * is a real answer to "where is it", and refusing to say so leaves someone
+ * turning on the spot looking for something that is not in the sky at all.
+ * Whether to DRAW anything there is the caller's decision, not this one's.
+ */
+export function issLookAt(samples, observer, when = new Date()) {
+  if (!samples || samples.length < 3) return null;
+  const l = lookAnglesEcef(observer, issEcefAt(fitOrbit(samples), when));
+  return { alt: l.alt, az: l.az, aboveHorizon: l.alt > 0 };
+}
+
 /**
  * The circle those samples lie on, as Earth-fixed points for one instant.
  *
@@ -184,29 +278,7 @@ export async function fetchIssTrack(fetchFn = fetch, from = new Date(), count = 
  */
 export function orbitPath(samples, when = new Date(), count = 180) {
   if (!samples || samples.length < 3) return [];
-
-  // Earth-fixed -> inertial, each at its own sidereal angle.
-  const eci = samples.map((s) => {
-    const theta = gmstHours(julianDay(s.at)) * 15 * DEG;
-    return spinZ(geodeticToEcef(s.lat, s.lon, s.heightKm), theta);
-  });
-
-  // The plane's normal, averaged over every consecutive pair rather than taken
-  // from one: a single cross product of two nearly-parallel samples is noisy,
-  // and the tracker's positions carry their own small errors.
-  let n = [0, 0, 0];
-  for (let i = 0; i + 1 < eci.length; i++) {
-    const c = cross(eci[i], eci[i + 1]);
-    // Keep every contribution pointing the same way round the orbit.
-    const sign = (c[0] * n[0] + c[1] * n[1] + c[2] * n[2]) < 0 && i > 0 ? -1 : 1;
-    n = [n[0] + sign * c[0], n[1] + sign * c[1], n[2] + sign * c[2]];
-  }
-  n = norm(n);
-
-  const radius = eci.reduce((a, v) => a + Math.hypot(v[0], v[1], v[2]), 0) / eci.length;
-  const u = norm(eci[0]);
-  const w = cross(n, u);
-
+  const { u, w, radius } = fitOrbit(samples);
   const thetaNow = gmstHours(julianDay(when)) * 15 * DEG;
   const out = [];
   for (let i = 0; i <= count; i++) {

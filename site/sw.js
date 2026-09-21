@@ -9,7 +9,15 @@
 //   * Bundled data (stars, magnetic coefficients) -> CACHE first. It is 350 KB,
 //     it changes roughly never, and re-fetching it on every load is rude to a
 //     phone on a hotspot.
-const VERSION = '0.0.0.1.4';
+// Bumped to evict the precached index.html, which carried a claim that the
+// app was open source while the repository was private. index.html is in
+// ASSETS below, so the corrected page reaches a RETURNING visitor only when
+// this cache key changes - without a bump the fix ships and is inert, the
+// same way the og-card needed ?v=2 because scrapers key on the image URL.
+//
+// This is a CACHE KEY, not the release stamp. build-version.json stays where
+// it is; the build advances once per release on the default branch.
+const VERSION = '0.0.0.1.5';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [
