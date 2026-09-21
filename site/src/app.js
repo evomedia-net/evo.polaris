@@ -1464,7 +1464,7 @@ $('skyMoon').onclick = () => {
 // Twenty-six steps between a 10-degree field and a 140-degree one. It was six
 // steps of 15 degrees over 25-110: a jump big enough that the sky leaps rather
 // than zooms, with no way to frame one constellation.
-const FOV_MIN = 10, FOV_MAX = 140, FOV_STEP = 5;
+const FOV_MIN = 10, FOV_MAX = 170, FOV_STEP = 5;
 $('skyWider').onclick = () => {
   skyFov = Math.min(FOV_MAX, skyFov + FOV_STEP); drawLiveSky();
 };

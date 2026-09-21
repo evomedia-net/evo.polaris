@@ -255,24 +255,43 @@ export function drawSkyView(ctx, o) {
   }
 
   // The target: the pole itself, ringed, because that is what you align to.
+  //
+  // THE RING IS AN ANGULAR SIZE, NOT A FIXED NUMBER OF PIXELS. It used to be
+  // h/14 px regardless of zoom, so widening the field kept the ring the same
+  // size on screen while the sky it sat in shrank -- the ring appeared to grow
+  // and swallow the constellations. Now it circles a fixed patch of SKY (about
+  // 3.5 degrees of radius), projected through the same focal length as the
+  // stars, so it holds its scale against them at every zoom. Clamped so it is
+  // never smaller than a marker at the widest field nor larger than a quarter
+  // of the view at the tightest.
+  const RING_DEG = 3.5;
   const tp = projectToScreen(altAzToVector(targetAlt, targetAz), basis, focal);
   let onScreen = false;
   if (tp) {
     const x = cx + tp.x, y = cy + tp.y;
     onScreen = x > 0 && x < w && y > 0 && y < h;
+    const r = Math.max(h / 40, Math.min(h / 4,
+      focal * Math.tan(RING_DEG * Math.PI / 180)));
     ctx.strokeStyle = accent;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.arc(x, y, h / 14, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.stroke();
+    // Crosshair ticks just outside the ring, so they scale with it.
     ctx.beginPath();
-    ctx.moveTo(x - h / 9, y); ctx.lineTo(x - h / 22, y);
-    ctx.moveTo(x + h / 22, y); ctx.lineTo(x + h / 9, y);
+    ctx.moveTo(x - r * 1.7, y); ctx.lineTo(x - r * 1.15, y);
+    ctx.moveTo(x + r * 1.15, y); ctx.lineTo(x + r * 1.7, y);
     ctx.stroke();
+    // The label stays a fixed, readable size and sits just above the ring
+    // rather than at a fixed offset -- otherwise it lands inside a large ring
+    // when zoomed in and far above a small one when zoomed out.
+    const fontPx = Math.round(h / 24);
     ctx.fillStyle = accent;
-    ctx.font = `600 ${Math.round(h / 24)}px system-ui, sans-serif`;
+    ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(targetName, x, y - h / 11);
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(targetName, x, y - r - fontPx * 0.4);
+    ctx.textBaseline = 'middle';
   }
 
   // The ISS, if it has been asked for and is above the horizon.
