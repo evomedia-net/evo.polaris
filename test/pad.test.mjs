@@ -33,10 +33,19 @@ test('the arrows are shown by the mode, not by a switch of their own', () => {
   // same thing, which is how a pad ends up hidden in the one mode that needs
   // it.
   assert.ok(!appJs.includes("$('padToggle')"), 'padToggle is back');
-  assert.ok(/\$\('skyPad'\)\.hidden = following;/.test(appJs),
-    'the below-canvas pad must be hidden exactly when the phone is steering');
+  // The pad lives in the Manual Controls card now, so the card's open state
+  // carries what the hidden attribute used to. Still the MODE deciding it,
+  // which is the thing this test is about.
+  assert.match(appJs, /if \(card\) card\.open = !following;/,
+    'the Manual Controls card must open exactly when the phone is not steering');
+  assert.ok(!appJs.includes("$('skyPad').hidden ="),
+    'the pad must not also be hidden behind the card that already hides it');
   assert.ok(/\$\('fullPan'\)\.hidden = following;/.test(appJs),
     'the on-map pan cluster must follow the same rule');
+  // Only on a change: updateSkyMode runs on every redraw, and forcing the
+  // card each time would snap it shut under anyone who opened it by hand.
+  assert.match(appJs, /if \(following !== lastFollowing\)/,
+    'the card must be driven by mode CHANGES, not by every redraw');
 });
 
 test('full screen carries the pad, in the pad arrangement, delegating to it', () => {

@@ -116,7 +116,7 @@ test('the gestures are live exactly when the pad is', () => {
     appJs.indexOf('function handSteering()') + 200);
   assert.match(fn, /skyOn && !\(skyFollow && rawAlpha !== null\)/,
     'handSteering must be the pad\'s own condition');
-  assert.match(appJs, /\$\('skyPad'\)\.hidden = following;/,
+  assert.match(appJs, /if \(card\) card\.open = !following;/,
     'the pad visibility rule this mirrors has moved');
 });
 

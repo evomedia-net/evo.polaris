@@ -527,6 +527,35 @@ details[open] > .card-head::after {
 details.card[open] > .card-head { margin-bottom: 0.9rem; }
 details.card:not([open]) { padding-bottom: 1rem; }
 
+/* A SUB-CARD IS A BUTTON UNTIL IT IS OPENED.
+ *
+ * These sit inside the sky card and hold controls rather than prose, so
+ * closed they should be exactly what they look like: one touch target,
+ * nothing more. The outer cards keep their padding because a wall of text
+ * wants breathing room; a shut drawer does not.
+ *
+ * The header is --tap high closed AND open. A header shorter than the
+ * buttons it hides is a worse target than any of them, and this is pressed
+ * outdoors, in the dark, by someone who may be using a mouthstick. */
+.sub-card {
+  margin: 0.55rem 0;
+  padding: 0;
+  overflow: hidden;
+}
+.sub-card > .card-head {
+  margin: 0;
+  padding: 0 1rem;
+  min-height: var(--tap);
+  border-radius: 1rem;
+}
+.sub-card > .card-head h2 { font-size: 1.02rem; }
+details.sub-card:not([open]) { padding-bottom: 0; }
+details.sub-card[open] { padding: 0 1rem 0.7rem; }
+details.sub-card[open] > .card-head {
+  margin: 0 -1rem 0.2rem;
+  border-radius: 1rem 1rem 0 0;
+}
+
 /* NOT A FLEX CONTAINER, AND THAT IS THE WHOLE POINT.
  *
  * These headings mix text with inline spans the app rewrites by hemisphere:
@@ -898,6 +927,15 @@ html[data-night='on'] .sky-legend {
   border: 1px solid rgba(232, 236, 244, 0.45);
   border-radius: 0.9rem;
 }
+/* Who is steering, in the column with everything else that aims the view.
+   Full width of the column and wrapping freely: "Use Manual Mode" is three
+   words and must not be shortened to fit -- the label says what pressing it
+   does, which is the rule every button here follows. */
+.live-sky.full .tgt-mode {
+  margin-top: 0.2rem;
+  white-space: normal;
+}
+
 .live-sky.full .tgt-btn {
   position: static;
   min-height: var(--tap);
@@ -935,31 +973,16 @@ html[data-night='on'] .target-name {
    bottom centre -- "Ali|Use Auto|unt" -- with part of a tab left tappable over
    the sky. The tabs are page chrome: dropping them back into normal flow puts
    them behind the opaque full-screen overlay, which is where they belong. */
-html[data-skyfull='on'] .mode-btn:not([role='tab']) {
-  position: fixed;
-  z-index: 60;
-  color: #f2f5fa;
-  border: 1px solid rgba(232, 236, 244, 0.45);
-  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: max(0.6rem, env(safe-area-inset-bottom));
-  width: auto;
-  min-width: 0;
-  margin: 0;
-  padding: 0 1.2rem;
-  min-height: 3rem;
-  font-size: 1rem;
-  white-space: nowrap;
-  background: rgba(10, 14, 24, 0.72);
-  border-radius: 0.9rem;
-}
-html[data-night='on'][data-skyfull='on'] .mode-btn:not([role='tab']) {
-  color: var(--ink);
-  background: rgba(0, 0, 0, 0.72);
-  border-color: var(--ink);
-  box-shadow: none;
-}
+/* NO LONGER LIFTED ONTO THE MAP, and the measurements say why. On a 390px
+   phone the pan pad runs 15->283 and the way out sits at 296->375, so a
+   264px-wide button pinned to the bottom centre was drawn across both of
+   them and read as missing. Reported twice as "I don't see a manual/auto
+   button in full screen".
+   There is no bottom centre to give it, so full screen gets its own copy in
+   the top-left column (#fullMode) and this one stays under the map, behind
+   the overlay, where it has always been. */
+html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
+
 
 /* Zoom and pan are full-screen only: below the canvas there are already
    full-width buttons for both, and duplicating them on a phone-sized map

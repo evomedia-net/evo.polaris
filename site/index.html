@@ -191,7 +191,6 @@
              the target is off the edge there is only an arrow -- the ring
              carries the name, and the ring is the part that is missing. -->
         <div class="full-targets" id="fullTargets">
-          <p class="target-name" id="fullTargetName" role="status"></p>
           <div class="target-grid" role="group" aria-label="What to point at">
             <button id="tgtPole" class="map-btn tgt-btn" aria-pressed="true">Polaris</button>
             <button id="tgtIss" class="map-btn tgt-btn" aria-pressed="false">ISS</button>
@@ -199,6 +198,18 @@
             <button id="tgtPlanets" class="map-btn tgt-btn" aria-pressed="false"
                     aria-label="Point at the next planet out from the Sun">Planets</button>
           </div>
+          <!-- Who is steering. It belongs up here because the bottom of a
+               phone in full screen is already the pad, the zoom and the way
+               out, with nothing left in the middle -- the button was being
+               drawn across all three. Delegates to the one under the map so
+               there is still only one of it. -->
+          <button id="fullMode" class="map-btn tgt-btn tgt-mode">Use Manual Mode</button>
+          <!-- THE NAME GOES LAST, and that is the whole reason it is here.
+               Above the buttons it appeared and vanished with the target and
+               shifted every button under it each time. A control that moves
+               is a control you have to find again, which is a real cost for
+               anyone aiming at it with an unsteady hand or a mouthstick. -->
+          <p class="target-name" id="fullTargetName" role="status"></p>
         </div>
 
         <!-- Bottom right: fill the screen, and leave it again. -->
@@ -232,22 +243,31 @@
       <button id="modeBtn" class="big-btn mode-btn"
               aria-label="Use Manual Mode">Use Manual Mode</button>
 
-      <div class="sky-controls">
-        <button id="skyWider" class="big-btn">Show more sky</button>
-        <button id="skyNarrower" class="big-btn">Show less sky</button>
-        <button id="skyConst" class="big-btn">Hide the constellations</button>
-        <button id="skyMilky" class="big-btn">Hide the Milky Way</button>
-        <button id="skyPlanets" class="big-btn">Hide the planets</button>
-        <button id="skyMoon" class="big-btn">Hide the Moon</button>
-      </div>
+      <!-- MANUAL CONTROLS FIRST, then the settings. The pad is what you
+           reach for while looking at the sky; the show/hide switches are set
+           once and left. Nearest thing to hand goes nearest the map. -->
+      <details class="card sub-card" id="manualCard">
+        <summary class="card-head"><h2 id="h-manual">Manual Controls</h2></summary>
+        <div class="sky-pad" id="skyPad">
+          <button id="skyUp" class="big-btn pad-up">Look up</button>
+          <button id="skyLeft" class="big-btn pad-left">Look left</button>
+          <button id="skyPole" class="big-btn pad-mid">Find the pole</button>
+          <button id="skyRight" class="big-btn pad-right">Look right</button>
+          <button id="skyDown" class="big-btn pad-down">Look down</button>
+        </div>
+      </details>
 
-      <div class="sky-pad" id="skyPad" hidden>
-        <button id="skyUp" class="big-btn pad-up">Look up</button>
-        <button id="skyLeft" class="big-btn pad-left">Look left</button>
-        <button id="skyPole" class="big-btn pad-mid">Find the pole</button>
-        <button id="skyRight" class="big-btn pad-right">Look right</button>
-        <button id="skyDown" class="big-btn pad-down">Look down</button>
-      </div>
+      <details class="card sub-card" id="visualCard">
+        <summary class="card-head"><h2 id="h-visual">Visual Settings</h2></summary>
+        <div class="sky-controls">
+          <button id="skyWider" class="big-btn">Show more sky</button>
+          <button id="skyNarrower" class="big-btn">Show less sky</button>
+          <button id="skyConst" class="big-btn">Hide the constellations</button>
+          <button id="skyMilky" class="big-btn">Hide the Milky Way</button>
+          <button id="skyPlanets" class="big-btn">Hide the planets</button>
+          <button id="skyMoon" class="big-btn">Hide the Moon</button>
+        </div>
+      </details>
 
       <button id="issBtn" class="big-btn ghost">Find the ISS</button>
 

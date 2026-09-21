@@ -74,6 +74,9 @@ let skyFov = 65;
 // people who cannot sweep a phone around, layers on top of that rather than
 // replacing it.
 let skyFollow = true;
+// What the Manual Controls card was last told. null means "never set", so the
+// first update opens or shuts it once and then leaves it alone.
+let lastFollowing = null;
 let skyAim = { az: 0, alt: 45 };
 // Both on by default: the figures are how people recognise what they are
 // looking at, and the band is what most of them are pointing a camera at.
@@ -369,8 +372,13 @@ $('nightToggle').onclick = () => {
 // collapsing them is that they are walls of text, and a wall of text that
 // greets you is the thing being fixed.
 const CARDS_OPEN_BY_DEFAULT = new Set(['skyCard']);
+// The Manual Controls card is not remembered: which mode you are in decides
+// it, and a stored "open" would fight that on the next mode change. Visual
+// Settings IS remembered -- it is a drawer of preferences, and a drawer you
+// shut should stay shut.
+const CARDS_THE_APP_OWNS = new Set(['manualCard']);
 for (const card of document.querySelectorAll('details.card')) {
-  if (!card.id) continue;
+  if (!card.id || CARDS_THE_APP_OWNS.has(card.id)) continue;
   card.open = store.get(`open.${card.id}`, CARDS_OPEN_BY_DEFAULT.has(card.id));
   card.addEventListener('toggle', () => store.set(`open.${card.id}`, card.open));
 }
@@ -1554,6 +1562,12 @@ function updateSkyMode() {
   const modeBtn = $('modeBtn');
   // Short on the map where space is tight, the whole phrase under it where
   // there is room. The accessible name is the full phrase either way.
+  const fullModeBtn = $('fullMode');
+  if (fullModeBtn) {
+    fullModeBtn.textContent = skyFollow ? 'Use Manual Mode' : 'Use Auto Mode';
+    fullModeBtn.setAttribute('aria-label',
+      skyFollow ? 'Use Manual Mode' : 'Use Auto Mode');
+  }
   modeBtn.textContent = fullOn
     ? (skyFollow ? 'Use Manual' : 'Use Auto')
     : (skyFollow ? 'Use Manual Mode' : 'Use Auto Mode');
@@ -1563,7 +1577,15 @@ function updateSkyMode() {
   // In Manual Mode the arrows appear; in Auto Mode the phone is doing it and
   // five full-width buttons would be most of a screen doing nothing. There is
   // no third state and nothing to persist: the mode IS the setting.
-  $('skyPad').hidden = following;
+  // THE PAD LIVES IN A CARD NOW, so the card's open state carries what the
+  // hidden attribute used to. Set only when the MODE CHANGES: updateSkyMode
+  // runs on every redraw, and forcing it each time would snap the card shut
+  // under anyone who opened it by hand while the phone was steering.
+  if (following !== lastFollowing) {
+    lastFollowing = following;
+    const card = $('manualCard');
+    if (card) card.open = !following;
+  }
   $('fullPan').hidden = following;
   // THE PAD IS NEVER DISABLED. It used to be greyed out while the phone was
   // steering, and on a dark screen at arm's length greyed reads as gone --
@@ -1613,7 +1635,7 @@ function setAim(az, alt) {
 // and a full-screen sky sliding under you is about the largest moving field
 // this app can produce. The rest of the app already honours the setting in
 // CSS, so honouring it here is not an extra kindness, it is consistency.
-const GLIDE_MS = 900;
+const GLIDE_MS = 1125;
 // { raf, to } -- the pending frame AND where it was going, because a journey
 // that gets interrupted still has to end somewhere sensible.
 let glide = null;
@@ -2007,6 +2029,11 @@ $('fullDown').onclick = () => $('skyDown').click();
 $('fullLeft').onclick = () => $('skyLeft').click();
 $('fullRight').onclick = () => $('skyRight').click();
 $('fullPole').onclick = () => $('skyPole').click();
+// One button, two places to press it. Delegating rather than copying the
+// behaviour is the same choice the pan cluster makes, and for the same
+// reason: two copies are two things to keep in step and the wrong one always
+// looks right.
+$('fullMode').onclick = () => $('modeBtn').click();
 
 // --- what to point at -------------------------------------------------------
 //
