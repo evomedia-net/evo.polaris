@@ -125,7 +125,10 @@
       <p class="hint" id="prefillNote"></p>
       <button id="lookupAlt" class="big-btn ghost">Look up altitude for me</button>
       <p class="hint" id="lookupAltNote">Sends only these coordinates to
-        open-meteo.com. Nothing else in this app touches the network.</p>
+        open-meteo.com. The only other thing that leaves this device is a
+        request to api.wheretheiss.at for where the space station is — it is
+        sent timestamps and nothing about you, and nothing else in this app
+        touches the network at all.</p>
       <button id="manualApply" class="big-btn primary">Use these numbers</button>
     </div>
   </section>
@@ -238,9 +241,11 @@
            the pole. Empty (and silent to a screen reader) otherwise. -->
       <p class="status" id="skyTarget" role="status"></p>
       <p class="hint" id="planetsOut"></p>
-      <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is.
-        It is the one thing here that needs the network — everything else works
-        with the radio off.</p>
+      <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is,
+        once, when this view opens. It is the one thing here that needs the
+        network — nothing else in the sky is fetched, it is all worked out on
+        the device — so with the radio off everything but the station still
+        works. Press this to look it up again and point the ring at it.</p>
       <p class="hint" id="skyDiag"></p>
     </details>
 

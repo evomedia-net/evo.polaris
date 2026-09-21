@@ -89,7 +89,30 @@ body {
 /* Dim the whole surface. Brightness matters as much as hue: a bright pure-red
  * screen still floods the eye, and this is used in the dark beside other
  * people's dark-adapted eyes. */
-html[data-night='on'] body { filter: brightness(0.7); }
+/* A FIXED BLACK VEIL, NOT filter: brightness().
+ *
+ * The filter was the obvious way to do this and it broke full screen. A
+ * filter on an element makes that element the CONTAINING BLOCK for every
+ * position:fixed descendant, so in Night Mode "fixed" stopped meaning
+ * "relative to the screen" and started meaning "relative to body" -- which is
+ * as tall as the whole document. The full-screen overlay sized itself to the
+ * document (a 780x7613 backing store on a 390x844 phone) and the Auto/Manual
+ * button was pinned thousands of pixels below the fold, where it simply could
+ * not be found. See #64.
+ *
+ * The arithmetic is unchanged because this palette is pure red on black:
+ * brightness(0.7) takes 255 to 178.5, and 30% black laid over 255 leaves
+ * 178.5. pointer-events: none, because a veil across the whole screen that
+ * could swallow a press would be a worse bug than the one it fixes. */
+html[data-night='on'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: #000;
+  opacity: 0.3;
+  pointer-events: none;
+}
 
 /* NOTHING IS FILLED IN NIGHT MODE.
  *

@@ -125,10 +125,82 @@ test('hiding a body takes its path with it at once', () => {
     assert.match(h, /refreshSkyVectors\(\)/,
       `#${id} must rebuild the tracks, not only redraw`);
   }
-  // Same trap on the way in: the station's path is built there too.
-  const iss = appJs.slice(appJs.indexOf("$('issBtn').onclick"),
-    appJs.indexOf("$('skyConst').onclick"));
-  assert.match(iss, /refreshSkyVectors\(\)/,
+  // Same trap on the way in: the station's path is built there too. Both the
+  // button and the automatic load go through loadIss, so it is the one place
+  // that has to rebuild.
+  const load = appJs.slice(appJs.indexOf('async function loadIss('),
+    appJs.indexOf('async function autoLoadIss('));
+  assert.match(load, /refreshSkyVectors\(\)/,
     'fetching the station must rebuild its path, or the key gains a row '
     + 'before the line it refers to appears');
+  assert.match(load, /updateLegend\(\)/,
+    'and the key has to be told, or the row never appears at all');
+});
+
+// --- the station is there without being asked for -----------------------------
+//
+// Reported: "The ISS tracking never showed up in the legend until I enabled
+// Look for ISS. It should always be there." It was behind the button alone,
+// so its path was missing from the map and its row missing from the key until
+// someone thought to press it -- and nothing on screen said the feature
+// existed at all.
+//
+// It is the one thing up there that cannot be computed on the device: there
+// is no orbit bundled with the app to propagate. So fetching it is the app's
+// ONLY unprompted call to anyone else's server, and that carries obligations.
+
+test('the station is fetched when the sky opens, once', () => {
+  assert.match(appJs, /async function autoLoadIss\(\)/, 'the auto load is gone');
+  const fn = appJs.slice(appJs.indexOf('async function autoLoadIss()'),
+    appJs.indexOf("$('issBtn').onclick"));
+  assert.match(fn, /if \(issAutoTried \|\| issOn \|\| !site\) return;/,
+    'it must run once, and not at all before there is a position to use');
+  assert.match(fn, /issAutoTried = true;/);
+  // Hooked to the sky opening, not to load: the align half of the app has no
+  // use for it and should not be reaching out on anyone's behalf.
+  const open = appJs.slice(appJs.indexOf('seedOrientation();'),
+    appJs.indexOf('seedOrientation();') + 900);
+  assert.match(open, /autoLoadIss\(\)/, 'opening the sky must trigger it');
+});
+
+test('it fails silently, because a dark field has no signal', () => {
+  // The condition this app is built for. A missing station is not an error
+  // worth a sentence, and certainly not one worth a banner over the sky.
+  const fn = appJs.slice(appJs.indexOf('async function autoLoadIss()'),
+    appJs.indexOf("$('issBtn').onclick"));
+  assert.match(fn, /catch \{[^}]*\}/,
+    'the automatic load must swallow its own failure');
+  assert.ok(!/issOut/.test(fn),
+    'the automatic load must not write a status line; the button owns that');
+});
+
+test('arriving by itself does not point the ring at it', () => {
+  // Pressing the button means "show me where it is" and takes the ring and
+  // the arrow along. The app quietly loading the orbit is not that request,
+  // and hijacking the view because a fetch came back would be the sky moving
+  // under someone who did not ask.
+  const auto = appJs.slice(appJs.indexOf('async function autoLoadIss()'),
+    appJs.indexOf("$('issBtn').onclick"));
+  assert.ok(!/guideTarget/.test(auto),
+    'the automatic load must not retarget the ring');
+  const load = appJs.slice(appJs.indexOf('async function loadIss('),
+    appJs.indexOf('async function autoLoadIss('));
+  assert.ok(!/guideTarget/.test(load),
+    'retargeting belongs to the button, not to the shared loader');
+  const btn = appJs.slice(appJs.indexOf("$('issBtn').onclick"),
+    appJs.indexOf("$('skyConst').onclick"));
+  assert.match(btn, /guideTarget = 'iss'/, 'the button must still retarget');
+});
+
+test('the app still tells the truth about what leaves the device', () => {
+  // Two sentences became false the moment this fetch stopped being something
+  // the user asked for. A privacy claim that is quietly out of date is worse
+  // than one that was never made.
+  assert.ok(!/Nothing else in this app touches the network\.<\/p>/.test(html),
+    'the "nothing else touches the network" line is now untrue: the station '
+    + 'is fetched without being asked');
+  assert.match(html, /api\.wheretheiss\.at/,
+    'the copy must name the third party it calls');
+  assert.match(html, /timestamps and nothing about you/,
+    'and say what is sent, since the point is that it is not the observer');
 });

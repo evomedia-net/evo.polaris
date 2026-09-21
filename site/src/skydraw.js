@@ -59,6 +59,22 @@ export function drawSkyView(ctx, o) {
                        o.screenAngle || 0);
   const focal = focalLength(w, fov);
   const cx = w / 2, cy = h / 2;
+  // THE SHORT SIDE IS THE RULER FOR EVERYTHING DRAWN AT A FIXED SCREEN SIZE.
+  //
+  // These were all keyed to h, which is the same thing right up until the
+  // canvas stops being wider than it is tall. Full screen in PORTRAIT it is
+  // the long side, and every marker and label silently inflated with it: the
+  // target ring went from 14% of the narrow side of the view to 31% of it --
+  // reported simply as "the green ring is really big in full screen mode".
+  //
+  // Measured on a 390x844 phone at dpr 2: ring diameter 121px in portrait
+  // full screen against 56px everywhere else. Worse, the app fills the screen
+  // BY ITSELF when you turn the phone, so the ring changed size as you
+  // rotated -- the one thing a reticle must never do.
+  //
+  // min(w, h) is h for the windowed 3:2 canvas and h again in landscape, so
+  // nothing outside portrait full screen moves by a pixel.
+  const ref = Math.min(w, h);
   const aimed = vectorToAltAz(basis.forward);
 
   // The Milky Way, first, because it is the sky rather than something drawn on
@@ -115,7 +131,7 @@ export function drawSkyView(ctx, o) {
   ctx.restore();
 
   // Cardinal points on the horizon.
-  ctx.font = `600 ${Math.round(h / 26)}px system-ui, sans-serif`;
+  ctx.font = `600 ${Math.round(ref / 26)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const [az, label] of CARDINALS) {
@@ -124,7 +140,7 @@ export function drawSkyView(ctx, o) {
     const x = cx + p.x, y = cy + p.y;
     if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
     ctx.fillStyle = label.length === 1 ? ink : dim;
-    ctx.fillText(label, x, y + h / 34);
+    ctx.fillText(label, x, y + ref / 34);
   }
 
   // Constellation figures. Drawn before the stars so the lines pass behind
@@ -170,7 +186,7 @@ export function drawSkyView(ctx, o) {
     if (labelled < 7 && s.mag < 2.6 && NAMED.has(s.hr)) {
       labelled += 1;
       ctx.fillStyle = dim;
-      ctx.font = `500 ${Math.round(h / 34)}px system-ui, sans-serif`;
+      ctx.font = `500 ${Math.round(ref / 34)}px system-ui, sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillText(NAMED.get(s.hr), x + r + 5, y);
       ctx.textAlign = 'center';
@@ -182,8 +198,18 @@ export function drawSkyView(ctx, o) {
   // One list of where names have already been put, shared by every track in
   // the frame: two different paths crossing the same patch of sky were happy
   // to write "Uranus" straight over "Mars".
+  //
+  // A BODY'S OWN NAME IS RESERVED BEFORE ITS PATH IS DRAWN.
+  //
+  // Every planet sits ON its own path, so the dot's label and the path's
+  // label landed side by side and the name appeared twice -- "Neptune" in
+  // yellow next to "Neptune" in white, for every planet at once. The bodies
+  // are drawn after the tracks, so the only way the tracks can know is to
+  // work out where those labels will go first and claim the space. The body
+  // wins the argument: the dot is the thing, the path is the context.
+  const placed = [];
+  reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed);
   if (o.tracks) {
-    const placed = [];
     for (const t of o.tracks) {
       drawTrack(ctx, t, basis, focal, cx, cy, w, h, night, placed);
     }
@@ -207,7 +233,7 @@ export function drawSkyView(ctx, o) {
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
-      ctx.font = `600 ${Math.round(h / 32)}px system-ui, sans-serif`;
+      ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillText(p.name, x + r + 5, y);
       ctx.textAlign = 'center';
@@ -226,7 +252,7 @@ export function drawSkyView(ctx, o) {
     if (q) {
       const x = cx + q.x, y = cy + q.y;
       const trueR = Math.tan(0.26 * Math.PI / 180) * focal;
-      const r = Math.max(h / 20, trueR);
+      const r = Math.max(ref / 20, trueR);
 
       // North and east as they run on screen at this point, measured from the
       // projection rather than assumed. The bright limb is at position angle
@@ -255,7 +281,7 @@ export function drawSkyView(ctx, o) {
       ctx.restore();
 
       ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
-      ctx.font = `600 ${Math.round(h / 32)}px system-ui, sans-serif`;
+      ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillText('Moon', x + r + 5, y);
       ctx.textAlign = 'center';
@@ -283,7 +309,7 @@ export function drawSkyView(ctx, o) {
   if (tp) {
     const x = cx + tp.x, y = cy + tp.y;
     onScreen = x > 0 && x < w && y > 0 && y < h;
-    const r = h / 14;
+    const r = ref / 14;
     ctx.strokeStyle = accent;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -297,7 +323,7 @@ export function drawSkyView(ctx, o) {
     // The label stays a fixed, readable size and sits just above the ring
     // rather than at a fixed offset -- otherwise it lands inside a large ring
     // when zoomed in and far above a small one when zoomed out.
-    const fontPx = Math.round(h / 24);
+    const fontPx = Math.round(ref / 24);
     ctx.fillStyle = accent;
     ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
@@ -318,11 +344,11 @@ export function drawSkyView(ctx, o) {
       ctx.fillStyle = col;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x, y, h / 46, 0, Math.PI * 2);
+      ctx.arc(x, y, ref / 46, 0, Math.PI * 2);
       if (o.iss.sunlit) ctx.fill(); else ctx.stroke();
-      ctx.font = `600 ${Math.round(h / 30)}px system-ui, sans-serif`;
+      ctx.font = `600 ${Math.round(ref / 30)}px system-ui, sans-serif`;
       ctx.textAlign = 'left';
-      ctx.fillText(o.iss.sunlit ? 'ISS' : 'ISS (in shadow)', x + h / 34, y);
+      ctx.fillText(o.iss.sunlit ? 'ISS' : 'ISS (in shadow)', x + ref / 34, y);
       ctx.textAlign = 'center';
     }
   }
@@ -339,9 +365,25 @@ export function drawSkyView(ctx, o) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(ang);
+    // AN ARROWHEAD, AND ONE BIG ENOUGH TO READ.
+    //
+    // It was a flat triangle 24 device pixels long, and -- alone among
+    // everything drawn here -- it was never scaled, so on a phone at dpr 2 it
+    // came out about 12 CSS pixels: a speck, and a shape that could as easily
+    // have been a star as a pointer. It is the only thing on screen saying
+    // which way to turn when the target is off the edge, so it has to be
+    // found at a glance.
+    //
+    // Swept back to a notch rather than cut straight across. A plain triangle
+    // reads as a wedge pointing either way; the concave tail is what makes an
+    // arrow an arrow.
+    const L = Math.max(22, ref / 12);
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.moveTo(14, 0); ctx.lineTo(-10, 9); ctx.lineTo(-10, -9);
+    ctx.moveTo(L * 0.52, 0);                 // tip
+    ctx.lineTo(-L * 0.48, L * 0.44);         // back corner
+    ctx.lineTo(-L * 0.22, 0);                // the notch
+    ctx.lineTo(-L * 0.48, -L * 0.44);        // other back corner
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -409,6 +451,48 @@ function moonFace(ctx, r, illuminated, night) {
  * at all, because projectToScreen refuses anything behind the viewer and
  * joining across that gap draws a line through the middle of the picture.
  */
+/**
+ * Claim the space each body's own name will take, before any path is drawn.
+ *
+ * Positions have to match what the drawing code below does exactly -- same
+ * visibility rules, same font, same offset -- or the reservation is for the
+ * wrong patch of screen and the duplicate comes back. Entries are stored as
+ * CENTRES because that is what the track labels are measured from.
+ */
+function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
+  const claim = (text, left, y, fontPx) => {
+    ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
+    const half = ctx.measureText(text).width / 2;
+    placed.push({ x: left + half, y, half });
+  };
+  if (o.planets) {
+    for (const p of o.planets) {
+      if (p.alt <= 0) continue;
+      const q = projectToScreen(p.v, basis, focal);
+      if (!q) continue;
+      const x = cx + q.x, y = cy + q.y;
+      if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
+      const r = Math.max(2.2, starRadius(p.magnitude) * 1.4);
+      claim(p.name, x + r + 5, y, Math.round(ref / 32));
+    }
+  }
+  if (o.moon) {
+    const q = projectToScreen(o.moon.v, basis, focal);
+    if (q) {
+      const x = cx + q.x, y = cy + q.y;
+      const r = Math.max(ref / 20, 8);
+      claim('Moon', x + r + 5, y, Math.round(ref / 32));
+    }
+  }
+  if (o.iss) {
+    const q = projectToScreen(altAzToVector(o.iss.alt, o.iss.az), basis, focal);
+    if (q) {
+      claim(o.iss.sunlit ? 'ISS' : 'ISS (in shadow)',
+        cx + q.x + ref / 34, cy + q.y, Math.round(ref / 30));
+    }
+  }
+}
+
 export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
                           placed = []) {
   const { points, colour, label, width = 1.6, dash = [7, 6] } = track;
@@ -451,7 +535,7 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
     ctx.setLineDash([]);
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = ink;
-    const fontPx = Math.round(h / 38);
+    const fontPx = Math.round(Math.min(w, h) / 38);
     ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
@@ -470,7 +554,14 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
     // of that -- two different names in one spot -- is covered by the same
     // rule as the repeats.
     const half = ctx.measureText(label).width / 2;
-    const gap = Math.max(fontPx * 3, h / 8);
+    // HOW OFTEN A PATH REPEATS ITS NAME. Reported as too dense: the Moon's
+    // track wrote "Moon" five times down one screen. The name repeats so that
+    // one is near wherever you happen to be looking, which wants roughly two
+    // or three down the longest run across the view -- not one every finger's
+    // width. The diagonal is that longest run, so the spacing comes from it
+    // rather than from the height, which says nothing about a path crossing
+    // the picture corner to corner.
+    const gap = Math.max(fontPx * 6, Math.hypot(w, h) / 3);
     const fits = (x, y) => !placed.some((r) => (
       Math.abs(r.x - x) < (r.half + half + fontPx) && Math.abs(r.y - y) < fontPx * 1.4
     ));

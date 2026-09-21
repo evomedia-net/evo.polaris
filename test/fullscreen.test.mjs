@@ -47,3 +47,41 @@ test('a desktop can never auto-fill', () => {
   assert.ok(appJs.includes('(pointer: coarse)'),
     'auto full screen must require a coarse-pointer (touch) device');
 });
+
+// NIGHT MODE MUST NOT BREAK FULL SCREEN.
+//
+// Dimming used to be `filter: brightness(0.7)` on body. A filter makes its
+// element the CONTAINING BLOCK for every position:fixed descendant, so in
+// Night Mode "fixed" meant "relative to body" -- as tall as the document.
+// The full-screen overlay sized itself to the document (a 780x7613 backing
+// store on a 390x844 phone) and the Auto/Manual button sat thousands of
+// pixels below the fold, where it could not be found at all. See #64.
+
+const css = readFileSync(
+  fileURLToPath(new URL('../site/src/style.css', import.meta.url)), 'utf8');
+
+test('nothing that contains the full-screen view carries a filter', () => {
+  // body and html are both ancestors of the overlay AND of the fixed
+  // Auto/Manual button, so a filter on either breaks both.
+  const offenders = css.split('\n').filter((l) =>
+    /^html\[data-night='on'\]\s+body\s*\{[^}]*filter:/.test(l)
+    || /^html\[data-night='on'\]\s*\{[^}]*filter:/.test(l));
+  assert.deepEqual(offenders, [],
+    'a filter on html or body makes it the containing block for '
+    + 'position:fixed, which is what hid the Auto/Manual button');
+});
+
+test('it dims with a veil instead, and the veil cannot be pressed', () => {
+  const i = css.indexOf("html[data-night='on'] body::after");
+  assert.notEqual(i, -1, 'the night veil is gone; the screen is undimmed');
+  const rule = css.slice(i, css.indexOf('}', i));
+  assert.match(rule, /position:\s*fixed/, 'the veil must cover the screen');
+  assert.match(rule, /inset:\s*0/);
+  assert.match(rule, /pointer-events:\s*none/,
+    'a veil over the whole screen that can take a press is a worse bug '
+    + 'than the one it fixed');
+  // 30% black over pure red reproduces brightness(0.7) exactly: 255 x 0.7 and
+  // 255 x (1 - 0.3) are both 178.5.
+  assert.match(rule, /opacity:\s*0\.3/,
+    'the veil must dim by the same amount the filter did');
+});

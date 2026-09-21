@@ -506,6 +506,7 @@ function applyMode() {
     if (skyFollow && !compassOn) startCompass();
     updateSkyMode();
     drawLiveSky();
+    autoLoadIss();
   } else {
     if (fullOn) { fullOn = false; applyFullScreen(); }
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -967,10 +968,45 @@ function stopCompass() {
   if (skyOn) { updateSkyMode(); drawLiveSky(); }
 }
 
-async function startCompass() {
-  const need = window.DeviceOrientationEvent
-    && typeof DeviceOrientationEvent.requestPermission === 'function';
-  if (need) {
+// IOS WILL ONLY ASK IF A FINGER ASKED FIRST.
+//
+// DeviceOrientationEvent.requestPermission() rejects unless it is called from
+// a user gesture. The sky view turns the compass on the moment it opens, which
+// is not one -- so on an iPhone the request was thrown away, the listener was
+// attached to a sensor nobody had granted, and the view sat on "waiting for
+// the phone's compass" for ever. The only way through was to press Use Manual
+// Mode and then Use Auto Mode, because THAT press is a gesture. Nothing said
+// so, and nobody would guess it.
+//
+// So when there is no gesture to spend, the ask is held until the next one --
+// any tap or key anywhere -- instead of being burnt. The status line says
+// that is what it is waiting for, because a permission prompt that appears
+// on an unrelated tap is worse than one you were told to expect.
+let compassGranted = false;
+let compassPending = false;
+
+const compassNeedsAsking = () => !!(window.DeviceOrientationEvent
+  && typeof DeviceOrientationEvent.requestPermission === 'function');
+
+function askOnNextGesture() {
+  if (compassPending) return;
+  compassPending = true;
+  updateSkyMode();
+  // `click` and `keydown`, not pointerdown: Safari counts a completed tap as
+  // the activation, and a touch that turns into a scroll is not one.
+  const ask = () => {
+    window.removeEventListener('click', ask, true);
+    window.removeEventListener('keydown', ask, true);
+    compassPending = false;
+    startCompass({ gesture: true });
+  };
+  window.addEventListener('click', ask, true);
+  window.addEventListener('keydown', ask, true);
+}
+
+async function startCompass({ gesture = false } = {}) {
+  if (compassNeedsAsking() && !compassGranted) {
+    if (!gesture) { askOnNextGesture(); return; }
     try {
       const ok = await DeviceOrientationEvent.requestPermission();
       if (ok !== 'granted') {
@@ -978,7 +1014,13 @@ async function startCompass() {
           'Compass permission was declined. The chart and the buttons still work.';
         return;
       }
-    } catch { /* fall through to the listener attempt */ }
+      compassGranted = true;
+    } catch {
+      // Refused for want of a gesture after all: wait for a better one rather
+      // than attaching a listener to a sensor nobody has granted.
+      askOnNextGesture();
+      return;
+    }
   }
   orientEvent = 'ondeviceorientationabsolute' in window
     ? 'deviceorientationabsolute' : 'deviceorientation';
@@ -997,7 +1039,7 @@ $('compassBtn').onclick = () => {
   // and only this button can withdraw it. The sky view's own follow toggle
   // borrows the compass and is not allowed to stop one someone else asked for.
   if (compassOn) { compassByUser = false; stopCompass(); }
-  else { compassByUser = true; startCompass(); }
+  else { compassByUser = true; startCompass({ gesture: true }); }
 };
 
 function onOrientation(e) {
@@ -1415,8 +1457,11 @@ function updateSkyMode() {
     // Either way the arrows are already on screen, so the view is usable
     // while it waits rather than frozen looking broken.
     $('skyMode').textContent =
-      `${when}Auto Mode is on, waiting for the phone's compass. If nothing `
-      + 'moves, this device is not reporting one — the arrows work meanwhile.';
+      compassPending
+        ? `${when}Auto Mode is on. Tap anywhere to let this phone share which `
+          + 'way it is pointing — it will ask once. The arrows work either way.'
+        : `${when}Auto Mode is on, waiting for the phone's compass. If nothing `
+          + 'moves, this device is not reporting one — the arrows work meanwhile.';
   } else {
     $('skyMode').textContent = `${when}Manual Mode. ${aimed.slice(when.length)}`;
   }
@@ -1497,7 +1542,7 @@ function setAim(az, alt) {
 // and a full-screen sky sliding under you is about the largest moving field
 // this app can produce. The rest of the app already honours the setting in
 // CSS, so honouring it here is not an extra kindness, it is consistency.
-const GLIDE_MS = 450;
+const GLIDE_MS = 900;
 // { raf, to } -- the pending frame AND where it was going, because a journey
 // that gets interrupted still has to end somewhere sensible.
 let glide = null;
@@ -1713,7 +1758,8 @@ $('skyPole').onclick = () => {
 $('modeBtn').onclick = () => {
   skyFollow = !skyFollow;
   if (skyFollow) {
-    if (!compassOn) startCompass();
+    // A press IS the gesture iOS wants, so this one can ask outright.
+    if (!compassOn) startCompass({ gesture: true });
   } else if (compassOn && !compassByUser) {
     // In this pane, following IS the compass, so turning it off here has to
     // actually stop the sensor -- otherwise the off switch switches nothing
@@ -1746,27 +1792,60 @@ window.addEventListener('keydown', (e) => {
 // Zoom by button. Pinching is a two-finger gesture and this app uses none.
 // The one networked feature, so it is a button rather than something that
 // happens on its own -- and it says what it talked to.
+// THE STATION IS FETCHED WHEN THE SKY OPENS, NOT ONLY WHEN ASKED.
+//
+// It used to be behind the button alone, so its path was missing from the map
+// and its row missing from the key until someone thought to press it -- and
+// nothing on screen said the feature existed. Everything else up there is
+// computed on the device; the station is the one thing that cannot be,
+// because there is no orbit bundled with the app to propagate.
+//
+// So this is the app's only unprompted call to anyone else's server. It sends
+// timestamps and nothing about the observer -- the look angles are worked out
+// here from the position that comes back -- and it fails silently, because a
+// dark field with no signal is the condition this app is built for and a
+// missing station is not an error worth a sentence.
+let issAutoTried = false;
+
+async function loadIss({ announce }) {
+  if (!site) return false;
+  const observer = {
+    lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000,
+  };
+  const iss = await fetchIss();
+  const look = lookAngles(observer, iss);
+  // The orbit is a second request, and losing it must not lose the position
+  // the first one already found -- the marker answers the question, the path
+  // is the bonus.
+  try {
+    issSamples = await fetchIssTrack(fetch, appTime());
+  } catch { issSamples = null; }
+  issFix = {
+    alt: look.alt, az: look.az, aboveHorizon: look.aboveHorizon,
+    sunlit: iss.sunlit,
+  };
+  issOn = true;
+  refreshSkyVectors();
+  updateLegend();
+  if (skyOn) { updateSkyMode(); drawLiveSky(); }
+  return { iss, look };
+}
+
+/** Quietly, on opening the sky. No banner, and no hijacking the ring. */
+async function autoLoadIss() {
+  if (issAutoTried || issOn || !site) return;
+  issAutoTried = true;
+  try { await loadIss({ announce: false }); } catch { /* no signal, no fuss */ }
+}
+
 $('issBtn').onclick = async () => {
   if (!site) { $('issOut').textContent = 'Set your position first.'; return; }
   $('issOut').textContent = 'Asking where the station is…';
   try {
-    const iss = await fetchIss();
-    const look = lookAngles(
-      { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
-      iss);
-    // And the orbit it is on. A second request, and a failure here must not
-    // lose the position the first one already found -- the marker is the
-    // answer to the question, the path is the bonus.
-    try {
-      issSamples = await fetchIssTrack(fetch, appTime());
-    } catch { issSamples = null; }
-    issFix = {
-      alt: look.alt, az: look.az, aboveHorizon: look.aboveHorizon,
-      sunlit: iss.sunlit,
-    };
-    issOn = true;
+    const { iss, look } = await loadIss({ announce: true });
     // Pressing this means "show me where it is", so it takes the ring and the
-    // arrow with it. "Find the pole" is the way back.
+    // arrow with it. The automatic load deliberately does not -- it is not a
+    // request to go and look. "Find the pole" is the way back.
     guideTarget = 'iss';
     const readAt = iss.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     $('issOut').textContent = `${describePass(look, iss)} Position read at ${readAt}. `
@@ -1777,13 +1856,6 @@ $('issBtn').onclick = async () => {
         : 'The orbit could not be fetched, so this is a single reading rather '
           + 'than a moving one, and it goes stale fast: it moves about 7 km a '
           + 'second.');
-    // The station's PATH is assembled in refreshSkyVectors from the samples,
-    // so rebuild rather than only redraw. Without this the key gained an ISS
-    // row up to twenty seconds before the line it refers to appeared -- a key
-    // pointing at something not on the map, which is the one thing it must
-    // never do.
-    refreshSkyVectors();
-    updateLegend();
     if (skyOn) { updateSkyMode(); drawLiveSky(); }
   } catch (err) {
     issOn = false;

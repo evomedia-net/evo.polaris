@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { drawTrack } from '../site/src/skydraw.js';
+import { drawTrack, drawSkyView } from '../site/src/skydraw.js';
 import { basisFromAim, focalLength, altAzToVector } from '../site/src/skyview.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -73,13 +73,26 @@ test('a two-point track — the shortest thing that draws — is named', () => {
   assert.ok(ctx.labels.length >= 1, 'the shortest drawable track lost its name');
 });
 
-test('a long track still gets its names spread along it', () => {
-  // The fix must not collapse to "one label, at the start". The point of
-  // repeating is that the name is near wherever you are looking.
+/** A track sweeping right across the view, not just through the middle. */
+function longTrack(label = 'Jupiter') {
+  const points = [];
+  for (let i = 0; i < 200; i++) {
+    points.push({ v: altAzToVector(45, -60 + (120 * i) / 199), up: true });
+  }
+  return { points, colour: '#e8d27a', label };
+}
+
+test('a long track repeats its name, but only a few times', () => {
+  // Two requirements pulling opposite ways. The name repeats so that one is
+  // near wherever you happen to be looking -- so not once. And it was
+  // reported as far too dense: the Moon's path wrote "Moon" five times down
+  // one screen -- so not many. Two or three across the view is the target.
   const ctx = recordingCtx();
-  drawTrack(ctx, trackAcrossView(60), BASIS, FOCAL, CX, CY, W, H, false);
-  assert.ok(ctx.labels.length >= 3,
-    `a 60-point track should carry several names, got ${ctx.labels.length}`);
+  drawTrack(ctx, longTrack(), BASIS, FOCAL, CX, CY, W, H, false);
+  assert.ok(ctx.labels.length >= 2,
+    `a path right across the view should carry more than one name, got ${ctx.labels.length}`);
+  assert.ok(ctx.labels.length <= 4,
+    `${ctx.labels.length} names across one view is the pile-up this fixed`);
   const xs = ctx.labels.map((l) => l.x);
   assert.ok(Math.max(...xs) - Math.min(...xs) > 50,
     'the names are bunched together instead of spread along the path');
@@ -209,4 +222,97 @@ test('every dash is long enough to read as a line, not a block', () => {
     assert.ok(Number(on) / Number(width) >= 3,
       `a dash ${on} long on a stroke ${width} thick is a block, not a dash`);
   }
+});
+
+// --- a body must not be named twice ------------------------------------------
+//
+// Reported with a screenshot: every planet on screen showed its name TWICE,
+// side by side -- "Neptune" in yellow next to "Neptune" in white, and the
+// same for Saturn, Mars, Uranus and the Moon.
+//
+// Not a coincidence, and not random: a planet sits ON its own path, so the
+// dot's label and the path's label are drawn within a few pixels of each
+// other by construction. The bodies are drawn AFTER the tracks, so the only
+// way a track can avoid its own body's name is to know where that name will
+// go before it is drawn.
+
+/** A context that records every piece of text and where it went. */
+function sceneCtx() {
+  const texts = [];
+  return {
+    texts,
+    fillStyle: '', strokeStyle: '', lineWidth: 0, globalAlpha: 1, font: '',
+    textAlign: '', textBaseline: '', globalCompositeOperation: '', filter: '',
+    lineCap: '', lineJoin: '',
+    save() {}, restore() {}, translate() {}, rotate() {}, scale() {},
+    beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {},
+    fill() {}, clearRect() {}, fillRect() {}, setLineDash() {}, clip() {},
+    arc() {}, ellipse() {}, quadraticCurveTo() {}, bezierCurveTo() {},
+    measureText(t) { return { width: String(t).length * 6 }; },
+    createRadialGradient() { return { addColorStop() {} }; },
+    createLinearGradient() { return { addColorStop() {} }; },
+    fillText(t, x, y) { texts.push({ t: String(t), x, y }); },
+    strokeText() {},
+  };
+}
+
+/**
+ * A planet sitting on its own path, positioned where the path WANTS to write
+ * its name -- which is the whole point.
+ *
+ * The first version of this put the planet at the centre of the view while
+ * the track's one label landed at the far edge, so nothing collided and the
+ * test passed with the fix switched off. A test that cannot fail is worse
+ * than no test. The planet now sits at the START of the track, which is
+ * where the first repeated name goes.
+ */
+function planetOnItsPath(name = 'Neptune', azStart = -30) {
+  const points = [];
+  for (let i = 0; i < 60; i++) {
+    points.push({ v: altAzToVector(45, azStart + (60 * i) / 59), up: true });
+  }
+  return {
+    planets: [{ name, v: altAzToVector(45, azStart), alt: 45,
+                magnitude: 5.8, colour: '#e8d27a' }],
+    tracks: [{ points, colour: '#ffe9a0', label: name }],
+  };
+}
+
+test('a planet is not named twice by its own path', () => {
+  const ctx = sceneCtx();
+  const { planets, tracks } = planetOnItsPath('Neptune');
+  drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, moon: null, iss: null,
+    planets, tracks,
+    aim: { az: 0, alt: 45 }, alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: 45, targetAz: 180, targetName: 'Polaris',
+    w: 780, h: 1688, fov: 65, night: false,
+  });
+  const named = ctx.texts.filter((t) => t.t === 'Neptune');
+  assert.ok(named.length >= 1, 'the planet lost its name altogether');
+  for (let i = 0; i < named.length; i++) {
+    for (let j = i + 1; j < named.length; j++) {
+      const a = named[i], b = named[j];
+      const apart = Math.hypot(a.x - b.x, a.y - b.y);
+      assert.ok(apart > 60,
+        `"Neptune" written twice ${apart.toFixed(0)}px apart -- the path is `
+        + 'repeating the name of the very dot it runs through');
+    }
+  }
+});
+
+test('the reservation does not silence the path everywhere', () => {
+  // The body wins the argument only where they collide. A path crossing the
+  // whole view must still say what it is somewhere away from its own dot.
+  const ctx = sceneCtx();
+  const { planets, tracks } = planetOnItsPath('Neptune');
+  drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, moon: null, iss: null,
+    planets, tracks,
+    aim: { az: 0, alt: 45 }, alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: 45, targetAz: 180, targetName: 'Polaris',
+    w: 780, h: 1688, fov: 65, night: false,
+  });
+  assert.ok(ctx.texts.filter((t) => t.t === 'Neptune').length >= 1,
+    'the name vanished entirely');
 });

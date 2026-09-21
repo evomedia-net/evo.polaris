@@ -2,58 +2,183 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { drawSkyView } from '../site/src/skydraw.js';
 
-// THE TARGET RING IS LOCKED TO THE SCREEN, AND THIS HAS BEEN FLIPPED TWICE.
+// THE TARGET RING IS THE SAME SIZE ON SCREEN, ALWAYS.
 //
-// The ring marks what you are aligning to -- Polaris in the north, sigma
-// Octantis in the south. It is h/14 pixels at every zoom.
+// It marks what you are aligning to. A reticle that changes size is one you
+// have to re-read every time it does, and on a phone held up in the dark that
+// is a real cost. It has now been got wrong twice, in opposite directions:
 //
-// It was briefly an ANGULAR size instead: a fixed 3.5 degrees of sky, put
-// through the same focal length as the stars, on the reading that "it should
-// not scale up when zooming out" meant it should hold its size against the
-// constellations. That made the ring grow and shrink as the field changed,
-// which is the thing this test exists to stop coming back.
+//   1. It was briefly an ANGULAR size -- a fixed patch of sky -- so it grew
+//      and shrank with the zoom.
+//   2. It was then h/14, which is the same as min(w,h)/14 right up until the
+//      canvas stops being wider than it is tall. Full screen in PORTRAIT it
+//      is the long side, and the ring went from 14% of the narrow side of the
+//      view to 31% of it -- reported as "the green ring is really big in full
+//      screen mode". The app fills the screen by itself when the phone turns,
+//      so the ring changed size as you rotated.
 //
-// The reasoning, so nobody re-derives it a third time: the ring is a RETICLE,
-// not a measurement. It says "your target is here". A marker that changes size
-// while you zoom is a marker you have to re-read at every zoom level, and on a
-// phone held up in the dark that is a real cost. The accepted trade is that at
-// the widest field the sky shrinks under a ring that does not, so the ring
-// covers more sky than it used to. If that ever needs softening, clamp it --
-// do not make it angular again.
-//
-// Verified in a browser at the time of the fix: radius 53px at the tightest
-// field, 53px at mid, 53px at the widest, with the canvas 743px tall (743/14).
+// So the test drives the real renderer at both shapes and compares, rather
+// than reading the source for whichever formula is currently in fashion.
 
 const skydraw = readFileSync(
   fileURLToPath(new URL('../site/src/skydraw.js', import.meta.url)), 'utf8');
 
-/** The block that draws the target ring. */
-const ringBlock = skydraw.slice(
-  skydraw.indexOf('// The target:'),
-  skydraw.indexOf('// The ISS,'));
+const ACCENT = '#7CFFB2';
 
-test('the ring radius is a fixed fraction of the canvas', () => {
-  assert.notEqual(ringBlock.length, 0, 'the target-ring block has moved');
-  assert.match(ringBlock, /const r = h \/ 14;/,
-    'the ring radius must be h/14 — a constant number of pixels');
+/** A canvas context that records the arcs and text it was asked to draw. */
+function stubCtx() {
+  const arcs = [];
+  const fills = [];
+  return {
+    arcs, fills,
+    // state the renderer sets and reads back
+    fillStyle: '', strokeStyle: '', lineWidth: 0, globalAlpha: 1, font: '',
+    textAlign: '', textBaseline: '', globalCompositeOperation: '', filter: '',
+    lineCap: '', lineJoin: '',
+    save() {}, restore() {}, translate() {}, rotate() {}, scale() {},
+    path: [],
+    beginPath() { this.path = []; }, closePath() {}, stroke() {},
+    moveTo(x, y) { this.path.push([x, y]); },
+    lineTo(x, y) { this.path.push([x, y]); },
+    fill() { if (this.path.length >= 3) fills.push({ pts: this.path.slice(), style: this.fillStyle }); },
+    clearRect() {}, fillRect() {}, setLineDash() {}, clip() {},
+    arc(x, y, r) { arcs.push({ x, y, r, stroke: this.strokeStyle }); },
+    ellipse() {}, quadraticCurveTo() {}, bezierCurveTo() {},
+    fillText() {}, strokeText() {},
+    measureText(t) { return { width: String(t).length * 6 }; },
+    createRadialGradient() { return { addColorStop() {} }; },
+    createLinearGradient() { return { addColorStop() {} }; },
+  };
+}
+
+/** Render one frame and return the radius of the accent-stroked ring. */
+function ringRadius(w, h) {
+  const ctx = stubCtx();
+  drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, tracks: null,
+    planets: null, moon: null, iss: null,
+    aim: { az: 0, alt: 45 },
+    alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: 45, targetAz: 0, targetName: 'Polaris',
+    w, h, fov: 65, night: false,
+  });
+  const ring = ctx.arcs.filter((a) => String(a.stroke).toLowerCase() === ACCENT.toLowerCase());
+  assert.equal(ring.length, 1, `expected one accent ring, got ${ring.length}`);
+  return ring[0].r;
+}
+
+test('the ring is the same size whatever shape the canvas is', () => {
+  // A phone at dpr 2: the windowed 3:2 canvas, full screen landscape, and
+  // full screen portrait. The last one is the case that broke.
+  const windowed = ringRadius(780, 520);
+  const landscape = ringRadius(1688, 780);
+  const portrait = ringRadius(780, 1688);
+  assert.equal(portrait, landscape,
+    `portrait ${portrait}px vs landscape ${landscape}px -- the ring changes `
+    + 'size when the phone is turned, and turning it is what fills the screen');
+  // The windowed canvas is shorter than either, so it is legitimately smaller;
+  // what matters is that it uses the same ruler.
+  assert.equal(windowed, 520 / 14);
+  assert.equal(portrait, 780 / 14);
 });
 
-test('the ring radius does not depend on the zoom', () => {
-  // `focal` is the only thing in this drawing code that carries the field of
-  // view, so the radius must not be computed from it.
-  const line = ringBlock.split('\n').find((l) => /const r =/.test(l));
-  assert.ok(line, 'no radius assignment found in the ring block');
-  assert.ok(!line.includes('focal'),
-    `the radius must not be derived from the focal length: ${line.trim()}`);
-  assert.ok(!/RING_DEG|Math\.tan/.test(ringBlock),
-    'the angular ring (RING_DEG / Math.tan) is back — see the note above');
+test('the ring does not depend on the zoom either', () => {
+  const ctx = (fov) => {
+    const c = stubCtx();
+    drawSkyView(c, {
+      sky: [], constellations: null, milkyWay: null, tracks: null,
+      planets: null, moon: null, iss: null,
+      aim: { az: 0, alt: 45 }, alpha: 0, beta: 90, gamma: 0, declination: 0,
+      targetAlt: 45, targetAz: 0, targetName: 'Polaris',
+      w: 780, h: 520, fov, night: false,
+    });
+    return c.arcs.find((a) => String(a.stroke).toLowerCase() === ACCENT.toLowerCase()).r;
+  };
+  assert.equal(ctx(10), ctx(65), 'the ring changed size with the field of view');
+  assert.equal(ctx(65), ctx(170), 'the ring changed size with the field of view');
 });
 
-test('the crosshair ticks follow the ring', () => {
-  // They are drawn at multiples of r, so they are screen-locked for free.
-  // Stated as a test because drawing them from `focal` would reintroduce the
-  // bug in a place nobody would look for it.
-  assert.match(ringBlock, /r \* 1\.7/, 'the crosshair ticks must scale off r');
-  assert.match(ringBlock, /r \* 1\.15/, 'the crosshair ticks must scale off r');
+test('the short side is the ruler, and it is used everywhere', () => {
+  // Every size drawn at a fixed scale on screen reads from one reference, so
+  // the ring cannot drift away from the labels beside it.
+  assert.match(skydraw, /const ref = Math\.min\(w, h\);/,
+    'the single reference dimension is gone');
+  const body = skydraw.slice(skydraw.indexOf('export function drawSkyView'),
+    skydraw.indexOf('export function drawTrack'));
+  const bareH = body.split('\n')
+    .filter((l) => /\bh \/ \d/.test(l) && !/cy = h \/ 2/.test(l));
+  assert.deepEqual(bareH, [],
+    `these still measure against the canvas height instead of the short side:\n`
+    + bareH.join('\n'));
+});
+
+test('the angular ring does not come back', () => {
+  const block = skydraw.slice(skydraw.indexOf('// The target:'),
+    skydraw.indexOf('// The ISS,'));
+  assert.ok(!/RING_DEG|Math\.tan/.test(block),
+    'the angular ring is back — see the note at the top of this file');
+  const line = block.split('\n').find((l) => /const r =/.test(l));
+  assert.ok(line && !line.includes('focal'),
+    `the radius must not be derived from the focal length: ${line}`);
+});
+
+// --- the off-screen pointer --------------------------------------------------
+//
+// When the target is off the edge, this arrow is the ONLY thing on screen
+// saying which way to turn. It was a flat triangle 24 device pixels long and,
+// alone among everything drawn here, was never scaled -- about 12 CSS pixels
+// on a phone at dpr 2. Reported as wanting to be "a bit bigger and a little
+// more arrow looking".
+
+/** The arrow's path, rendered with the target behind the viewer. */
+function arrowPath(w, h) {
+  const ctx = stubCtx();
+  drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, tracks: null,
+    planets: null, moon: null, iss: null,
+    aim: { az: 0, alt: 45 },
+    alpha: 0, beta: 90, gamma: 0, declination: 0,
+    // Directly behind: guaranteed off screen, so the pointer is drawn.
+    targetAlt: -20, targetAz: 180, targetName: 'Polaris',
+    w, h, fov: 65, night: false,
+  });
+  const arrow = ctx.fills.filter(
+    (f) => String(f.style).toLowerCase() === ACCENT.toLowerCase());
+  assert.equal(arrow.length, 1, `expected one accent arrow, got ${arrow.length}`);
+  return arrow[0].pts;
+}
+
+test('the pointer is an arrow, not a triangle', () => {
+  // Four corners: tip, two swept-back corners, and the notch between them.
+  // A plain triangle reads as a wedge that could be pointing either way.
+  const pts = arrowPath(780, 1688);
+  assert.equal(pts.length, 4,
+    `an arrowhead has four corners including the notch, got ${pts.length}`);
+  const xs = pts.map((p) => p[0]).sort((a, b) => a - b);
+  // Sorted, the two swept-back corners share the lowest x, the notch sits
+  // between them and the tip, and the tip is furthest forward. (Indexing this
+  // as xs[1] was wrong first time round: that is the SECOND back corner.)
+  const [back, back2, notch, tip] = xs;
+  assert.equal(back, back2, 'the two back corners must be level with each other');
+  assert.ok(notch > back,
+    'the tail must be notched inward, which is what makes it an arrow');
+  assert.ok(notch < 0, 'the notch belongs behind the middle, not in front of it');
+  assert.ok(tip > 0 && back < 0, 'the arrow must straddle its own origin');
+  // And it must point somewhere: clearly longer than it is half-wide.
+  const ys = pts.map((p) => p[1]);
+  assert.ok((tip - back) > (Math.max(...ys) - Math.min(...ys)) * 0.9,
+    'a pointer wider than it is long does not read as pointing');
+});
+
+test('the pointer grows with the view, like everything else does', () => {
+  const small = arrowPath(780, 520);
+  const big = arrowPath(1688, 1688);
+  const len = (pts) => Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]));
+  assert.ok(len(big) > len(small),
+    'the arrow is a fixed pixel size again — on a phone that is a speck');
+  // And it is a real size, not the 12 CSS pixels it used to be.
+  assert.ok(len(arrowPath(780, 1688)) >= 50,
+    'the arrow is too small to find at a glance');
 });
