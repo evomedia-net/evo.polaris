@@ -256,22 +256,26 @@ export function drawSkyView(ctx, o) {
 
   // The target: the pole itself, ringed, because that is what you align to.
   //
-  // THE RING IS AN ANGULAR SIZE, NOT A FIXED NUMBER OF PIXELS. It used to be
-  // h/14 px regardless of zoom, so widening the field kept the ring the same
-  // size on screen while the sky it sat in shrank -- the ring appeared to grow
-  // and swallow the constellations. Now it circles a fixed patch of SKY (about
-  // 3.5 degrees of radius), projected through the same focal length as the
-  // stars, so it holds its scale against them at every zoom. Clamped so it is
-  // never smaller than a marker at the widest field nor larger than a quarter
-  // of the view at the tightest.
-  const RING_DEG = 3.5;
+  // THE RING IS LOCKED TO THE SCREEN: h/14 px at every zoom.
+  //
+  // THIS HAS BEEN FLIPPED TWICE, SO THE REASONING IS WRITTEN DOWN. It was
+  // briefly an angular size (a fixed 3.5 degrees of sky, projected through the
+  // focal length) on the reading that "it should not scale up when zooming
+  // out" meant it should hold its size AGAINST THE STARS. It does not. The
+  // ring is a reticle, not a measurement: it says "your target is here", and a
+  // marker that changes size while you zoom is a marker you have to re-read
+  // every time. Screen-locked is the decision.
+  //
+  // The known cost, which is real and was the reason for the angular attempt:
+  // at the widest field the sky shrinks under a ring that does not, so the
+  // ring covers more constellations than it did. That is accepted. If it ever
+  // needs softening, clamp it -- do not make it angular again.
   const tp = projectToScreen(altAzToVector(targetAlt, targetAz), basis, focal);
   let onScreen = false;
   if (tp) {
     const x = cx + tp.x, y = cy + tp.y;
     onScreen = x > 0 && x < w && y > 0 && y < h;
-    const r = Math.max(h / 40, Math.min(h / 4,
-      focal * Math.tan(RING_DEG * Math.PI / 180)));
+    const r = h / 14;
     ctx.strokeStyle = accent;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -397,7 +401,7 @@ function moonFace(ctx, r, illuminated, night) {
  * at all, because projectToScreen refuses anything behind the viewer and
  * joining across that gap draws a line through the middle of the picture.
  */
-function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night) {
+export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night) {
   const { points, colour, label, labelEvery = 14, width = 1.6, dash = [7, 6] } = track;
   if (!points || points.length < 2) return;
 
@@ -433,7 +437,13 @@ function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night) {
     ctx.font = `600 ${Math.round(h / 38)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    for (let i = Math.floor(labelEvery / 2); i < seen.length; i += labelEvery) {
+    // AT LEAST ONE NAME, ALWAYS. The first label sits half an interval in so
+    // repeated names land evenly along a long path -- but a track that only
+    // clips the corner of the view can have fewer on-screen points than that
+    // offset, and the loop then ran zero times and left an anonymous dashed
+    // line, which is the one thing a track must never be.
+    const first = Math.min(Math.floor(labelEvery / 2), seen.length - 1);
+    for (let i = first; i < seen.length; i += labelEvery) {
       ctx.fillText(label, seen[i][0], seen[i][1] - 4);
     }
     ctx.textBaseline = 'middle';

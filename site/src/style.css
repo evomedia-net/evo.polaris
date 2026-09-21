@@ -499,22 +499,32 @@ details[open] > .card-head::after {
 details.card[open] > .card-head { margin-bottom: 0.9rem; }
 details.card:not([open]) { padding-bottom: 1rem; }
 
+/* NOT A FLEX CONTAINER, AND THAT IS THE WHOLE POINT.
+ *
+ * These headings mix text with inline spans the app rewrites by hemisphere:
+ * "Which way is <span>true north</span>?". A flex container makes an anonymous
+ * flex item of every RUN of text and throws away the whitespace-only runs
+ * between them -- so the spaces in the markup stopped rendering and the
+ * headings read "Which way istrue north?" and "FindPolarisin the sky".
+ *
+ * This was met once before from the other side: a `gap` here put air around
+ * the punctuation ("Which way is | true north | ?"), and removing the gap
+ * traded too much spacing for none at all. Both are the same cause. Ordinary
+ * inline flow has no anonymous items and no gap, so the spaces are simply the
+ * spaces; the step circle carries its own margin and sits inline with the
+ * text. */
 .card h2 {
-  display: flex;
-  align-items: center;
-  /* No gap. A flex container makes an anonymous item of every run of text, so
-     a gap here fell between the words too -- "Which way is | true north | ?"
-     read as three separate things with air around the punctuation. The space
-     belongs to the step circle alone. */
-  flex-wrap: wrap;
   margin: 0 0 0.9rem;
   font-size: 1.15rem;
   font-weight: 650;
 }
 
 .step {
-  display: grid;
+  /* inline-grid, so the circle sits in the sentence rather than turning the
+     heading into a flex row. place-items still centres the numeral in it. */
+  display: inline-grid;
   place-items: center;
+  vertical-align: middle;
   margin-right: 0.6rem;
   width: 1.9rem;
   height: 1.9rem;
