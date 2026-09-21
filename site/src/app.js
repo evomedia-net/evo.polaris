@@ -184,7 +184,29 @@ function applyAppearance() {
   // day and then opening the docs should not leave them red either.
   $('docsLink').href = `${DOCS_URL}?night=${night ? 'on' : 'off'}`;
 
+  pinHeader();
   render();
+}
+
+/**
+ * Keep the header pinned only while it still leaves room for the app.
+ *
+ * The bar wraps (see style.css), so raising the text raises its height, and on
+ * a short screen -- a phone on a call, where the in-call banner takes a slice
+ * off the top -- a pinned bar at large text can hold most of the viewport.
+ * Past a third of the screen it is doing more harm than the stickiness is
+ * worth, so it scrolls away and gives the page back.
+ *
+ * This is measured rather than written as a media query because the thing that
+ * drives it is the text scale, and that lives here, not in CSS.
+ */
+function pinHeader() {
+  const bar = document.querySelector('.bar');
+  if (!bar) return;
+  // Measure unpinned, or the measurement is of the state we are deciding.
+  bar.classList.remove('unpinned');
+  const tall = bar.getBoundingClientRect().height > window.innerHeight / 3;
+  bar.classList.toggle('unpinned', tall);
 }
 
 $('textBigger').onclick = () => {
@@ -1177,6 +1199,10 @@ function onViewportChanged() {
 
 window.addEventListener('resize', onViewportChanged);
 window.addEventListener('orientationchange', onViewportChanged);
+// Separate listeners: onViewportChanged returns early when the sky pane is
+// off, and the header is on every screen.
+window.addEventListener('resize', pinHeader);
+window.addEventListener('orientationchange', pinHeader);
 if (landscapeMq) {
   // On a phone this can arrive before the resize does.
   if (landscapeMq.addEventListener) {

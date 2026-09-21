@@ -252,11 +252,28 @@ html[data-night='on'] .evo-chrome-brand svg rect {
 html[data-night='on'] .evo-chrome-brand svg g { stroke: var(--ink); }
 html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
 
+/* THE BAR WRAPS, AND THAT IS NOT COSMETIC.
+ *
+ * Every control here is sized in rem, so A+ scales the buttons along with the
+ * text -- and four of them on one unwrapping row stopped fitting a phone the
+ * moment the text grew. The row did not squeeze, it overflowed: at 1.8x the
+ * document came out 688px wide inside a 375px screen, 83% wider than the
+ * glass.
+ *
+ * On iOS Safari a page with somewhere to go sideways spends vertical swipes
+ * going there, so the symptom was not a header that looked wrong -- it was a
+ * page that would not scroll. The app's own accessibility control was what
+ * broke it, which makes the largest text the least usable setting, exactly
+ * backwards.
+ *
+ * Wrapping costs a taller header and owes nothing sideways. See .bar.unpinned
+ * for the other half: a tall header must not also be a stuck one. */
 .bar {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
@@ -265,15 +282,38 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
   border-bottom: 1px solid var(--line);
 }
 
+/* A STICKY HEADER HAS TO LEAVE ROOM FOR THE PAGE.
+ *
+ * Wrapped at 1.8x the bar is around 60% of a short screen -- and a phone on a
+ * call is a short screen, because the in-call banner takes a slice off the
+ * top. Pinning that leaves a sliver to read the app through, which reads as
+ * "it won't scroll" just as surely as the overflow did.
+ *
+ * So past a share of the viewport the bar stops being pinned and scrolls away
+ * like any other content. app.js measures it, because the trigger is the text
+ * scale and only script knows that number. */
+.bar.unpinned { position: static; }
+
 .bar h1 {
   margin: 0;
+  /* Let the wordmark give up width before the row does. */
+  min-width: 0;
   font-size: 1.25rem;
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 .bar .dot { color: var(--accent); }
 
-.bar-actions { display: flex; gap: 0.4rem; }
+/* Buttons keep their --tap footprint and wrap onto a second row rather than
+   shrinking below it: a target pressed in the dark with a mouthstick does not
+   get to be smaller because the label got longer. Right-aligned so the ragged
+   row sits under the ones above it instead of drifting left. */
+.bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
 
 .icon-btn {
   min-width: var(--tap);
@@ -813,7 +853,13 @@ html[data-night='on'][data-skyfull='on'] .mode-btn {
    this app. Single taps, big targets, and they never move. */
 .sky-pad {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  /* minmax(0, 1fr), NOT 1fr. A bare 1fr is minmax(AUTO, 1fr), and that auto
+     floor is the widest the content refuses to go below -- so at large text
+     the three columns stopped fitting the phone and the grid pushed the whole
+     page sideways rather than narrowing. The pad has to keep its shape (the
+     3x3 arrangement IS which way you are looking), so the columns give way and
+     the labels wrap instead. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas: ". up ." "left mid right" ". down .";
   gap: 0.5rem;
   margin: 0.6rem 0;
@@ -826,7 +872,23 @@ html[data-night='on'][data-skyfull='on'] .mode-btn {
 /* Two to a row, so the padding has to come in a little -- at the full 1.05rem
    "Show more sky" wrapped while "Show less sky" did not, which reads as a
    layout accident rather than a pair. */
-.sky-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+/* Two to a row WHILE TWO FIT, one to a row after that.
+   Unlike the pad, nothing here is spatial -- "Hide the Milky Way" does not
+   mean anything by sitting on the right -- so the honest answer at large text
+   is a single column rather than two squeezed ones. auto-fit does it without
+   a breakpoint, and because the floor is in rem it moves with the text size:
+   at 1.8x one column of 10rem no longer leaves room for a second, so the grid
+   drops to one by itself. */
+.sky-controls {
+  display: grid;
+  /* min(10rem, 100%) rather than a bare 10rem: the floor is in rem, so it
+     grows with the text too, and at 1.8x a 10rem floor is wider than the
+     column it has to sit in -- which put the page back over the edge by a
+     few pixels. Capping the floor at the full width means it can never ask
+     for more room than there is. */
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  gap: 0.6rem;
+}
 .sky-controls .big-btn {
   margin: 0.4rem 0 0;
   padding: 0.85rem 0.5rem;
