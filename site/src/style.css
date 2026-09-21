@@ -773,6 +773,55 @@ html[data-night='on'] .map-btn {
 
 /* Bottom right: fill the screen. Semi-large, and the same corner a video
    player puts it in. */
+/* THE KEY TO THE DASHED PATHS.
+ *
+ * Top right, which is the one corner of the map with nothing in it. It sits
+ * on the picture in BOTH states, like every other on-map control, so that
+ * nothing appears or vanishes as the map fills the screen.
+ *
+ * pointer-events: none because a key is not a control. It overlaps the sky,
+ * and a plate that quietly ate a tap meant for the map would be a bug that
+ * only ever showed up outdoors in the dark.
+ */
+.sky-legend {
+  position: absolute;
+  top: max(0.6rem, env(safe-area-inset-top));
+  right: max(0.6rem, env(safe-area-inset-right));
+  z-index: 2;
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  list-style: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #f2f5fa;
+  background: rgba(10, 14, 24, 0.72);
+  border: 1px solid rgba(232, 236, 244, 0.45);
+  border-radius: 0.9rem;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+@supports (backdrop-filter: blur(3px)) {
+  .sky-legend { backdrop-filter: blur(3px); }
+}
+.leg-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+/* In rem, so the swatch grows with the text like the words beside it. */
+.leg-line { width: 1.8rem; height: 0.5rem; flex: 0 0 auto; }
+/* Still a plate, still red, still nothing filled brightly. The swatch colours
+   are set in script from the same table the paths use. */
+html[data-night='on'] .sky-legend {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.72);
+  border-color: var(--ink);
+  box-shadow: none;
+}
+
 .map-full {
   right: max(0.6rem, env(safe-area-inset-right));
   bottom: max(0.6rem, env(safe-area-inset-bottom));
@@ -790,7 +839,14 @@ html[data-night='on'] .map-btn {
    two things to keep in step, and the one that was wrong would look perfectly
    normal. The overlay is position:fixed at inset 0, so a fixed button lands on
    it at the same coordinates without being a child of it. */
-html[data-skyfull='on'] .mode-btn {
+/* :not([role='tab']) BECAUSE .mode-btn NAMES TWO DIFFERENT CONTROLS.
+   The pane tabs ("Tonight's sky" / "Align my mount") wear it, and so does the
+   Auto/Manual button below the map. Unqualified, this rule lifted all three
+   onto the overlay and stacked the tabs on top of the steering button at the
+   bottom centre -- "Ali|Use Auto|unt" -- with part of a tab left tappable over
+   the sky. The tabs are page chrome: dropping them back into normal flow puts
+   them behind the opaque full-screen overlay, which is where they belong. */
+html[data-skyfull='on'] .mode-btn:not([role='tab']) {
   position: fixed;
   z-index: 60;
   color: #f2f5fa;
@@ -809,7 +865,7 @@ html[data-skyfull='on'] .mode-btn {
   background: rgba(10, 14, 24, 0.72);
   border-radius: 0.9rem;
 }
-html[data-night='on'][data-skyfull='on'] .mode-btn {
+html[data-night='on'][data-skyfull='on'] .mode-btn:not([role='tab']) {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.72);
   border-color: var(--ink);

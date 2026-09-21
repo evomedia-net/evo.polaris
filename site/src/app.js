@@ -115,6 +115,50 @@ let lastOnTarget = false;
 // four cards down, which is a long way to go to find the Big Dipper.
 let mode = store.get('mode', 'sky');
 
+// HOW EACH DASHED PATH LOOKS, IN ONE PLACE.
+//
+// The key on the map and the paths themselves read from this, so they cannot
+// drift apart -- a legend that disagrees with the picture is worse than none.
+//
+// EACH PATH HAS ITS OWN DASH, NOT ONLY ITS OWN COLOUR. In Night Mode every
+// track collapses to a shade of red, which is the entire point of Night Mode,
+// so a key that told them apart by hue alone would be useless exactly where
+// this app is used -- outdoors, in the dark. It is the WCAG 1.4.1 rule too:
+// colour must not be the only thing carrying a difference, which matters just
+// as much to a red-green colour-blind user in daylight. The Moon and the
+// planets shared a dash before this and were told apart by hue alone.
+const TRACK_STYLE = {
+  iss:     { colour: '#7fd4ff', nightColour: '#c00000', dash: [14, 6], width: 2 },
+  planets: { colour: '#ffe9a0', nightColour: '#8b0000', dash: [7, 6], width: 1.4 },
+  moon:    { colour: '#e6e6e6', nightColour: '#a00000', dash: [2, 5], width: 1.6 },
+};
+
+/**
+ * The key shows exactly the paths that are on the map, and nothing else.
+ *
+ * A key to something that is not there sends someone hunting the sky for a
+ * line that was never drawn, so each row appears with its path and goes with
+ * it -- and the whole plate disappears when nothing is drawn at all.
+ */
+function updateLegend() {
+  let any = false;
+  for (const [id, key, on] of [
+    ['legIss', 'iss', !!issSamples],
+    ['legPlanets', 'planets', skyShowPlanets],
+    ['legMoon', 'moon', skyShowMoon],
+  ]) {
+    const row = $(id);
+    row.hidden = !on;
+    if (!on) continue;
+    any = true;
+    const style = TRACK_STYLE[key];
+    const line = row.querySelector('line');
+    line.setAttribute('stroke', night ? style.nightColour : style.colour);
+    line.setAttribute('stroke-dasharray', style.dash.join(' '));
+  }
+  $('skyLegend').hidden = !any;
+}
+
 // The paths bodies move along, rebuilt on the slow tick with everything else.
 let skyTracks = [];
 // The station's sampled orbit, kept raw so the path can be re-laid whenever
@@ -215,6 +259,7 @@ function applyAppearance() {
   // day and then opening the docs should not leave them red either.
   $('docsLink').href = `${DOCS_URL}?night=${night ? 'on' : 'off'}`;
 
+  updateLegend();
   pinHeader();
   render();
 }
@@ -1122,16 +1167,16 @@ function refreshSkyVectors() {
     for (const { name, points } of allPlanetTracks(when)) {
       skyTracks.push({
         points: placeTrack(points, lst, site.lat, precess),
-        colour: '#ffe9a0', nightColour: '#8b0000',
-        label: name, labelEvery: 12, width: 1.4,
+        ...TRACK_STYLE.planets,
+        label: name, labelEvery: 12,
       });
     }
   }
   if (skyShowMoon) {
     skyTracks.push({
       points: placeTrack(moonTrack(when), lst, site.lat),   // already of date
-      colour: '#e6e6e6', nightColour: '#a00000',
-      label: 'Moon', labelEvery: 16, width: 1.6,
+      ...TRACK_STYLE.moon,
+      label: 'Moon', labelEvery: 16,
     });
   }
   if (issSamples) {
@@ -1141,10 +1186,11 @@ function refreshSkyVectors() {
       points: orbitLookAngles(issSamples,
         { lat: site.lat, lon: site.lon, heightKm: (site.altitude || 0) / 1000 },
         when).map((p) => ({ v: altAzToVector(p.alt, p.az), up: p.up })),
-      colour: '#7fd4ff', nightColour: '#c00000',
-      label: 'ISS', labelEvery: 22, width: 2, dash: [5, 5],
+      ...TRACK_STYLE.iss,
+      label: 'ISS', labelEvery: 22,
     });
   }
+  updateLegend();
 }
 
 /**
@@ -1529,6 +1575,13 @@ $('issBtn').onclick = async () => {
         : 'The orbit could not be fetched, so this is a single reading rather '
           + 'than a moving one, and it goes stale fast: it moves about 7 km a '
           + 'second.');
+    // The station's PATH is assembled in refreshSkyVectors from the samples,
+    // so rebuild rather than only redraw. Without this the key gained an ISS
+    // row up to twenty seconds before the line it refers to appeared -- a key
+    // pointing at something not on the map, which is the one thing it must
+    // never do.
+    refreshSkyVectors();
+    updateLegend();
     if (skyOn) { updateSkyMode(); drawLiveSky(); }
   } catch (err) {
     issOn = false;
@@ -1564,15 +1617,22 @@ $('skyJump').onclick = () => {
   drawLiveSky();
 };
 
+// Both of these rebuild rather than just redraw. The tracks are assembled in
+// refreshSkyVectors and gated on these same switches, so a plain redraw left
+// the PATHS on screen until the twenty-second tick came round -- the dot
+// vanished and its labelled line stayed, which is the one combination the
+// tracks were written to avoid.
 $('skyPlanets').onclick = () => {
   skyShowPlanets = !skyShowPlanets;
   $('skyPlanets').textContent = skyShowPlanets
     ? 'Hide the planets' : 'Show the planets';
+  refreshSkyVectors();
   drawLiveSky();
 };
 $('skyMoon').onclick = () => {
   skyShowMoon = !skyShowMoon;
   $('skyMoon').textContent = skyShowMoon ? 'Hide the Moon' : 'Show the Moon';
+  refreshSkyVectors();
   drawLiveSky();
 };
 

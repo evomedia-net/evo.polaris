@@ -165,6 +165,24 @@
              there is nowhere else -- and because "change what I am looking at"
              belongs where you are looking, not under a wall of text. -->
 
+        <!-- TOP RIGHT: what the dashed paths are.
+
+             The only corner with nothing in it -- fill-the-screen and the
+             zoom are bottom right, the pad is bottom left, the mode button is
+             bottom centre.
+
+             A real list of real text, not painted onto the canvas: it is read
+             out by a screen reader, it grows with A+ like everything else,
+             and it never becomes part of a picture somebody cannot see. The
+             dash of each swatch is set from the same definition the paths are
+             drawn from, so the key cannot disagree with the map. -->
+        <ul class="sky-legend" id="skyLegend"
+            aria-label="What the dashed paths mean" hidden>
+          <li class="leg-row" id="legIss" hidden><svg class="leg-line" viewBox="0 0 28 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="27" y2="4" stroke-width="2.5"/></svg>ISS</li>
+          <li class="leg-row" id="legPlanets" hidden><svg class="leg-line" viewBox="0 0 28 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="27" y2="4" stroke-width="2.5"/></svg>Planets</li>
+          <li class="leg-row" id="legMoon" hidden><svg class="leg-line" viewBox="0 0 28 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="27" y2="4" stroke-width="2.5"/></svg>Moon</li>
+        </ul>
+
         <!-- Bottom right: fill the screen, and leave it again. -->
         <button id="fullBtn" class="map-btn map-full"
                 aria-label="Fill the screen"><span id="fullGlyph" aria-hidden="true">&#9974;</span></button>
