@@ -2,8 +2,13 @@
  *
  * Design constraints, in priority order:
  *   1. Readable outdoors in the dark by someone who may have low vision.
- *   2. Operable with one unsteady hand, a mouthstick, or a trackball -- so:
- *      single taps only, no drag, no pinch, no double-tap, no press-and-hold.
+ *   2. Operable with one unsteady hand, a mouthstick, or a trackball. No
+ *      pinch, no double-tap, no press-and-hold -- and NOTHING THAT ONLY A
+ *      DRAG CAN DO. The sky map can be tapped to centre and dragged to move,
+ *      but the pan pad reaches every direction both of those reach, through
+ *      the same code and the same limits. The gesture is a shortcut for the
+ *      buttons; the buttons are never a fallback for the gesture. A tap
+ *      tolerates ten pixels of wander before it counts as a drag.
  *   3. Targets stay put. Nothing reflows or moves under the pointer when a
  *      value updates, because re-acquiring a moved target is expensive.
  *   4. Night mode is red-on-black: white light destroys dark adaptation, and
@@ -714,6 +719,11 @@ html[data-night='on'] .live-sky canvas { background: #000; }
   background: var(--bg);
 }
 .live-sky.full canvas {
+  /* The gesture only exists here, so the browser only hands over the pointer
+     here. Windowed, the map sits in a scrolling page and a finger dragged
+     across it must still scroll that page -- taking it over would rebuild the
+     "it will not scroll" bug this app has already had once. */
+  touch-action: none;
   display: block;
   width: 100%;
   height: 100%;

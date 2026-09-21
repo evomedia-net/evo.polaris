@@ -10,6 +10,7 @@ import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
+  screenToVector, aimAfterDrag, basisFromAim, focalLength, vectorToAltAz,
 } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
@@ -1371,7 +1372,10 @@ function aimTarget(issLook) {
 
 function aimAtPole() {
   if (!solution) return;
-  skyAim = { az: solution.poleAzimuth, alt: Math.abs(solution.latitudeSetting) };
+  // Clamped like every other way of aiming. At the poles the setting is 90,
+  // which is past where the arrows are allowed to go -- and an aim the buttons
+  // cannot hold is an aim they cannot take back over from.
+  skyAim = clampAim(solution.poleAzimuth, Math.abs(solution.latitudeSetting));
 }
 
 function updateSkyMode() {
@@ -1449,17 +1453,123 @@ function updateSkyMode() {
   // it says: the buttons take over.
 }
 
-function pan(dAz, dAlt) {
-  // Any button press drops out of follow mode: the alternative is fighting the
-  // sensor for control, which is worse than either mode alone.
-  skyFollow = false;
-  skyAim = {
-    az: ((skyAim.az + dAz) % 360 + 360) % 360,
-    alt: Math.max(-30, Math.min(89, skyAim.alt + dAlt)),
+// How far the view may be pointed. The pad, a tap and a drag all go through
+// setAim, so they reach exactly the same places -- which is not tidiness, it
+// is the rule: a drag must never get somewhere the buttons cannot.
+const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;
+
+/** Where the view is allowed to point. Nothing sets the aim without this. */
+function clampAim(az, alt) {
+  return {
+    az: ((az % 360) + 360) % 360,
+    alt: Math.max(AIM_MIN_ALT, Math.min(AIM_MAX_ALT, alt)),
   };
+}
+
+function setAim(az, alt) {
+  // Any hand steering drops out of follow mode: the alternative is fighting
+  // the sensor for control, which is worse than either mode alone.
+  skyFollow = false;
+  skyAim = clampAim(az, alt);
   updateSkyMode();
   drawLiveSky();
 }
+
+function pan(dAz, dAlt) {
+  setAim(skyAim.az + dAz, skyAim.alt + dAlt);
+}
+
+// --- touching the map -------------------------------------------------------
+//
+// TAP TO CENTRE, DRAG TO MOVE -- AND NEITHER IS THE ONLY WAY TO DO ANYTHING.
+//
+// The pan pad reaches every direction these do, through the same setAim and
+// the same limits, so nothing here is a capability that belongs only to people
+// who can drag. That is the condition this was added under. The pad is not a
+// fallback for the gesture; the gesture is a shortcut for the pad.
+//
+// A TAP IS A DRAG THAT DID NOT MOVE, which is the only definition that works
+// for an unsteady hand: ten pixels of wander still means "tap". Anything
+// further is a drag, and a drag that went nowhere useful is still not a tap.
+const TAP_SLOP = 10;
+
+// Dragging is full screen only, and that is not an oversight. Windowed, the
+// map is part of a scrolling page and a finger dragged across it is how the
+// page is scrolled -- taking that over would recreate exactly the "the page
+// will not scroll" bug this app already had once. Full screen there is no page
+// to scroll, so the gesture is free. A tap is safe in both, and is the one
+// that matters for a hand that cannot drag anyway.
+let drag = null;
+
+/** True when the buttons are steering -- the same test the pad is shown by. */
+function handSteering() {
+  return skyOn && !(skyFollow && rawAlpha !== null);
+}
+
+/** A pointer event as offsets from the centre of the canvas, in ITS pixels. */
+function mapOffset(e) {
+  const c = $('liveSky');
+  const box = c.getBoundingClientRect();
+  if (!box.width || !box.height) return null;
+  return {
+    x: (e.clientX - box.left) * (c.width / box.width) - c.width / 2,
+    y: (e.clientY - box.top) * (c.height / box.height) - c.height / 2,
+  };
+}
+
+/** The view basis the map is currently drawn with, for manual aim. */
+function aimBasis() {
+  return basisFromAim(skyAim.az, skyAim.alt, 0);
+}
+
+$('liveSky').addEventListener('pointerdown', (e) => {
+  if (!handSteering()) return;
+  const at = mapOffset(e);
+  if (!at) return;
+  const c = $('liveSky');
+  const basis = aimBasis();
+  const focal = focalLength(c.width, skyFov);
+  drag = {
+    id: e.pointerId,
+    startX: e.clientX, startY: e.clientY,
+    basis, focal,
+    // The sky under the finger when it went down. The drag is solved against
+    // THIS every time rather than against the previous event: solving each
+    // small step separately looks the same but quietly discards the roll once
+    // per step, and thirty of those compound into a visible drift.
+    grabbed: screenToVector(at.x, at.y, basis, focal),
+  };
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!fullOn) return;                       // windowed: leave the page alone
+  const moved = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+  if (moved < TAP_SLOP) return;              // still a tap, as far as anyone knows
+  const at = mapOffset(e);
+  if (!at) return;
+  const { az, alt } = aimAfterDrag(drag.grabbed, at.x, at.y, drag.basis, drag.focal);
+  setAim(az, alt);
+});
+
+window.addEventListener('pointerup', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const far = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+  const d = drag;
+  drag = null;
+  // A swipe is not a tap even where dragging is switched off, or scrolling the
+  // page windowed would fling the view somewhere on release.
+  if (far >= TAP_SLOP || !handSteering()) return;
+  const at = mapOffset(e);
+  if (!at) return;
+  const { az, alt } = vectorToAltAz(
+    screenToVector(at.x, at.y, d.basis, d.focal));
+  setAim(az, alt);
+});
+
+// The browser takes the pointer away to scroll the page; that is the windowed
+// case working as intended, and it must not land as a tap on release.
+window.addEventListener('pointercancel', () => { drag = null; });
 
 document.addEventListener('visibilitychange', () => {
   // A hidden tab does not run requestAnimationFrame, so a frame scheduled just

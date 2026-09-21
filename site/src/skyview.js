@@ -103,6 +103,122 @@ export function projectToScreen(vec, basis, focal) {
   return { x: (rx / depth) * focal, y: -(ry / depth) * focal, depth };
 }
 
+/**
+ * A point on the screen back to a direction in the sky: projectToScreen undone.
+ *
+ * Needed the moment the map can be touched. "Centre on what I tapped" and
+ * "drag the sky under my finger" are both questions about which direction a
+ * pixel stands for, and forward projection cannot answer them.
+ *
+ * Inverting the projection is exact rather than approximate: a screen offset
+ * of (dx, dy) from the centre is the ray forward + (dx/focal)*right
+ * - (dy/focal)*up, normalised. The minus is the same screen-y-points-down
+ * convention projectToScreen applies on the way out.
+ *
+ * @param {number} dx pixels right of centre
+ * @param {number} dy pixels BELOW centre (screen convention)
+ */
+export function screenToVector(dx, dy, basis, focal) {
+  const { right, up, forward } = basis;
+  const a = dx / focal, b = -dy / focal;
+  const v = [
+    forward[0] + a * right[0] + b * up[0],
+    forward[1] + a * right[1] + b * up[1],
+    forward[2] + a * right[2] + b * up[2],
+  ];
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+}
+
+/**
+ * Rotate `v` by the rotation that carries direction `from` onto direction `to`.
+ *
+ * This is what makes a drag feel like grabbing the sky rather than nudging it.
+ * The ray under the finger when the drag started and the ray under it now are
+ * both known; rotating the view by whatever turns the second back onto the
+ * first keeps the grabbed patch of sky under the finger. Nudging by a fixed
+ * number of degrees per pixel does not -- it drifts away from the hand, worst
+ * near the pole and at wide fields, which is exactly where this map is used.
+ *
+ * Rodrigues' formula. Parallel inputs mean no rotation, which is the common
+ * case on the first pixel of a drag and must not divide by zero.
+ */
+export function rotateFromTo(from, to, v) {
+  const cross = (a, b) => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const axis = cross(from, to);
+  const s = Math.hypot(axis[0], axis[1], axis[2]);
+  if (s < 1e-9) return [v[0], v[1], v[2]];
+  const c = Math.max(-1, Math.min(1,
+    from[0] * to[0] + from[1] * to[1] + from[2] * to[2]));
+  const k = [axis[0] / s, axis[1] / s, axis[2] / s];
+  const ang = Math.atan2(s, c);
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  const kv = cross(k, v);
+  const kd = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+  return [
+    v[0] * ca + kv[0] * sa + k[0] * kd * (1 - ca),
+    v[1] * ca + kv[1] * sa + k[1] * kd * (1 - ca),
+    v[2] * ca + kv[2] * sa + k[2] * kd * (1 - ca),
+  ];
+}
+
+/**
+ * Where to aim so that a grabbed patch of sky sits under a given pixel.
+ *
+ * A DRAG IS SOLVED, NOT APPROXIMATED, AND THE DIFFERENCE IS VISIBLE. Rotating
+ * the view once by "whatever turns the ray now under the finger back onto the
+ * ray grabbed at the start" is nearly right, but the aim is then re-expressed
+ * as azimuth and altitude, which throws away the roll that rotation carried --
+ * deliberately, because the horizon must stay level. Throwing it away moves
+ * the answer, and the sky slid about fourteen pixels out from under the finger
+ * on a long drag. Fourteen pixels is the sky visibly not sticking to the hand.
+ *
+ * So the rotation is re-solved against the basis it produced. Each pass asks
+ * the same question from a better starting point, and for any drag anyone can
+ * actually perform the leftover is gone within a few passes.
+ *
+ * IT KEEPS THE BEST ANSWER RATHER THAN THE LAST ONE, because the iteration is
+ * not guaranteed to converge. At the widest fields a corner-to-corner drag
+ * asks the view to swing more than a hundred degrees, and some of those
+ * targets have no solution at all with the roll held at zero -- the horizon is
+ * kept level, so not every patch of sky can be put at every pixel. Asked for
+ * one of those, a plain loop wanders and gets WORSE the longer it runs: at a
+ * 170 degree field it went from 65 degrees out after three passes to 129 after
+ * six. Measuring each pass and stopping when it stops improving turns that
+ * from a bug into a limit -- the view still moves the right way, it just does
+ * not quite reach, which is what "as far as the horizon staying level allows"
+ * has to look like.
+ *
+ * @param {number[]} grabbed the direction under the finger when the drag began
+ * @param {number} px pixels right of centre, now
+ * @param {number} py pixels below centre, now
+ * @returns {{alt:number, az:number}} where the view should point
+ */
+export function aimAfterDrag(grabbed, px, py, basis, focal, passes = 6) {
+  const missBy = (b) => {
+    const showing = screenToVector(px, py, b, focal);
+    return Math.acos(Math.max(-1, Math.min(1,
+      showing[0] * grabbed[0] + showing[1] * grabbed[1] + showing[2] * grabbed[2])));
+  };
+  let b = basis;
+  let best = vectorToAltAz(b.forward);
+  let bestMiss = missBy(b);
+  for (let i = 0; i < passes; i++) {
+    const showing = screenToVector(px, py, b, focal);
+    const aim = vectorToAltAz(rotateFromTo(showing, grabbed, b.forward));
+    const next = basisFromAim(aim.az, aim.alt);
+    const miss = missBy(next);
+    if (!(miss < bestMiss)) break;      // no better: the last best stands
+    bestMiss = miss; best = aim; b = next;
+    if (miss < 1e-9) break;             // there is nothing left to fix
+  }
+  return best;
+}
+
 /** Apparent size of a star, in pixels, for a magnitude. */
 export function starRadius(mag, limitMag = 5.5) {
   return Math.max(0.6, (limitMag + 0.9 - mag) * 0.62);
