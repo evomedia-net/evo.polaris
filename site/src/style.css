@@ -856,6 +856,61 @@ html[data-night='on'] .sky-legend {
   box-shadow: none;
 }
 
+/* WHAT TO POINT AT, TOP LEFT, FULL SCREEN ONLY.
+ *
+ * Top left is the remaining free corner: the key is top right, the pad bottom
+ * left, the zoom and the exit bottom right, the mode button bottom centre.
+ *
+ * ONE COLUMN, NOT A ROW OR A GRID. A row of four --tap buttons does not fit a
+ * phone, and two-by-two came out 207px wide against a 172px key on a 390px
+ * screen -- 379 into 360, so they overlapped by 19. A column is as wide as
+ * the longest word and no wider, which leaves the key its corner and keeps
+ * leaving it as the text size grows.
+ *
+ * --tap is not negotiable here: these are pressed outdoors, in the dark, with
+ * an unsteady hand. The buttons get narrower, never shorter. */
+.full-targets { display: none; }
+.live-sky.full .full-targets {
+  display: grid;
+  gap: 0.4rem;
+  position: absolute;
+  left: max(0.6rem, env(safe-area-inset-left));
+  top: max(0.6rem, env(safe-area-inset-top));
+  z-index: 2;
+  /* Never more than a third of the width, so the key keeps its corner. */
+  max-width: 34%;
+}
+.target-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+/* Empty means nothing is targeted, and an empty plate announcing nothing is
+   worse than no plate. */
+.target-name:empty { display: none; }
+.target-name {
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  color: #f2f5fa;
+  background: rgba(10, 14, 24, 0.72);
+  border: 1px solid rgba(232, 236, 244, 0.45);
+  border-radius: 0.9rem;
+}
+.live-sky.full .tgt-btn {
+  position: static;
+  min-height: var(--tap);
+  padding: 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+html[data-night='on'] .target-name {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.72);
+  border-color: var(--ink);
+}
+
 .map-full {
   right: max(0.6rem, env(safe-area-inset-right));
   bottom: max(0.6rem, env(safe-area-inset-bottom));

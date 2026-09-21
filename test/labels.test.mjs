@@ -39,6 +39,15 @@ const appJs = readFileSync(fileURLToPath(new URL('src/app.js', root)), 'utf8');
  */
 const VALUE_PICKERS = new Set([
   'latN', 'latS', 'lonE', 'lonW', 'modeSkyBtn', 'modeAlignBtn',
+  // The full-screen target pickers. "Polaris", "ISS", "Moon", "Planets" name
+  // the value -- which thing the ring is on -- in the same way "East" names a
+  // hemisphere, and the selection is carried by aria-pressed. Writing them as
+  // actions ("Point at the Moon") would be four verbs competing for a phone's
+  // worth of space to say what the state already says.
+  //
+  // Planets is the odd one: it cycles rather than selects, so it also carries
+  // an aria-label spelling out that a press moves to the next planet out.
+  'tgtPole', 'tgtIss', 'tgtMoon', 'tgtPlanets',
 ]);
 
 /** Glyph buttons. Their words live in aria-label, which is checked instead. */

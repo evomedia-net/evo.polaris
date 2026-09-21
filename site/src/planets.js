@@ -86,11 +86,30 @@ const ELEMENTS = {
     peri: [44.96476227, -0.32241464], node: [131.78422574, -0.00508664],
     colour: '#8fb8ff', mag0: -6.87,
   },
+  // PLUTO IS HERE, WHATEVER THE IAU SAYS. Same JPL table as the rest, which
+  // lists it alongside the eight for exactly this reason: people look for it.
+  //
+  // It is the one body here that nobody reading this will ever see. At around
+  // magnitude 14 it is beyond binoculars and beyond most telescopes, so the
+  // ring around it means "it is in this direction", never "look and you will
+  // find it". Drawn all the same, because a dot you cannot see is still an
+  // answer to "where is Pluto", and leaving it out is its own kind of claim.
+  //
+  // Its orbit is the least circular and most tilted of the set -- e = 0.25,
+  // i = 17 degrees -- so a two-body approximation drifts faster for Pluto
+  // than for anything else in this table. Good to a fraction of a degree
+  // across the years this app is for; not an ephemeris.
+  Pluto: {
+    a: [39.48211675, -0.00031596], e: [0.24882730, 0.00005170],
+    i: [17.14001206, 0.00004818], L: [238.92903833, 145.20780515],
+    peri: [224.06891629, -0.04062942], node: [110.30393684, -0.01183482],
+    colour: '#cbb9a8', mag0: -1.00,
+  },
 };
 
 /** The ones worth drawing, in order out from the Sun. Earth is not in the sky. */
 export const PLANET_NAMES = [
-  'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune',
+  'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto',
 ];
 
 export function planetColour(name) {

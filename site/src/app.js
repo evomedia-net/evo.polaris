@@ -28,7 +28,7 @@ import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
   moonRiseSet, describeMoonTimes,
 } from './moon.js';
-import { planetPositions, describePlanets } from './planets.js';
+import { planetPositions, describePlanets, PLANET_NAMES } from './planets.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 import { VERSION } from './version.js';
@@ -177,6 +177,60 @@ let issSamples = null;
 // "Find the ISS" moves it to the station and "Find the pole" moves it back,
 // which is why the pole button does more than re-aim the view.
 let guideTarget = 'pole';
+
+// WHERE THE PLANETS BUTTON IS UP TO.
+//
+// One button, tapped repeatedly, walking out from the Sun -- Mercury first,
+// Pluto last, then nothing, then round again. PLANET_NAMES is already in that
+// order, which is why the cycle reads it rather than keeping a second list
+// that could disagree with the one the map draws from.
+//
+// -1 means "not in the cycle": something else owns the ring, so the next tap
+// starts at Mercury rather than resuming halfway through.
+let planetStep = -1;
+
+/** Put the ring on something, and take the planet cycle off unless asked. */
+function setTarget(what, { keepCycle = false } = {}) {
+  guideTarget = what;
+  if (!keepCycle) planetStep = -1;
+  updateTargetName();
+  updateSkyMode();
+  drawLiveSky();
+}
+
+/**
+ * The name of whatever is being pointed at, above the map.
+ *
+ * On screen because when the target is off the edge there is only an arrow --
+ * the ring carries the name, and the ring is the thing that is not there.
+ * Empty when nothing is targeted, so the line does not sit there announcing
+ * "none" as though that were a place.
+ */
+function updateTargetName() {
+  const el = $('fullTargetName');
+  if (!el) return;
+  const t = solution ? aimTarget(issNow()) : null;
+  el.textContent = t ? t.name : '';
+  const pole = $('tgtPole');
+  if (pole && solution) {
+    pole.textContent = solution.hemisphere === 'south' ? 'South pole' : 'Polaris';
+  }
+  // THE SELECTION IS CARRIED BY aria-pressed, NOT BY THE WORDS. These name
+  // the value -- which target -- exactly like the hemisphere pickers name a
+  // hemisphere, so the label must not change to say what pressing would do.
+  // Without this the state would be visible only as a ring somewhere on the
+  // map, which is no use to a screen reader at all.
+  const onPlanet = PLANET_NAMES.includes(guideTarget);
+  for (const [id, on] of [
+    ['tgtPole', guideTarget === 'pole'],
+    ['tgtIss', guideTarget === 'iss'],
+    ['tgtMoon', guideTarget === 'moon'],
+    ['tgtPlanets', onPlanet],
+  ]) {
+    const b = $(id);
+    if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+}
 
 /**
  * Where the station is NOW, or null if it has not been asked for.
@@ -1372,6 +1426,7 @@ function drawLiveSky() {
   if (useDevice) updateSensorReadout();
   const issLook = issNow();
   const target = aimTarget(issLook);
+  updateTargetName();
   drawSkyView(c.getContext('2d'), {
     aim: useDevice ? null : skyAim,
     screenAngle: sensorInfo.screen,
@@ -1407,15 +1462,31 @@ function drawLiveSky() {
  * plain geometry and points down through the ground quite happily; only the
  * MARKER is held back to the visible sky.
  */
-function aimTarget(issLook) {
-  if (guideTarget === 'iss' && issLook) {
-    return { alt: issLook.alt, az: issLook.az, name: 'ISS' };
-  }
+/** The pole, which is what this app is for and what it falls back to. */
+function poleTarget() {
   return {
     alt: Math.abs(solution.latitudeSetting),
     az: solution.poleAzimuth,
     name: solution.hemisphere === 'south' ? 'South pole' : 'Polaris',
   };
+}
+
+function aimTarget(issLook) {
+  // NOTHING IS A REAL ANSWER. Cycling past the last planet clears the target,
+  // and the ring and the arrow both simply go.
+  if (guideTarget === 'none') return null;
+  if (guideTarget === 'iss') {
+    // Asked for but not answered yet -- fall back rather than aim at nothing.
+    return issLook ? { alt: issLook.alt, az: issLook.az, name: 'ISS' } : poleTarget();
+  }
+  if (guideTarget === 'moon') {
+    return skyMoonBody
+      ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon' }
+      : poleTarget();
+  }
+  const planet = (skyPlanetList || []).find((b) => b.name === guideTarget);
+  if (planet) return { alt: planet.alt, az: planet.az, name: planet.name };
+  return poleTarget();
 }
 
 function aimAtPole() {
@@ -1752,6 +1823,8 @@ $('skyPole').onclick = () => {
   // The pole button is the way back: it takes the ring and the arrow off the
   // station as well as re-aiming the view.
   guideTarget = 'pole';
+  planetStep = -1;
+  updateTargetName();
   if (!solution) return;
   glideTo(solution.poleAzimuth, Math.abs(solution.latitudeSetting));
 };
@@ -1847,6 +1920,8 @@ $('issBtn').onclick = async () => {
     // arrow with it. The automatic load deliberately does not -- it is not a
     // request to go and look. "Find the pole" is the way back.
     guideTarget = 'iss';
+    planetStep = -1;
+    updateTargetName();
     const readAt = iss.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     $('issOut').textContent = `${describePass(look, iss)} Position read at ${readAt}. `
       + (issSamples
@@ -1932,6 +2007,41 @@ $('fullDown').onclick = () => $('skyDown').click();
 $('fullLeft').onclick = () => $('skyLeft').click();
 $('fullRight').onclick = () => $('skyRight').click();
 $('fullPole').onclick = () => $('skyPole').click();
+
+// --- what to point at -------------------------------------------------------
+//
+// Choosing a target also TRAVELS to it. "Point at the Moon" and "show me the
+// Moon" are the same request from where the user is standing, and a ring that
+// silently moved off screen would leave only the arrow and no reason for it.
+
+function goToTarget(what, opts) {
+  setTarget(what, opts);
+  const t = aimTarget(issNow());
+  if (t) glideTo(t.az, t.alt);
+}
+
+$('tgtPole').onclick = () => $('skyPole').click();
+$('tgtMoon').onclick = () => goToTarget('moon');
+
+$('tgtIss').onclick = async () => {
+  // Normally already loaded -- the sky fetches it on opening -- but if that
+  // failed (no signal then, maybe signal now) this is a request, so it asks.
+  if (!issOn) { try { await loadIss({ announce: false }); } catch { /* still none */ } }
+  goToTarget('iss');
+};
+
+// OUT FROM THE SUN, THEN NOTHING, THEN ROUND AGAIN.
+//
+// One button walking the list: Mercury first, Pluto last, then the ring is
+// cleared, then Mercury again. PLANET_NAMES is already in that order, so the
+// cycle reads it rather than keeping a second list that could disagree with
+// the one the map draws from. The extra step at the end is the empty one --
+// the length plus one is where "nothing" lives.
+$('tgtPlanets').onclick = () => {
+  planetStep = (planetStep + 1) % (PLANET_NAMES.length + 1);
+  const next = planetStep < PLANET_NAMES.length ? PLANET_NAMES[planetStep] : 'none';
+  goToTarget(next, { keepCycle: true });
+};
 
 // The sky turns a quarter of a degree a minute, so the expensive half is on a
 // slow timer while the projection runs per orientation event.

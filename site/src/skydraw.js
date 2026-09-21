@@ -304,8 +304,15 @@ export function drawSkyView(ctx, o) {
   // at the widest field the sky shrinks under a ring that does not, so the
   // ring covers more constellations than it did. That is accepted. If it ever
   // needs softening, clamp it -- do not make it angular again.
-  const tp = projectToScreen(altAzToVector(targetAlt, targetAz), basis, focal);
-  let onScreen = false;
+  // NO TARGET AT ALL IS A STATE. Cycling past the last planet clears it, so
+  // the ring and the pointer both have to be able to simply not be there --
+  // and "nothing is off screen" is the honest answer for the pointer, not
+  // "everything is", which would leave an arrow aimed at nothing in
+  // particular.
+  const hasTarget = targetName != null && targetName !== '';
+  const tp = hasTarget
+    ? projectToScreen(altAzToVector(targetAlt, targetAz), basis, focal) : null;
+  let onScreen = !hasTarget;
   if (tp) {
     const x = cx + tp.x, y = cy + tp.y;
     onScreen = x > 0 && x < w && y > 0 && y < h;

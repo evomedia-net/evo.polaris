@@ -186,6 +186,21 @@
           <li class="leg-row" id="legMoon" hidden><svg class="leg-line" viewBox="0 0 46 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="45" y2="4" stroke-width="2"/></svg>Moon</li>
         </ul>
 
+        <!-- TOP LEFT, FULL SCREEN ONLY: what the ring is on, and what to
+             put it on. The name is here rather than on the map because when
+             the target is off the edge there is only an arrow -- the ring
+             carries the name, and the ring is the part that is missing. -->
+        <div class="full-targets" id="fullTargets">
+          <p class="target-name" id="fullTargetName" role="status"></p>
+          <div class="target-grid" role="group" aria-label="What to point at">
+            <button id="tgtPole" class="map-btn tgt-btn" aria-pressed="true">Polaris</button>
+            <button id="tgtIss" class="map-btn tgt-btn" aria-pressed="false">ISS</button>
+            <button id="tgtMoon" class="map-btn tgt-btn" aria-pressed="false">Moon</button>
+            <button id="tgtPlanets" class="map-btn tgt-btn" aria-pressed="false"
+                    aria-label="Point at the next planet out from the Sun">Planets</button>
+          </div>
+        </div>
+
         <!-- Bottom right: fill the screen, and leave it again. -->
         <button id="fullBtn" class="map-btn map-full"
                 aria-label="Fill the screen"><span id="fullGlyph" aria-hidden="true">&#9974;</span></button>

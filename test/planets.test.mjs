@@ -141,10 +141,19 @@ test('everything stays close to the ecliptic, because that is where orbits are',
   // Seen from the Earth, the inner planets swing furthest off the ecliptic --
   // their inclination is amplified when they pass close. Anything outside
   // these bands is a broken rotation into the ecliptic frame.
+  //
+  // PLUTO IS THE EXCEPTION AND THAT IS THE POINT OF ITS ENTRY. Its orbit is
+  // tilted 17 degrees to the ecliptic -- by far the steepest here -- so the
+  // band that would catch a broken rotation for Neptune would fail Pluto for
+  // simply being Pluto. It reaches about 5 degrees over the years sampled
+  // below and up to about 17 across its whole orbit, so 20 is the bound that
+  // still means something.
   const limits = {
     Mercury: 12, Venus: 10, Mars: 8, Jupiter: 2.5, Saturn: 3.5,
-    Uranus: 1.5, Neptune: 2.5,
+    Uranus: 1.5, Neptune: 2.5, Pluto: 20,
   };
+  assert.deepEqual(Object.keys(limits).sort(), [...PLANET_NAMES].sort(),
+    'every drawn planet needs a band, or it is silently unchecked');
   for (const name of PLANET_NAMES) {
     let worst = 0;
     for (let i = 0; i < 800; i++) {
@@ -165,7 +174,11 @@ test('the equatorial direction agrees with the distance it came from', () => {
     const p = planetPosition(name, when);
     assert.ok(p.ra >= 0 && p.ra < 360, `${name} ra ${p.ra}`);
     assert.ok(p.dec > -90 && p.dec < 90, `${name} dec ${p.dec}`);
-    assert.ok(p.distanceAu > 0.2 && p.distanceAu < 32, `${name} range`);
+    // 52 AU, not 32: that bound was set when Neptune at 30 was the outermost
+    // thing here. Pluto is about 34 AU away now and its aphelion is 49.3, so
+    // seen from an Earth that can be on the far side of the Sun it reaches
+    // roughly 50. Still tight enough to catch a rotation that lost length.
+    assert.ok(p.distanceAu > 0.2 && p.distanceAu < 52, `${name} range ${p.distanceAu}`);
     // Declination cannot exceed the obliquity plus the ecliptic latitude.
     assert.ok(Math.abs(p.dec) < 23.44 + Math.abs(p.eclipticLat) + 0.01,
       `${name} declination ${p.dec} is outside what the ecliptic allows`);
