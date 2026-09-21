@@ -7,7 +7,7 @@ import {
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
 import { spellAngle } from './words.js';
-import { pointingGuidance, guidanceArrow, guidanceText } from './guide.js';
+import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
   screenToVector, aimAfterDrag, basisFromAim, focalLength, vectorToAltAz,
@@ -1475,10 +1475,93 @@ function clampAim(az, alt) {
 function setAim(az, alt) {
   // Any hand steering drops out of follow mode: the alternative is fighting
   // the sensor for control, which is worse than either mode alone.
+  cancelGlide();                 // a hand on the controls beats an animation
   skyFollow = false;
   skyAim = clampAim(az, alt);
   updateSkyMode();
   drawLiveSky();
+}
+
+// --- travelling to a target -------------------------------------------------
+//
+// THE VIEW TRAVELS TO THE POLE RATHER THAN CUTTING TO IT.
+//
+// A cut gives you a completely different picture with no clue how it relates
+// to the one before, so the sky has to be re-read from scratch -- and the
+// whole promise of this view is that things are where they really are, which
+// is a claim about how the sky is ARRANGED. Watching the stars slide past
+// answers "where was I, relative to that?" for free.
+//
+// IT IS A JUMP IF THE SYSTEM ASKS FOR ONE. prefers-reduced-motion is not a
+// stylistic preference; large moving fields are a nausea and vertigo trigger,
+// and a full-screen sky sliding under you is about the largest moving field
+// this app can produce. The rest of the app already honours the setting in
+// CSS, so honouring it here is not an extra kindness, it is consistency.
+const GLIDE_MS = 450;
+// { raf, to } -- the pending frame AND where it was going, because a journey
+// that gets interrupted still has to end somewhere sensible.
+let glide = null;
+
+const wantsStill = () => !!(window.matchMedia
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/**
+ * Stop a journey in flight.
+ *
+ * `arrive` decides what stopping means. A hand on the controls means abandon
+ * it where it is -- the hand is steering now. A hidden tab means finish it:
+ * a hidden tab does not run requestAnimationFrame, so the animation simply
+ * stalls, and coming back to a view stranded half way between where you were
+ * and where you asked to go is the worst of both.
+ */
+function cancelGlide(arrive = false) {
+  if (glide === null) return;
+  cancelAnimationFrame(glide.raf);
+  const { to } = glide;
+  glide = null;
+  if (arrive) {
+    skyAim = to;
+    updateSkyMode();
+    drawLiveSky();
+  }
+}
+
+/**
+ * Slide the view round to somewhere, instead of arriving there.
+ *
+ * Azimuth travels the SHORT way round: from 350 to 10 is twenty degrees
+ * clockwise, not three hundred and forty the other way, and getting that
+ * wrong sends the whole sky the long way past everything.
+ */
+function glideTo(az, alt) {
+  cancelGlide();
+  const to = clampAim(az, alt);
+  const from = { ...skyAim };
+  const dAz = signedTurn(from.az, to.az);
+  const dAlt = to.alt - from.alt;
+  skyFollow = false;
+  // Already there, asked to hold still, or nobody is looking: no animation to
+  // run. A hidden tab gets no animation frames at all, so starting a journey
+  // in one only strands the view until it comes back.
+  if (wantsStill() || document.hidden
+      || (Math.abs(dAz) < 0.5 && Math.abs(dAlt) < 0.5)) {
+    skyAim = to;
+    updateSkyMode();
+    drawLiveSky();
+    return;
+  }
+  const started = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - started) / GLIDE_MS);
+    // Ease out: leaves quickly, settles gently. Constant speed reads as a
+    // machine moving the sky; this reads as the sky coming to rest.
+    const e = 1 - ((1 - t) ** 3);
+    skyAim = clampAim(from.az + dAz * e, from.alt + dAlt * e);
+    updateSkyMode();
+    drawLiveSky();
+    glide = t < 1 ? { raf: requestAnimationFrame(step), to } : null;
+  };
+  glide = { raf: requestAnimationFrame(step), to };
 }
 
 function pan(dAz, dAlt) {
@@ -1570,7 +1653,10 @@ window.addEventListener('pointerup', (e) => {
   if (!at) return;
   const { az, alt } = vectorToAltAz(
     screenToVector(at.x, at.y, d.basis, d.focal));
-  setAim(az, alt);
+  // Same move as the pole button -- centre on something -- so it travels the
+  // same way. Dragging does not: a drag must track the finger exactly, and
+  // easing it would feel like the sky lagging behind the hand.
+  glideTo(az, alt);
 });
 
 // The browser takes the pointer away to scroll the page; that is the windowed
@@ -1581,7 +1667,9 @@ document.addEventListener('visibilitychange', () => {
   // A hidden tab does not run requestAnimationFrame, so a frame scheduled just
   // before the switch is still pending on the way back and blocks every later
   // one. Drop it and redraw once, rather than trusting it to arrive.
-  if (document.hidden) return;
+  // Going away mid-journey: land it now rather than leave the view stranded
+  // between where it was and where it was asked to go.
+  if (document.hidden) { cancelGlide(true); return; }
   if (skyFrame !== null) { cancelAnimationFrame(skyFrame); skyFrame = null; }
   if (skyOn) drawLiveSky();
 });
@@ -1616,13 +1704,11 @@ $('skyDown').onclick = () => pan(0, -STEP);
 $('skyLeft').onclick = () => pan(-STEP, 0);
 $('skyRight').onclick = () => pan(STEP, 0);
 $('skyPole').onclick = () => {
-  skyFollow = false;
   // The pole button is the way back: it takes the ring and the arrow off the
   // station as well as re-aiming the view.
   guideTarget = 'pole';
-  aimAtPole();
-  updateSkyMode();
-  drawLiveSky();
+  if (!solution) return;
+  glideTo(solution.poleAzimuth, Math.abs(solution.latitudeSetting));
 };
 $('modeBtn').onclick = () => {
   skyFollow = !skyFollow;

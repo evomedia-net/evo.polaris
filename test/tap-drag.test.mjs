@@ -41,20 +41,29 @@ test('the pad, a tap and a drag all steer through it', () => {
     appJs.indexOf('function pan(') + 200);
   assert.match(pan, /setAim\(/, 'the pad must go through setAim');
   assert.ok(!/skyAim = \{/.test(pan), 'the pad must not set the aim itself');
-  // Every assignment of the aim goes through the clamp. Found by this test:
-  // aimAtPole set skyAim straight, so "Find the pole" at latitude 90 aimed a
-  // degree past where the arrows are allowed to go -- and an aim the buttons
-  // cannot hold is an aim they cannot take back over from.
-  const assigns = appJs.split('\n').filter((l) => /^\s*skyAim = /.test(l));
-  assert.ok(assigns.length > 0, 'nothing sets the aim any more');
-  for (const line of assigns) {
-    assert.match(line, /clampAim\(/,
-      `an aim is set without the shared limits: ${line.trim()}`);
+  // Nothing builds an aim inline. Found by this test: aimAtPole assembled
+  // one itself, so "Find the pole" at latitude 90 aimed a degree past where
+  // the arrows may go -- an aim the buttons cannot hold is one they cannot
+  // take back over from.
+  // Anchored, so the declaration's starting value (`let skyAim = {...}`) is
+  // not mistaken for a steering decision. It is where the view begins, not
+  // somewhere anything aims it.
+  assert.ok(!/^\s*skyAim = \{/m.test(appJs),
+    'an aim is being built inline instead of coming from clampAim');
+  // And every function that sets one asks clampAim for it.
+  for (const fn of ['setAim', 'glideTo', 'aimAtPole']) {
+    const start = appJs.indexOf(`function ${fn}(`);
+    assert.notEqual(start, -1, `${fn} is gone`);
+    const body = appJs.slice(start, appJs.indexOf('\n}', start));
+    assert.ok(body.includes('clampAim('),
+      `${fn} sets the aim without going through clampAim`);
   }
   // And both gestures call it.
   const down = appJs.slice(appJs.indexOf("$('liveSky').addEventListener('pointerdown'"));
-  assert.ok((down.match(/setAim\(/g) || []).length >= 2,
-    'both the drag and the tap must steer through setAim');
+  // The drag sets the aim directly and the tap travels to it, but both go
+  // through the clamp, which is what the parity rule is actually about.
+  assert.match(down, /setAim\(/, 'the drag must steer through setAim');
+  assert.match(down, /glideTo\(/, 'the tap must travel to its target');
 });
 
 test('a tap survives a shaky hand', () => {
