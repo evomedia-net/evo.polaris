@@ -81,20 +81,30 @@ const wire = appJs.slice(appJs.indexOf('function wireArrow('), appJs.indexOf('//
 test('a press is a nudge: the old step, travelled, within the hand limits', () => {
   assert.match(nudge, /glideTo\(skyAim\.az \+ dAz, skyAim\.alt \+ dAlt,/, 'a nudge is a short journey');
   assert.match(nudge, /ease: easeInOutCubic/, 'with the curve that does not lurch');
-  assert.match(nudge, /floor: handFloor\(\)/,
-    'and the HAND floor -- the arrows must reach exactly what a tap or drag can, no further');
+  // IT USED TO PASS A FLOOR OF ITS OWN -- the arrows were fenced at -30 while
+  // a target could go to -89. One limit now, applied in setQuat, so there is
+  // nothing to pass and nothing to get wrong: the arrows reach exactly what a
+  // tap, a drag and a target reach, because it is the same clamp.
+  assert.ok(!/floor:/.test(nudge),
+    'a per-caller floor is what let the arrows and the gesture disagree');
   assert.match(nudge, /ms: NUDGE_MS/);
   const ms = Number(appJs.match(/const NUDGE_MS = (\d+);/)[1]);
   assert.ok(ms >= 200 && ms <= 700, `${ms}ms is not a press`);
 });
 
-test('glideTo takes its duration, curve and floor from the caller', () => {
-  assert.match(appJs, /function glideTo\(az, alt, \{ ms = GLIDE_MS, ease = easeOutCubic, floor = TARGET_MIN_ALT \} = \{\}\)/,
+test('glideTo takes its duration and curve from the caller', () => {
+  assert.match(appJs, /function glideTo\(az, alt, \{ ms = GLIDE_MS, ease = easeOutCubic \} = \{\}\)/,
     'the journey keeps its defaults; a nudge overrides them');
   const body = appJs.slice(appJs.indexOf('function glideTo('), appJs.indexOf('function pan('));
   assert.match(body, /const e = ease\(t\);/);
-  assert.match(body, /clampAim\(az, alt, floor, AIM_MAX_ALT\)/, 'the destination respects the floor it was given');
+  assert.match(body, /clampAim\(az, alt, TARGET_MIN_ALT, AIM_MAX_ALT\)/,
+    'the destination is checked before the journey starts');
   assert.match(body, /\(now - started\) \/ ms/, 'and the duration');
+  // THE JOURNEY IS A ROTATION, not two numbers walked in step. Interpolating
+  // az and alt separately crosses the 360 seam badly and cannot express a
+  // path over a pole at all; slerp takes the short way round by construction.
+  assert.match(body, /quat\.slerp\(fromQ, toQ, e\)/,
+    'the frames in flight must interpolate the rotation');
 });
 
 test('a hold moves the sky through pan() every frame, ramping', () => {

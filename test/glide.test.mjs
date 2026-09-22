@@ -34,7 +34,15 @@ test('a drag does NOT travel', () => {
   // lagging behind the hand, which is the opposite of the point.
   const move = appJs.slice(appJs.indexOf("window.addEventListener('pointermove'"),
     appJs.indexOf("window.addEventListener('pointerup'"));
-  assert.match(move, /setAim\(/, 'the drag must set the aim directly');
+  assert.match(move, /quat\.aimLevel\(drag\.grabbed,/,
+    'the drag must aim the view directly, from a solved rotation');
+  assert.match(move, /if \(q\) setQuat\(q\);/, 'and set it at once');
+  // The drag used to inherit its redraw from setAim. It does not go through
+  // setAim any more, so it has to draw for itself -- every frame, not on
+  // release. Caught in a browser: the sky stood still under a moving finger.
+  const after = move.slice(move.indexOf('if (q) setQuat(q);'));
+  assert.match(after, /updateSkyMode\(\);\s*drawLiveSky\(\);/,
+    'the drag must update the readout and repaint on every move');
   assert.ok(!/glideTo\(/.test(move), 'the drag must not be animated');
 });
 
@@ -74,7 +82,7 @@ test('it holds still when the system asks it to', () => {
   // ...and when it is set, the view still ARRIVES. Holding still must not
   // mean not going.
   const guard = glideBody.slice(glideBody.indexOf('wantsStill()'));
-  assert.match(guard, /skyAim = to;/,
+  assert.match(guard, /setQuat\(quat\.fromAim\(to\.az, to\.alt\)\);/,
     'with motion off the view must still reach the target, just instantly');
 });
 

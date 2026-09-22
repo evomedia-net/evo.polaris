@@ -30,6 +30,7 @@ const ASSETS = [
   './build-version.json', './src/dwell.js',
   './src/data/constellations.js', './src/data/stars.json', './src/data/wmm2025.js', './src/data/icon.svg',
   './src/milkyway.js', './src/data/milkyway.webp', './src/motion.js',
+  './src/quat.js',
 ];
 
 /** Big, immutable, and expensive to re-fetch. */

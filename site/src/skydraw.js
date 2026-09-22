@@ -72,10 +72,17 @@ export function drawSkyView(ctx, o) {
   // The screen does not turn when the device does, so a landscape phone needs
   // the picture rotated back or every left/right instruction is ninety degrees
   // wrong. Manual aim is already in screen terms and needs no correction.
-  const basis = o.aim
-    ? basisFromAim(o.aim.az, o.aim.alt, 0)
-    : applyScreenAngle(deviceBasis(alpha, beta, gamma, declination),
-                       o.screenAngle || 0);
+  // A BASIS, IF THE CALLER HAS ONE. Hand steering holds its aim as a
+  // rotation now, and rebuilding a basis from az/alt here would undo exactly
+  // what the rotation is for -- the pair cannot express a view carried over a
+  // pole, and the rebuild silently re-levels. o.aim is still accepted,
+  // because most of the fixtures speak in angles and are clearer for it.
+  const basis = o.basis
+    ? o.basis
+    : o.aim
+      ? basisFromAim(o.aim.az, o.aim.alt, 0)
+      : applyScreenAngle(deviceBasis(alpha, beta, gamma, declination),
+                         o.screenAngle || 0);
   const focal = focalLength(w, fov);
   const cx = w / 2, cy = h / 2;
   // THE SHORT SIDE IS THE RULER FOR EVERYTHING DRAWN AT A FIXED SCREEN SIZE.

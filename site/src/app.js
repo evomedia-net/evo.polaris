@@ -10,7 +10,7 @@ import { spellAngle } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
-  screenToVector, aimAfterDrag, basisFromAim, focalLength, vectorToAltAz,
+  screenToVector, focalLength, vectorToAltAz,
   clampAim, figureCentre,
 } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
@@ -30,6 +30,7 @@ import {
 import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
+import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
   moonRiseSet, describeMoonTimes,
@@ -87,7 +88,32 @@ let skyFollow = true;
 // What the Manual Controls card was last told. null means "never set", so the
 // first update opens or shuts it once and then leaves it alone.
 let lastFollowMode = null;
+// WHERE THE VIEW IS POINTING, AS A ROTATION. See quat.js for why: the short
+// version is that a drag used to be found by iterating on two angles, and
+// the iteration refused any step the angles could not hold, which put a wall
+// at 71 degrees up with the limit at 89, and near the nadir made it answer
+// "do not move". It is solved exactly now, and the rotation is the natural
+// home for the rest -- a glide is a slerp, the limit is a lean.
+//
+// skyQuat is the truth. skyAim is derived from it and kept only because the
+// readout, the altitude limits and the target maths all speak in angles --
+// they read it, nothing writes it but setQuat().
+let skyQuat = quat.fromAim(0, 45);
 let skyAim = { az: 0, alt: 45 };
+// The screen's own frame -- right, forward, up -- which is what the drag
+// solver wants the finger's direction in.
+const SCREEN_FRAME = quat.basisOf(quat.IDENTITY);
+
+/** Point the view, by rotation. The only writer of skyQuat and skyAim. */
+function setQuat(q) {
+  skyQuat = quat.clampAltitude(quat.normalize(q), handFloor(), AIM_MAX_ALT);
+  // Level, by construction: a sky view has a horizon, and roll is not a
+  // freedom it has. Everything that arrives here -- a solved drag, a frame
+  // of a glide, a nudge -- leaves level.
+  skyQuat = quat.upright(skyQuat);
+  const a = vectorToAltAz(quat.basisOf(skyQuat).forward);
+  skyAim = { az: a.az, alt: a.alt };
+}
 // Both on by default: the figures are how people recognise what they are
 // looking at, and the band is what most of them are pointing a camera at.
 let skyConstellations = true;
@@ -1558,7 +1584,7 @@ function drawLiveSky() {
   const target = aimTarget(issLook);
   updateTargetName();
   drawSkyView(c.getContext('2d'), {
-    aim: useDevice ? null : skyAim,
+    basis: useDevice ? null : aimBasis(),
     screenAngle: sensorInfo.screen,
     sky: skyVectors,
     alpha: sAlpha ?? rawAlpha ?? 0,
@@ -1688,8 +1714,7 @@ function aimAtPole() {
   // Clamped like every other way of aiming. At the poles the setting is 90,
   // which is past where the arrows are allowed to go -- and an aim the buttons
   // cannot hold is an aim they cannot take back over from.
-  skyAim = clampAim(solution.poleAzimuth, Math.abs(solution.latitudeSetting),
-                    handFloor(), AIM_MAX_ALT);
+  setQuat(quat.fromAim(solution.poleAzimuth, Math.abs(solution.latitudeSetting)));
 }
 
 function updateSkyMode() {
@@ -1811,40 +1836,39 @@ function updateSkyMode() {
   // it says: the buttons take over.
 }
 
-// How far the view may be pointed BY HAND. The pad, a tap and a drag all go
-// through setAim, so they reach exactly the same places -- which is not
-// tidiness, it is the rule: a drag must never get somewhere the buttons
-// cannot. Thirty degrees under the horizon is as far down as wandering goes;
-// past that there is nothing but ground and no landmark to get back by.
-const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;
-// BEING SENT SOMEWHERE IS NOT WANDERING. "when clicking ISS it would jump to
-// it ... now it just stops here", with the view pinned at the floor and the
-// arrow still pointing down past it. The station spends much of its orbit
-// well below -30, and so do the Moon and half the planets -- the app offers
-// them as targets and says in words that they are under the ground, then
-// could not actually take you there. A destination the app itself chose is
-// allowed the whole sky.
+// How far the view may be pointed. The pad, a tap and a drag all end up in
+// setQuat, so they reach exactly the same places -- not tidiness, a rule: a
+// drag must never get somewhere the buttons cannot.
+//
+// THERE USED TO BE A SECOND, TIGHTER FLOOR FOR HAND STEERING, at -30: far
+// enough to see something under the horizon, near enough that nobody got
+// lost in featureless ground. Two things took the reason away. The ground is
+// a see-through wireframe now, so below the horizon is not blank any more;
+// and targets legitimately live down there -- the Sun at night sits near
+// -59 -- so the app was already sending people somewhere their own hands
+// could not follow them back from. It also cost a real bug: a floor that had
+// to be computed from where the view WAS, which ratcheted and froze the
+// controls outright.
+const AIM_MAX_ALT = 89;
+// Straight down is 90, and the last degree is left alone at both ends. The
+// view is perfectly well defined pointing at the zenith now -- that is the
+// whole point of holding it as a rotation -- but "which way round am I
+// facing" is not, and the readout has to say something.
 const TARGET_MIN_ALT = -89;
 
 /**
- * How far down HAND steering may go.
+ * How far down steering may go -- the same for a hand as for a target.
  *
- * -30 stops the hand WANDERING into the ground, and the only way under it is
- * for a target to take you there. So: while the view is ALREADY below -30,
- * the hand is free all the way to the real limit; the moment it climbs back
- * out, -30 applies again and nothing but another target can go under it.
- *
- * IT USED TO BE min(AIM_MIN_ALT, skyAim.alt), AND THAT RATCHETED. Computed
- * from wherever the view happened to BE, every upward move raised the floor
- * to the new altitude and the way back down was gone -- at -59 the floor was
- * -59, so down did nothing; a nudge up to -44 made the floor -44, so down did
- * nothing again. Targeting the Sun at night lands at about -59, and the first
- * thing anyone does there is drag downward, which moved nothing at all. A
- * purely vertical finger does not change azimuth either, so the whole view
- * appeared frozen until another target re-aimed it above -30. Reported as
- * "the manual buttons and drag do not work, they do nothing".
+ * It was once a function of where the view already was, so that hands were
+ * fenced at -30 while a target could go deeper. A limit computed from the
+ * current position RATCHETS: at -59 the floor was -59, so down did nothing;
+ * a nudge up to -44 made the floor -44, so down did nothing again. Targeting
+ * the Sun at night lands at about -59, and the first thing anyone does there
+ * is drag downward. A purely vertical finger does not change azimuth either,
+ * so the whole view appeared frozen -- "the manual buttons and drag do not
+ * work, they do nothing". One fixed limit cannot do that.
  */
-const handFloor = () => (skyAim.alt < AIM_MIN_ALT ? TARGET_MIN_ALT : AIM_MIN_ALT);
+const handFloor = () => TARGET_MIN_ALT;
 
 function setAim(az, alt) {
   // Any hand steering drops out of follow mode: the alternative is fighting
@@ -1852,7 +1876,7 @@ function setAim(az, alt) {
   cancelGlide();                 // a hand on the controls beats an animation
   if (!flingOwnMove) cancelFling();   // ...and beats a coast, but is not one
   skyFollow = false;
-  skyAim = clampAim(az, alt, handFloor(), AIM_MAX_ALT);
+  setQuat(quat.fromAim(az, alt));
   updateSkyMode();
   drawLiveSky();
 }
@@ -1954,7 +1978,7 @@ function cancelGlide(arrive = false) {
   const { to } = glide;
   glide = null;
   if (arrive) {
-    skyAim = to;
+    setQuat(quat.fromAim(to.az, to.alt));
     updateSkyMode();
     drawLiveSky();
   }
@@ -1967,9 +1991,14 @@ function cancelGlide(arrive = false) {
  * clockwise, not three hundred and forty the other way, and getting that
  * wrong sends the whole sky the long way past everything.
  */
-function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic, floor = TARGET_MIN_ALT } = {}) {
+function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic } = {}) {
   cancelGlide();
-  const to = clampAim(az, alt, floor, AIM_MAX_ALT);
+  // The destination is clamped HERE as well as in setQuat, and not by
+  // accident: the journey has to know where it is going before it starts, or
+  // an unreachable target would be eased towards for the full 900ms and then
+  // land somewhere else. It took a `floor` argument until hand steering and
+  // targets stopped having different floors.
+  const to = clampAim(az, alt, TARGET_MIN_ALT, AIM_MAX_ALT);
   const from = { ...skyAim };
   const dAz = signedTurn(from.az, to.az);
   const dAlt = to.alt - from.alt;
@@ -1979,11 +2008,16 @@ function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic, floor = TARGET_M
   // in one only strands the view until it comes back.
   if (wantsStill() || document.hidden
       || (Math.abs(dAz) < 0.5 && Math.abs(dAlt) < 0.5)) {
-    skyAim = to;
+    setQuat(quat.fromAim(to.az, to.alt));
     updateSkyMode();
     drawLiveSky();
     return;
   }
+  // The journey is a rotation too: slerp takes the short way round without
+  // anyone having to think about the 360 seam, and it cannot produce an
+  // orientation the angles could not express.
+  const fromQ = skyQuat;
+  const toQ = quat.fromAim(to.az, to.alt);
   const started = performance.now();
   const step = (now) => {
     const t = Math.min(1, (now - started) / ms);
@@ -1991,8 +2025,7 @@ function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic, floor = TARGET_M
     // the sky coming to rest. A nudge eases in AND out, because a press
     // should not lurch. Constant speed reads as a machine moving the sky.
     const e = ease(t);
-    skyAim = clampAim(from.az + dAz * e, from.alt + dAlt * e,
-                      floor, AIM_MAX_ALT);
+    setQuat(quat.slerp(fromQ, toQ, e));
     updateSkyMode();
     drawLiveSky();
     glide = t < 1 ? { raf: requestAnimationFrame(step), to } : null;
@@ -2029,7 +2062,7 @@ const TAP_HOLD_MS = 220;      // shorter than this, the press was a tap, not a h
 
 function nudge(dAz, dAlt) {
   glideTo(skyAim.az + dAz, skyAim.alt + dAlt,
-          { ms: NUDGE_MS, ease: easeInOutCubic, floor: handFloor() });
+          { ms: NUDGE_MS, ease: easeInOutCubic });
 }
 
 let hold = null;              // { dAz, dAlt, t0, prev, raf, v }
@@ -2140,7 +2173,7 @@ function mapOffset(e) {
 
 /** The view basis the map is currently drawn with, for manual aim. */
 function aimBasis() {
-  return basisFromAim(skyAim.az, skyAim.alt, 0);
+  return quat.basisOf(skyQuat);
 }
 
 $('liveSky').addEventListener('pointerdown', (e) => {
@@ -2158,10 +2191,10 @@ $('liveSky').addEventListener('pointerdown', (e) => {
     id: e.pointerId,
     startX: e.clientX, startY: e.clientY,
     basis, focal,
-    // The sky under the finger when it went down. The drag is solved against
-    // THIS every time rather than against the previous event: solving each
-    // small step separately looks the same but quietly discards the roll once
-    // per step, and thirty of those compound into a visible drift.
+    // WHAT WAS UNDER THE FINGER WHEN IT WENT DOWN, as a direction in the
+    // world. Every move solves against THIS, not against the previous event:
+    // stepping from the last position rounds once per event, and thirty of
+    // those compound into a drift the finger never asked for.
     grabbed: screenToVector(at.x, at.y, basis, focal),
   };
 });
@@ -2173,7 +2206,29 @@ window.addEventListener('pointermove', (e) => {
   if (moved < TAP_SLOP) return;              // still a tap, as far as anyone knows
   const at = mapOffset(e);
   if (!at) return;
-  const { az, alt } = aimAfterDrag(drag.grabbed, at.x, at.y, drag.basis, drag.focal);
+  // A hand on the sky beats the sensor and any animation. setAim used to do
+  // this on the way past; the drag no longer goes through it.
+  cancelGlide();
+  if (!flingOwnMove) cancelFling();
+  skyFollow = false;
+  // SOLVED, NOT SEARCHED FOR. The level view that puts the grabbed star
+  // under the finger has a closed form -- see quat.aimLevel. The old solver
+  // iterated six times, kept its best miss, and refused outright any step
+  // whose answer the angles could not hold, which is where the wall at 71
+  // degrees came from with the limit at 89. Where the finger asks for the
+  // impossible -- a high star at the edge of a level screen, or past the
+  // zenith -- this gives the nearest view instead of no view.
+  const q = quat.aimLevel(drag.grabbed,
+    screenToVector(at.x, at.y, SCREEN_FRAME, drag.focal),
+    skyQuat, handFloor(), AIM_MAX_ALT);
+  if (q) setQuat(q);
+  // setAim used to do these two as well, and the drag no longer goes through
+  // it. Found in a browser, not by the suite: without them the readout and
+  // the picture stood still while the finger moved, and updated only on the
+  // release.
+  updateSkyMode();
+  drawLiveSky();
+  const { az, alt } = skyAim;
   // How fast the sky is being moved, for the coast after the release. In
   // DEGREES, not pixels, because that is what the release has to keep moving
   // -- and through signedTurn, or a drag across due north reads as a 359
@@ -2191,7 +2246,6 @@ window.addEventListener('pointermove', (e) => {
     }
   }
   drag.prev = { t: now, az, alt };
-  setAim(az, alt);
 });
 
 window.addEventListener('pointerup', (e) => {

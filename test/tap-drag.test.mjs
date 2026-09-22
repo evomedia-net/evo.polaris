@@ -25,52 +25,63 @@ const appJs = readFileSync(fileURLToPath(new URL('src/app.js', root)), 'utf8');
 const css = readFileSync(fileURLToPath(new URL('src/style.css', root)), 'utf8');
 
 test('one function decides where the view may point', () => {
-  assert.match(appJs, /const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;/,
+  assert.match(appJs, /const AIM_MAX_ALT = 89;/,
     'the limits must be named once, not spelled into each caller');
-  // clampAim MOVED TO skyview.js and takes its floor as an argument. It had
-  // to: the rule produced a user-visible bug -- a target below -30 could be
-  // pointed at but never reached -- while sitting in app.js where no test
-  // could call it. Its own behaviour is covered in aim-clamp.test.mjs; what
-  // matters here is that the app still has exactly one way to set an aim.
-  assert.match(appJs, /^\s*clampAim(?:, figureCentre)?,$/m,
-    'clampAim must be imported rather than re-implemented here');
-  assert.ok(!/function clampAim\(/.test(appJs),
-    'a second copy of the clamp is how the two floors drift apart');
-  assert.match(appJs, /const handFloor = \(\) => \(skyAim\.alt < AIM_MIN_ALT \? TARGET_MIN_ALT : AIM_MIN_ALT\);/,
-    'hand steering keeps a floor of its own');
+  assert.match(appJs, /const TARGET_MIN_ALT = -89;/);
+  // ONE LIMIT, THE SAME FOR EVERY WAY OF STEERING. There were two: hands were
+  // fenced at -30 and only a target could go below it. The fence had to be
+  // computed from where the view already was, and a limit derived from the
+  // current position ratchets -- which froze the controls outright. It is
+  // also no longer buying anything: the ground is a see-through wireframe,
+  // and the app's own targets live down there.
+  assert.match(appJs, /const handFloor = \(\) => TARGET_MIN_ALT;/,
+    'hand steering and targets must share one floor');
+  assert.ok(!/AIM_MIN_ALT/.test(appJs.replace(/^.*THERE USED TO BE.*$/gm, '')),
+    'the second floor is gone; only the story about it may remain');
+
+  // AND ONE WRITER. skyQuat is where the view points; skyAim is a derived
+  // az/alt copy for the readout and the limits, which read it and never
+  // write it. Two writers is how a clamp gets skipped.
+  assert.match(appJs, /function setQuat\(q\) \{/, 'the one writer is gone');
+  const writes = appJs.match(/^\s*sky(?:Quat|Aim) = /gm) || [];
+  assert.equal(writes.length, 3,
+    `skyQuat/skyAim assigned ${writes.length} times; only setQuat's own 3 are allowed`);
 });
 
 test('the pad, a tap and a drag all steer through it', () => {
-  // THE PARITY RULE, as code. If any of these ever computed skyAim directly it
+  // THE PARITY RULE, as code. If any of these ever aimed the view itself it
   // could reach somewhere the others cannot, and the gesture would become a
   // capability only some people have.
   const pan = appJs.slice(appJs.indexOf('function pan('),
     appJs.indexOf('function pan(') + 200);
   assert.match(pan, /setAim\(/, 'the pad must go through setAim');
-  assert.ok(!/skyAim = \{/.test(pan), 'the pad must not set the aim itself');
-  // Nothing builds an aim inline. Found by this test: aimAtPole assembled
-  // one itself, so "Find the pole" at latitude 90 aimed a degree past where
+  // Nothing aims the view inline. Found by this test: aimAtPole assembled an
+  // aim itself, so "Find the pole" at latitude 90 aimed a degree past where
   // the arrows may go -- an aim the buttons cannot hold is one they cannot
   // take back over from.
-  // Anchored, so the declaration's starting value (`let skyAim = {...}`) is
-  // not mistaken for a steering decision. It is where the view begins, not
-  // somewhere anything aims it.
-  assert.ok(!/^\s*skyAim = \{/m.test(appJs),
-    'an aim is being built inline instead of coming from clampAim');
-  // And every function that sets one asks clampAim for it.
   for (const fn of ['setAim', 'glideTo', 'aimAtPole']) {
     const start = appJs.indexOf(`function ${fn}(`);
     assert.notEqual(start, -1, `${fn} is gone`);
     const body = appJs.slice(start, appJs.indexOf('\n}', start));
-    assert.ok(body.includes('clampAim('),
-      `${fn} sets the aim without going through clampAim`);
+    assert.ok(body.includes('setQuat('),
+      `${fn} aims the view without going through setQuat`);
   }
-  // And both gestures call it.
+  // And both gestures do too.
   const down = appJs.slice(appJs.indexOf("$('liveSky').addEventListener('pointerdown'"));
-  // The drag sets the aim directly and the tap travels to it, but both go
-  // through the clamp, which is what the parity rule is actually about.
-  assert.match(down, /setAim\(/, 'the drag must steer through setAim');
+  assert.match(down, /setQuat\(/, 'the drag must steer through setQuat');
   assert.match(down, /glideTo\(/, 'the tap must travel to its target');
+  // The drag solves against WHAT WAS GRABBED, every move. Stepping from the
+  // last position instead rounds once per event, and thirty of those
+  // compound into a drift the finger never asked for.
+  assert.match(down, /grabbed: screenToVector\(at\.x, at\.y, basis, focal\),/,
+    'the drag must remember what it grabbed');
+  const move = appJs.slice(appJs.indexOf("window.addEventListener('pointermove'"),
+    appJs.indexOf("window.addEventListener('pointerup'"));
+  assert.match(move, /quat\.aimLevel\(drag\.grabbed,/,
+    'every move must solve from what was grabbed, not from the previous event');
+  // ...and with the SAME limits every other way of steering gets.
+  assert.match(move, /skyQuat, handFloor\(\), AIM_MAX_ALT\)/,
+    'the drag must be held to the shared floor and ceiling');
 });
 
 test('a tap survives a shaky hand', () => {
