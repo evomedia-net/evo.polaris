@@ -11,7 +11,7 @@ import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './gui
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
   screenToVector, aimAfterDrag, basisFromAim, focalLength, vectorToAltAz,
-  clampAim,
+  clampAim, figureCentre,
 } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
@@ -25,8 +25,9 @@ import {
 } from './iss.js';
 import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
 import {
-  drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_MIN_ALT,
+  drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_MIN_ALT, SUN_MIN_ALT,
 } from './skydraw.js';
+import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import {
@@ -123,6 +124,9 @@ milkyLayer.ready.then(() => {
 });
 let skyPlanetList = [];
 let skyMoonBody = null;
+// The Sun, as a body like the Moon: where it is right now, so the ring and
+// the arrow can point at it whether it is up or not.
+let skySunBody = null;
 
 // Full screen. null means "follow the phone's rotation"; true or false is a
 // choice someone made by hand, and a choice outranks the rotation until they
@@ -236,10 +240,16 @@ let guideTarget = 'pole';
 // starts at Mercury rather than resuming halfway through.
 let planetStep = -1;
 
+// WHERE THE CONSTELLATIONS BUTTON IS UP TO. Same shape as the planets: one
+// button walking the list of shipped figures, in the order they are
+// shipped, then nothing, then round again. -1 is "not in the cycle".
+const CONST_KEYS = Object.keys(CONSTELLATIONS);
+let constStep = -1;
+
 /** Put the ring on something, and take the planet cycle off unless asked. */
 function setTarget(what, { keepCycle = false } = {}) {
   guideTarget = what;
-  if (!keepCycle) planetStep = -1;
+  if (!keepCycle) { planetStep = -1; constStep = -1; }
   updateTargetName();
   updateSkyMode();
   drawLiveSky();
@@ -282,7 +292,9 @@ function updateTargetName() {
     ['tgtPole', guideTarget === 'pole'],
     ['tgtIss', guideTarget === 'iss'],
     ['tgtMoon', guideTarget === 'moon'],
+    ['tgtSun', guideTarget === 'sun'],
     ['tgtPlanets', onPlanet],
+    ['tgtConst', guideTarget.startsWith('const:')],
   ]) {
     const b = $(id);
     if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -1379,6 +1391,11 @@ function refreshSkyVectors() {
   ], lst, site.lat, precess);
   skyPlanetList = bodies.filter((b) => !b.isMoon);
   skyMoonBody = bodies.find((b) => b.isMoon) || null;
+  // The Sun's series is of date, like the Moon's, so it is not precessed
+  // again -- the same flag, for the same reason.
+  const sunEq = sunEquatorial(appTime());
+  skySunBody = buildBodies([{ ra: sunEq.ra, dec: sunEq.dec, frame: 'date', isSun: true }],
+                           lst, site.lat, precess)[0] || null;
   $('planetsOut').textContent = describePlanets(skyPlanetList);
 
   // --- the paths they move along ------------------------------------------
@@ -1587,6 +1604,7 @@ function drawLiveSky() {
     tracks: skyTracks,
     planets: skyShowPlanets ? skyPlanetList : null,
     moon: skyShowMoon ? skyMoonBody : null,
+    sun: skySunBody,
     // The marker is only drawn when the station is actually up there --
     // a dot below the horizon would be drawing the inside of the Earth. The
     // TARGET is not so restricted: see below.
@@ -1627,6 +1645,23 @@ function aimTarget(issLook) {
       ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon' }
       : poleTarget();
   }
+  if (guideTarget === 'sun') {
+    return skySunBody
+      ? { alt: skySunBody.alt, az: skySunBody.az, name: 'Sun' }
+      : poleTarget();
+  }
+  if (guideTarget.startsWith('const:')) {
+    // The middle of the figure, from the same star vectors the lines are
+    // drawn from, so the ring lands inside what is on screen.
+    const key = guideTarget.slice(6);
+    const fig = CONSTELLATIONS[key];
+    if (fig && skyVectors) {
+      const byHr = new Map(skyVectors.map((s) => [s.hr, s.v]));
+      const c = figureCentre(fig.lines, byHr);
+      if (c) { const { alt, az } = vectorToAltAz(c); return { alt, az, name: fig.name }; }
+    }
+    return poleTarget();
+  }
   const planet = (skyPlanetList || []).find((b) => b.name === guideTarget);
   if (planet) return { alt: planet.alt, az: planet.az, name: planet.name };
   return poleTarget();
@@ -1649,6 +1684,10 @@ function targetLabel(t) {
 function targetIsPainted(t) {
   if (!t) return false;
   if (guideTarget === 'moon') return t.alt > MOON_MIN_ALT;
+  if (guideTarget === 'sun') return t.alt > SUN_MIN_ALT;
+  // A figure is a place in the sky rather than a body, but a figure whose
+  // middle is under the ground is one you cannot see either.
+  if (guideTarget.startsWith('const:')) return t.alt > 0;
   if (PLANET_NAMES.includes(guideTarget)) return t.alt > PLANET_MIN_ALT;
   return true;                     // the pole is a place, not a body; the ISS
 }                                  // has said this for itself all along
@@ -2478,6 +2517,10 @@ $('tgtIss').onclick = async () => {
   goToTarget('iss');
 };
 
+// "It should always point at the sun, even during the day it would be
+// above the horizon." Pressing the Sun again lets go, as the others do.
+$('tgtSun').onclick = () => goToTarget(guideTarget === 'sun' ? 'none' : 'sun');
+
 // OUT FROM THE SUN, THEN NOTHING, THEN ROUND AGAIN.
 //
 // One button walking the list: Mercury first, Pluto last, then the ring is
@@ -2488,6 +2531,18 @@ $('tgtIss').onclick = async () => {
 $('tgtPlanets').onclick = () => {
   planetStep = (planetStep + 1) % (PLANET_NAMES.length + 1);
   const next = planetStep < PLANET_NAMES.length ? PLANET_NAMES[planetStep] : 'none';
+  constStep = -1;
+  goToTarget(next, { keepCycle: true });
+};
+
+// "A constellation button that snaps to each one with its name." One
+// button walking the shipped figures, the ring on the middle of each, the
+// name as the caption; after the last, nothing, then round again. It
+// travels there rather than snapping, like everything else does now.
+$('tgtConst').onclick = () => {
+  constStep = (constStep + 1) % (CONST_KEYS.length + 1);
+  const next = constStep < CONST_KEYS.length ? 'const:' + CONST_KEYS[constStep] : 'none';
+  planetStep = -1;
   goToTarget(next, { keepCycle: true });
 };
 

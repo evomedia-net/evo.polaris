@@ -100,7 +100,7 @@ test('choosing anything else drops out of the cycle', () => {
   // Otherwise the next press of Planets resumes halfway along, which is not
   // what "cycles through each one" means to anyone pressing it.
   assert.match(appJs, /function setTarget\(what, \{ keepCycle = false \} = \{\}\)/);
-  assert.match(appJs, /if \(!keepCycle\) planetStep = -1;/);
+  assert.match(appJs, /if \(!keepCycle\) \{ planetStep = -1; constStep = -1; \}/);
   const pole = appJs.slice(appJs.indexOf("$('skyPole').onclick"),
     appJs.indexOf("$('skyPole').onclick") + 400);
   assert.match(pole, /planetStep = -1;/, 'the pole button must leave the cycle');

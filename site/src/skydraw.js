@@ -31,6 +31,10 @@ const CARDINALS = [[0, 'N'], [45, 'NE'], [90, 'E'], [135, 'SE'],
 // gets none.
 export const MOON_MIN_ALT = -1;
 export const PLANET_MIN_ALT = 0;
+// The Sun is drawn while any of it is above the horizon: half a degree
+// across, and refraction lifts it another half, so the disc is still in
+// view with its centre almost a degree down. Sunset, as people see it.
+export const SUN_MIN_ALT = -0.8;
 
 /**
  * Paint one frame.
@@ -242,6 +246,44 @@ export function drawSkyView(ctx, o) {
         ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
         ctx.fillText(p.name, x + r + 5, y);
+        ctx.textAlign = 'center';
+      }
+    }
+  }
+
+  // THE SUN. "It would be nice to have where the sun is ... it should always
+  // point at the sun, even during the day it would be above the horizon."
+  // Drawn while it is up -- this view is used in daylight too, for finding
+  // the pole before dark -- and targetable always: below the horizon the
+  // ring says it has set and the arrow points down at it, like the Moon.
+  // Larger than life for the same reason the Moon is, and the same floor.
+  if (o.sun && o.sun.alt > SUN_MIN_ALT) {
+    const q = projectToScreen(o.sun.v, basis, focal);
+    if (q) {
+      const x = cx + q.x, y = cy + q.y;
+      const trueR = Math.tan(0.27 * Math.PI / 180) * focal;
+      const r = Math.max(ref / 22, trueR);
+      ctx.save();
+      // A warm disc with a soft edge: the one thing in this sky that is not
+      // a point. Night Mode keeps it red, like everything.
+      const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 1.6);
+      g.addColorStop(0, night ? 'rgba(255,40,40,0.95)' : 'rgba(255,244,200,1)');
+      g.addColorStop(0.55, night ? 'rgba(200,0,0,0.6)' : 'rgba(255,214,120,0.7)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = night ? '#ff3030' : '#fff6d8';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (ringName !== 'Sun') {
+        ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
+        ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText('Sun', x + r + 5, y);
         ctx.textAlign = 'center';
       }
     }
@@ -648,6 +690,10 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed,
       // invisible.
       if (p.name !== ringName) claim(p.name, x + r + 5, y, Math.round(ref / 32));
     }
+  }
+  if (o.sun && o.sun.alt > SUN_MIN_ALT && ringName !== 'Sun') {
+    const q = projectToScreen(o.sun.v, basis, focal);
+    if (q) claim('Sun', cx + q.x + Math.max(ref / 22, 8) + 5, cy + q.y, Math.round(ref / 32));
   }
   // THE SAME GATE THE MOON IS DRAWN BY. This had none, so with the Moon under
   // the ground the layout still shoved other labels aside to keep room for a

@@ -513,6 +513,35 @@ export function buildMilkyWay(lstHours, latDeg, stepL = 6, stepB = 3, maxB = 18,
 }
 
 /**
+ * The middle of a constellation figure: the mean of its stars' directions.
+ *
+ * For "point at the next constellation". A figure has no single position,
+ * so the ring goes on the average of the stars its lines join -- each star
+ * once, however many lines meet at it -- which lands inside the figure for
+ * every one shipped. Stars not in the catalogue (none, by construction, but
+ * the lookup is a Map and a Map can miss) are skipped rather than counted
+ * as zero, which would drag the centre toward the observer.
+ *
+ * @param {number[][]} lines  pairs of HR numbers
+ * @param {Map<number, number[]>} vectorsByHr  unit vectors, horizontal frame
+ * @returns {number[]|null} a unit vector, or null if no star was found
+ */
+export function figureCentre(lines, vectorsByHr) {
+  const seen = new Set();
+  let x = 0, y = 0, z = 0, n = 0;
+  for (const pair of lines) for (const hr of pair) {
+    if (seen.has(hr)) continue;
+    seen.add(hr);
+    const v = vectorsByHr.get(hr);
+    if (!v) continue;
+    x += v[0]; y += v[1]; z += v[2]; n += 1;
+  }
+  if (!n) return null;
+  const l = Math.hypot(x, y, z) || 1;
+  return [x / l, y / l, z / l];
+}
+
+/**
  * Where the view is allowed to point.
  *
  * Pure, and here rather than in app.js, because this rule has now produced a

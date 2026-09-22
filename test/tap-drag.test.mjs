@@ -32,7 +32,7 @@ test('one function decides where the view may point', () => {
   // pointed at but never reached -- while sitting in app.js where no test
   // could call it. Its own behaviour is covered in aim-clamp.test.mjs; what
   // matters here is that the app still has exactly one way to set an aim.
-  assert.match(appJs, /^\s*clampAim,$/m,
+  assert.match(appJs, /^\s*clampAim(?:, figureCentre)?,$/m,
     'clampAim must be imported rather than re-implemented here');
   assert.ok(!/function clampAim\(/.test(appJs),
     'a second copy of the clamp is how the two floors drift apart');

@@ -98,7 +98,7 @@ test('the renderer and the words read the same threshold', () => {
   // own copy of the planet gate and NO copy of the Moon's, so with the Moon
   // under the ground it still pushed neighbouring labels aside to keep room
   // for a word it never painted.
-  assert.match(appJs, /MOON_MIN_ALT, PLANET_MIN_ALT,?\s*\n?\} from '\.\/skydraw\.js'/,
+  assert.match(appJs, /MOON_MIN_ALT, PLANET_MIN_ALT(?:, SUN_MIN_ALT)?,?\s*\n?\} from '\.\/skydraw\.js'/,
     'the app must import the gates rather than keep its own copy');
   const fn = appJs.slice(appJs.indexOf('function targetIsPainted('),
     appJs.indexOf('function aimAtPole('));

@@ -47,7 +47,7 @@ const VALUE_PICKERS = new Set([
   //
   // Planets is the odd one: it cycles rather than selects, so it also carries
   // an aria-label spelling out that a press moves to the next planet out.
-  'tgtPole', 'tgtIss', 'tgtMoon', 'tgtPlanets',
+  'tgtPole', 'tgtIss', 'tgtMoon', 'tgtSun', 'tgtPlanets', 'tgtConst',
 ]);
 
 /** Glyph buttons. Their words live in aria-label, which is checked instead. */
