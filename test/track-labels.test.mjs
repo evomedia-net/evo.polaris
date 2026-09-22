@@ -82,20 +82,42 @@ function longTrack(label = 'Jupiter') {
   return { points, colour: '#e8d27a', label };
 }
 
-test('a long track repeats its name, but only a few times', () => {
-  // Two requirements pulling opposite ways. The name repeats so that one is
-  // near wherever you happen to be looking -- so not once. And it was
-  // reported as far too dense: the Moon's path wrote "Moon" five times down
-  // one screen -- so not many. Two or three across the view is the target.
+test('a long track repeats its name, spaced out along it', () => {
+  // HOW OFTEN, IN FULL, BECAUSE IT HAS BEEN WRONG IN BOTH DIRECTIONS.
+  //
+  // Every Nth sample put "Moon" five times down one screen -- too dense. So
+  // it was spaced by distance instead, two or three across the view. Then
+  // "still lots of dupe names" was reported and it was cut to exactly one,
+  // which was an over-correction:
+  //
+  //   "there should be names every now and then along each dashed line for
+  //    reference when looking around, just not piled on in small area"
+  //
+  // A line running off both edges of the view has to say what it is wherever
+  // you have panned to; one label is one place, and everywhere else the line
+  // is anonymous again. The duplicates actually reported were three DIFFERENT
+  // things naming one object within a few centimetres -- the ring, the body
+  // and the path -- which is fixed by precedence, not by spacing. See
+  // one-name-per-object.test.mjs.
   const ctx = recordingCtx();
   drawTrack(ctx, longTrack(), BASIS, FOCAL, CX, CY, W, H, false);
   assert.ok(ctx.labels.length >= 2,
     `a path right across the view should carry more than one name, got ${ctx.labels.length}`);
   assert.ok(ctx.labels.length <= 4,
     `${ctx.labels.length} names across one view is the pile-up this fixed`);
-  const xs = ctx.labels.map((l) => l.x);
-  assert.ok(Math.max(...xs) - Math.min(...xs) > 50,
-    'the names are bunched together instead of spread along the path');
+  // SPACED, which is the whole of "not piled on in small area". Measured as
+  // the closest pair, not the overall spread: three bunched at one end and a
+  // fourth far away would pass a spread check while looking exactly like the
+  // thing being complained about.
+  const pts = ctx.labels.map((l) => [l.x, l.y]);
+  let closest = Infinity;
+  for (let a = 0; a < pts.length; a++) {
+    for (let b = a + 1; b < pts.length; b++) {
+      closest = Math.min(closest, Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]));
+    }
+  }
+  assert.ok(closest > Math.hypot(W, H) / 4,
+    `two names sit ${closest.toFixed(0)}px apart in a ${W}x${H} view`);
 });
 
 test('a track with nothing on screen is not named', () => {

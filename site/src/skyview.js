@@ -511,3 +511,20 @@ export function buildMilkyWay(lstHours, latDeg, stepL = 6, stepB = 3, maxB = 18,
   }
   return out;
 }
+
+/**
+ * Where the view is allowed to point.
+ *
+ * Pure, and here rather than in app.js, because this rule has now produced a
+ * user-visible bug -- "when clicking ISS it would jump to it ... now it just
+ * stops here" -- while living somewhere no test could reach it. The floor is
+ * passed in rather than decided here: how far down you may WANDER and how far
+ * down you may be SENT are different questions, and the caller is the only
+ * one that knows which it is asking.
+ */
+export function clampAim(az, alt, floor, ceiling = 89) {
+  return {
+    az: ((az % 360) + 360) % 360,
+    alt: Math.max(floor, Math.min(ceiling, alt)),
+  };
+}

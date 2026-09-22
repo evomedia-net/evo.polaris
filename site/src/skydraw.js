@@ -90,6 +90,9 @@ export function drawSkyView(ctx, o) {
   // min(w, h) is h for the windowed 3:2 canvas and h again in landscape, so
   // nothing outside portrait full screen moves by a pixel.
   const ref = Math.min(w, h);
+  // What the ring is on, by name alone. The caption may carry more than the
+  // name ("Pluto — has set") while a body and its path are just "Pluto".
+  const ringName = targetName ? String(targetName).split(' — ')[0] : null;
   const aimed = vectorToAltAz(basis.forward);
 
   // The Milky Way, first, because it is the sky rather than something drawn on
@@ -222,11 +225,24 @@ export function drawSkyView(ctx, o) {
   // are drawn after the tracks, so the only way the tracks can know is to
   // work out where those labels will go first and claim the space. The body
   // wins the argument: the dot is the thing, the path is the context.
+  // ...AND THAT FIX TURNED AN OVERLAP INTO A DUPLICATE. Claiming the space
+  // stops the two labels landing on top of each other by moving one of them
+  // somewhere else -- so instead of "Pluto" over "Pluto" you get "Pluto"
+  // here and "Pluto" a hundred pixels away, which was reported as "still
+  // lots of dupe names". Three things name the same object and none of them
+  // knew the others existed: the path, the body, and the ring.
+  //
+  // So the pre-pass now also says which names are ALREADY SPOKEN FOR, and
+  // there is an order of precedence: the ring names its target, a body on
+  // screen names itself, and a path names its body only when nothing else
+  // will. That last case is the whole reason track labels exist -- "which
+  // dashed line is this?" -- and it is the only one left that has to answer.
   const placed = [];
-  reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed);
+  const spoken = new Set();
+  reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed, spoken);
   if (o.tracks) {
     for (const t of o.tracks) {
-      drawTrack(ctx, t, basis, focal, cx, cy, w, h, night, placed);
+      drawTrack(ctx, t, basis, focal, cx, cy, w, h, night, placed, spoken);
     }
   }
 
@@ -247,11 +263,15 @@ export function drawSkyView(ctx, o) {
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
-      ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(p.name, x + r + 5, y);
-      ctx.textAlign = 'center';
+      // ONE NAME PER OBJECT. If the ring is on this planet it is already
+      // captioned, in bigger type, right where you are looking.
+      if (p.name !== ringName) {
+        ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
+        ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(p.name, x + r + 5, y);
+        ctx.textAlign = 'center';
+      }
     }
   }
 
@@ -295,11 +315,13 @@ export function drawSkyView(ctx, o) {
       moonFace(ctx, r, o.moon.illuminated, night);
       ctx.restore();
 
-      ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
-      ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText('Moon', x + r + 5, y);
-      ctx.textAlign = 'center';
+      if (ringName !== 'Moon') {
+        ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
+        ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText('Moon', x + r + 5, y);
+        ctx.textAlign = 'center';
+      }
     }
   }
 
@@ -487,12 +509,42 @@ function moonFace(ctx, r, illuminated, night) {
  * wrong patch of screen and the duplicate comes back. Entries are stored as
  * CENTRES because that is what the track labels are measured from.
  */
-function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
+function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed,
+                           spoken = new Set()) {
+  // FROM ANY VIEW OF A LINE YOU MUST BE ABLE TO TELL WHAT IT IS. So a name
+  // only counts as spoken where it is actually VISIBLE: a body or a ring
+  // somewhere off the edge silences nothing, because a reader looking at this
+  // frame cannot see it. Same margin the bodies are drawn with, so what is
+  // reserved and what is painted cannot disagree.
+  const onCanvas = (x, y) => x > -40 && x < w + 40 && y > -40 && y < h + 40;
   const claim = (text, left, y, fontPx) => {
     ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
     const half = ctx.measureText(text).width / 2;
     placed.push({ x: left + half, y, half });
+    if (onCanvas(left + half, y)) spoken.add(text);
   };
+  // THE RING SPEAKS FIRST, because it wins: it is the thing you asked for.
+  // Its label was never claimed in `placed` at all, so a path could be
+  // labelled straight through it -- the "Pluto" lying across the Moon in the
+  // report. The base name, because the caption may carry more than the name
+  // ("Pluto — has set") while the path is just "Pluto".
+  const ringName = o.targetName ? String(o.targetName).split(' — ')[0] : null;
+  if (ringName) {
+    const tp = projectToScreen(altAzToVector(o.targetAlt, o.targetAz), basis, focal);
+    if (tp) {
+      const fontPx = Math.round(ref / 24);
+      const r = o.reticleR || ref / 14;
+      ctx.font = `600 ${fontPx}px system-ui, sans-serif`;
+      const half = ctx.measureText(o.targetName).width / 2;
+      const x = cx + tp.x, y = cy + tp.y - r - fontPx * 0.4;
+      placed.push({ x, y, half });
+      // Only when it can be SEEN. Off the edge there is no ring and no
+      // caption, only the arrow -- and a target off the edge silencing its
+      // own orbit line would leave an anonymous dashed line with nothing on
+      // screen to explain it.
+      if (onCanvas(x, y)) spoken.add(ringName);
+    }
+  }
   if (o.planets) {
     for (const p of o.planets) {
       if (p.alt <= PLANET_MIN_ALT) continue;
@@ -501,7 +553,11 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
       const x = cx + q.x, y = cy + q.y;
       if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
       const r = Math.max(2.2, starRadius(p.magnitude) * 1.4);
-      claim(p.name, x + r + 5, y, Math.round(ref / 32));
+      // Nothing to claim if the ring is already naming it: the body's own
+      // label is not drawn, and reserving space for a word nobody paints is
+      // how the Moon's label came to shove its neighbours aside while
+      // invisible.
+      if (p.name !== ringName) claim(p.name, x + r + 5, y, Math.round(ref / 32));
     }
   }
   // THE SAME GATE THE MOON IS DRAWN BY. This had none, so with the Moon under
@@ -511,8 +567,10 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
     const q = projectToScreen(o.moon.v, basis, focal);
     if (q) {
       const x = cx + q.x, y = cy + q.y;
+      // The planets check their bounds before claiming and the Moon did not,
+      // so a Moon somewhere off the edge counted as naming its own path.
       const r = Math.max(ref / 20, 8);
-      claim('Moon', x + r + 5, y, Math.round(ref / 32));
+      if (ringName !== 'Moon') claim('Moon', x + r + 5, y, Math.round(ref / 32));
     }
   }
   if (o.iss) {
@@ -525,7 +583,7 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed) {
 }
 
 export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
-                          placed = []) {
+                          placed = [], spoken = new Set()) {
   const { points, colour, label, width = 1.6, dash = [7, 6] } = track;
   if (!points || points.length < 2) return;
 
@@ -562,7 +620,12 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
     if (p.up && x > 0 && x < w && y > 0 && y < h) seen.push([x, y]);
   }
 
-  if (label && seen.length) {
+  // A PATH NAMES ITS BODY ONLY WHEN NOTHING ELSE WILL. The ring names its
+  // target and a body on screen names itself; a third copy along the dashes
+  // is what "still lots of dupe names" was about. The label still happens
+  // whenever the body is NOT on screen -- set, or off the edge -- which is
+  // the question track labels exist to answer: which dashed line is this?
+  if (label && seen.length && !spoken.has(label)) {
     ctx.setLineDash([]);
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = ink;
@@ -585,17 +648,29 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
     // of that -- two different names in one spot -- is covered by the same
     // rule as the repeats.
     const half = ctx.measureText(label).width / 2;
-    // HOW OFTEN A PATH REPEATS ITS NAME. Reported as too dense: the Moon's
-    // track wrote "Moon" five times down one screen. The name repeats so that
-    // one is near wherever you happen to be looking, which wants roughly two
-    // or three down the longest run across the view -- not one every finger's
-    // width. The diagonal is that longest run, so the spacing comes from it
-    // rather than from the height, which says nothing about a path crossing
-    // the picture corner to corner.
-    const gap = Math.max(fontPx * 6, Math.hypot(w, h) / 3);
     const fits = (x, y) => !placed.some((r) => (
       Math.abs(r.x - x) < (r.half + half + fontPx) && Math.abs(r.y - y) < fontPx * 1.4
     ));
+    // HOW OFTEN A PATH REPEATS ITS NAME. It went every Nth sample, which put
+    // "Moon" five times down one screen; then spaced by distance; then, for
+    // one commit, once. That last was an over-correction and is recorded here
+    // so nobody repeats it:
+    //
+    //   "there should be names every now and then along each dashed line for
+    //    reference when looking around, just not piled on in small area"
+    //
+    // A long dashed line running off both edges of the view needs to say what
+    // it is wherever you have panned to -- one label is one place, and
+    // anywhere else on the path the line is anonymous again. The duplicates
+    // that were actually reported were three DIFFERENT things naming one
+    // object within a few centimetres (the ring, the body and the path), not
+    // a path naming itself at opposite corners. Precedence fixed that; this
+    // spacing is what stops the remaining names bunching.
+    //
+    // The diagonal is the longest run a path can make across the view, so the
+    // spacing comes from it rather than from the height, which says nothing
+    // about a path crossing the picture corner to corner.
+    const gap = Math.max(fontPx * 6, Math.hypot(w, h) / 3);
     let drew = 0;
     let lastX = -1e9, lastY = -1e9;
     for (const [x, y] of seen) {

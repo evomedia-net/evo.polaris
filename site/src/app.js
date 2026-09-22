@@ -11,6 +11,7 @@ import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './gui
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
   screenToVector, aimAfterDrag, basisFromAim, focalLength, vectorToAltAz,
+  clampAim,
 } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
@@ -1603,7 +1604,8 @@ function aimAtPole() {
   // Clamped like every other way of aiming. At the poles the setting is 90,
   // which is past where the arrows are allowed to go -- and an aim the buttons
   // cannot hold is an aim they cannot take back over from.
-  skyAim = clampAim(solution.poleAzimuth, Math.abs(solution.latitudeSetting));
+  skyAim = clampAim(solution.poleAzimuth, Math.abs(solution.latitudeSetting),
+                    handFloor(), AIM_MAX_ALT);
 }
 
 function updateSkyMode() {
@@ -1725,18 +1727,31 @@ function updateSkyMode() {
   // it says: the buttons take over.
 }
 
-// How far the view may be pointed. The pad, a tap and a drag all go through
-// setAim, so they reach exactly the same places -- which is not tidiness, it
-// is the rule: a drag must never get somewhere the buttons cannot.
+// How far the view may be pointed BY HAND. The pad, a tap and a drag all go
+// through setAim, so they reach exactly the same places -- which is not
+// tidiness, it is the rule: a drag must never get somewhere the buttons
+// cannot. Thirty degrees under the horizon is as far down as wandering goes;
+// past that there is nothing but ground and no landmark to get back by.
 const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;
+// BEING SENT SOMEWHERE IS NOT WANDERING. "when clicking ISS it would jump to
+// it ... now it just stops here", with the view pinned at the floor and the
+// arrow still pointing down past it. The station spends much of its orbit
+// well below -30, and so do the Moon and half the planets -- the app offers
+// them as targets and says in words that they are under the ground, then
+// could not actually take you there. A destination the app itself chose is
+// allowed the whole sky.
+const TARGET_MIN_ALT = -89;
 
-/** Where the view is allowed to point. Nothing sets the aim without this. */
-function clampAim(az, alt) {
-  return {
-    az: ((az % 360) + 360) % 360,
-    alt: Math.max(AIM_MIN_ALT, Math.min(AIM_MAX_ALT, alt)),
-  };
-}
+/**
+ * How far down HAND steering may go from where the view is now.
+ *
+ * The floor follows the view DOWN but not further: once a target has taken
+ * you to -62 the buttons may look around from there and climb back out, and
+ * still cannot wander past -30 on their own. Without that, the first press of
+ * an arrow after arriving would snap the sky thirty degrees upward, which is
+ * the sort of jump that loses people.
+ */
+const handFloor = () => Math.min(AIM_MIN_ALT, skyAim.alt);
 
 function setAim(az, alt) {
   // Any hand steering drops out of follow mode: the alternative is fighting
@@ -1744,7 +1759,7 @@ function setAim(az, alt) {
   cancelGlide();                 // a hand on the controls beats an animation
   if (!flingOwnMove) cancelFling();   // ...and beats a coast, but is not one
   skyFollow = false;
-  skyAim = clampAim(az, alt);
+  skyAim = clampAim(az, alt, handFloor(), AIM_MAX_ALT);
   updateSkyMode();
   drawLiveSky();
 }
@@ -1861,7 +1876,7 @@ function cancelGlide(arrive = false) {
  */
 function glideTo(az, alt) {
   cancelGlide();
-  const to = clampAim(az, alt);
+  const to = clampAim(az, alt, TARGET_MIN_ALT, AIM_MAX_ALT);
   const from = { ...skyAim };
   const dAz = signedTurn(from.az, to.az);
   const dAlt = to.alt - from.alt;
@@ -1882,7 +1897,8 @@ function glideTo(az, alt) {
     // Ease out: leaves quickly, settles gently. Constant speed reads as a
     // machine moving the sky; this reads as the sky coming to rest.
     const e = 1 - ((1 - t) ** 3);
-    skyAim = clampAim(from.az + dAz * e, from.alt + dAlt * e);
+    skyAim = clampAim(from.az + dAz * e, from.alt + dAlt * e,
+                      TARGET_MIN_ALT, AIM_MAX_ALT);
     updateSkyMode();
     drawLiveSky();
     glide = t < 1 ? { raf: requestAnimationFrame(step), to } : null;

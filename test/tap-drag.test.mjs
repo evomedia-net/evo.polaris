@@ -27,10 +27,17 @@ const css = readFileSync(fileURLToPath(new URL('src/style.css', root)), 'utf8');
 test('one function decides where the view may point', () => {
   assert.match(appJs, /const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;/,
     'the limits must be named once, not spelled into each caller');
-  const clamp = appJs.slice(appJs.indexOf('function clampAim('),
-    appJs.indexOf('function setAim('));
-  assert.match(clamp, /AIM_MIN_ALT/, 'clampAim must apply the altitude floor');
-  assert.match(clamp, /AIM_MAX_ALT/, 'clampAim must apply the altitude ceiling');
+  // clampAim MOVED TO skyview.js and takes its floor as an argument. It had
+  // to: the rule produced a user-visible bug -- a target below -30 could be
+  // pointed at but never reached -- while sitting in app.js where no test
+  // could call it. Its own behaviour is covered in aim-clamp.test.mjs; what
+  // matters here is that the app still has exactly one way to set an aim.
+  assert.match(appJs, /^\s*clampAim,$/m,
+    'clampAim must be imported rather than re-implemented here');
+  assert.ok(!/function clampAim\(/.test(appJs),
+    'a second copy of the clamp is how the two floors drift apart');
+  assert.match(appJs, /const handFloor = \(\) => Math\.min\(AIM_MIN_ALT, skyAim\.alt\);/,
+    'hand steering keeps a floor of its own');
 });
 
 test('the pad, a tap and a drag all steer through it', () => {
