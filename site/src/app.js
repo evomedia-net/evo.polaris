@@ -1471,6 +1471,42 @@ function sizeSkyCanvas() {
   return true;
 }
 
+// THE CANVAS CAN LOSE ITS CONTEXT, AND THEN DRAWS NOTHING UNTIL TOLD TO
+// COME BACK. Chrome on Android drops a canvas's GPU context under memory
+// pressure, and a switch in or out of real full screen is exactly when it is
+// reallocating two full-screen canvases at once. A lost 2D context throws no
+// error: every draw call is silently ignored, so the sky was black -- in the
+// window, and in full screen again -- until the page was reloaded. "So
+// exiting full screen breaks and can't be fixed."
+//
+// The WebGL layer has handled its own loss since it was written; the 2D
+// canvas had not. Cancelling contextlost is the whole contract: it tells the
+// browser the page intends to carry on, and the browser then restores the
+// context and says so -- at which point the backing store is blank and
+// everything has to be drawn again. Without the cancel, no restore ever
+// comes. Not reproducible on a desktop, which never loses one; the count on
+// the diagnostics line is there so a recurrence can be named.
+let canvasLosses = 0;
+$('liveSky').addEventListener('contextlost', (e) => {
+  e.preventDefault();
+  canvasLosses += 1;
+  noteCanvasLoss();
+});
+$('liveSky').addEventListener('contextrestored', () => {
+  sizeSkyCanvas();
+  drawLiveSky();
+  noteCanvasLoss();
+});
+
+/** The breadcrumb: how many times, and whether the picture is back yet. */
+function noteCanvasLoss() {
+  const el = $('skyDiag');
+  if (!el || !canvasLosses) return;
+  const lost = $('liveSky').getContext('2d')?.isContextLost?.() === true;
+  el.textContent = `Canvas context lost ${canvasLosses}× — `
+    + (lost ? 'waiting for the browser to give it back.' : 'restored and redrawn.');
+}
+
 function applyFullScreen() {
   const wrap = $('liveSkyWrap');
   wrap.classList.toggle('full', fullOn);
@@ -2312,7 +2348,9 @@ function updateSensorReadout() {
   el.textContent =
     `${sensorInfo.event || 'no'} event · absolute ${abs === null ? 'unstated' : abs}`
     + ` · alpha ${Math.round(sAlpha ?? 0)}° beta ${Math.round(sBeta ?? 0)}°`
-    + ` gamma ${Math.round(sGamma ?? 0)}° · screen ${sensorInfo.screen}°${warn}`;
+    + ` gamma ${Math.round(sGamma ?? 0)}° · screen ${sensorInfo.screen}°${warn}`
+    // Auto Mode rewrites this line every frame; the breadcrumb rides on it.
+    + (canvasLosses ? ` · canvas context lost ${canvasLosses}×` : '');
 }
 
 const STEP = 15;
