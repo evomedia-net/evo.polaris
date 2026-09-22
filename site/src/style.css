@@ -966,9 +966,14 @@ html[data-night='on'] .target-name {
 .map-full {
   right: max(0.6rem, env(safe-area-inset-right));
   bottom: max(0.6rem, env(safe-area-inset-bottom));
-  width: 3.2rem;
-  height: 3.2rem;
-  font-size: 1.5rem;
+  /* THE SAME SIZE AS THE ZOOM BUTTONS ABOVE IT, NOT SMALLER. This was
+     3.2rem -- under the app's own --tap minimum -- and sat directly beneath
+     three 4rem buttons, so the one control you press to leave full screen
+     was the smallest thing on the screen. "It's difficult for me to press
+     it each time." One corner, one thumb, one size. */
+  width: 4rem;
+  height: 4rem;
+  font-size: 2.2rem;
   line-height: 1;
 }
 /* Bottom centre: who is steering. */
@@ -1008,7 +1013,9 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
   gap: 0.6rem;
   position: absolute;
   right: max(0.6rem, env(safe-area-inset-right));
-  bottom: calc(max(0.6rem, env(safe-area-inset-bottom)) + 4rem);
+  /* Clear of the 4rem exit button below, with the same 0.6rem gap the
+     column keeps between its own buttons. */
+  bottom: calc(max(0.6rem, env(safe-area-inset-bottom)) + 4.6rem);
   z-index: 2;
 }
 .live-sky.full .map-zoom-btn {
