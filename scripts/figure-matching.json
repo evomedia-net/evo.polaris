@@ -1,0 +1,69 @@
+{
+  "_comment": [
+    "Hand-matching of Hedberg's drawings to their stars, applied by build-constellation-art.py.",
+    "Each entry is [u, v, target]: a landmark on the figure's tile (u across, v down, 0..1,",
+    "measured on the tile as cropped by the build) and where it must go -- a Bayer letter of",
+    "the constellation's star, or [u, v] to pin the landmark where it already is. A thin-plate",
+    "spline moves the landmarks and bends the drawing smoothly with them; pins stop parts",
+    "that already sit right from being dragged along. Figures not listed are placed as",
+    "OpenSpace placed them, because they already sit on their stars."
+  ],
+  "Sco": [
+    [0.335, 0.60, "Lam"],
+    [0.55, 0.55, "Alp"],
+    [0.66, 0.36, "Del"],
+    [0.17, 0.71, "The"],
+    [0.48, 0.70, "Mu"],
+    [0.76, 0.05, [0.76, 0.05]],
+    [0.85, 0.31, [0.85, 0.31]],
+    [0.77, 0.57, [0.77, 0.57]],
+    [0.70, 0.95, [0.70, 0.95]],
+    [0.60, 0.80, [0.60, 0.80]]
+  ],
+  "Cyg": [
+    [0.29, 0.27, "Alp"],
+    [0.64, 0.74, "Bet"],
+    [0.70, 0.30, "Del"],
+    [0.30, 0.72, "Eps"]
+  ],
+  "Aql": [
+    [0.55, 0.66, "Alp"],
+    [0.70, 0.72, "Del"],
+    [0.72, 0.35, "Zet"],
+    [0.30, 0.80, "The"],
+    [0.86, 0.82, "Lam"]
+  ],
+  "Vir": [
+    [0.52, 0.63, "Alp"],
+    [0.53, 0.28, "Eps"],
+    [0.86, 0.42, "Eta"],
+    [0.53, 0.50, "The"],
+    [0.06, 0.48, [0.06, 0.48]],
+    [0.38, 0.40, "Zet"]
+  ],
+  "Aqr": [
+    [0.17, 0.72, "Del"],
+    [0.68, 0.30, [0.68, 0.30]],
+    [0.22, 0.35, [0.22, 0.35]],
+    [0.92, 0.52, [0.92, 0.52]]
+  ],
+  "Cru": [
+    [0.50, 0.05, "Gam"],
+    [0.53, 0.93, "Alp"],
+    [0.20, 0.42, "Bet"],
+    [0.79, 0.30, "Del"]
+  ],
+  "Lyr": [
+    [0.72, 0.24, "Alp"],
+    [0.17, 0.75, [0.17, 0.75]],
+    [0.60, 0.90, [0.60, 0.90]],
+    [0.47, 0.10, [0.47, 0.10]]
+  ],
+  "Peg": [
+    [0.78, 0.68, "Eps"],
+    [0.05, 0.55, [0.05, 0.55]],
+    [0.85, 0.28, [0.85, 0.28]],
+    [0.44, 0.60, "Alp"],
+    [0.41, 0.34, "Bet"]
+  ]
+}

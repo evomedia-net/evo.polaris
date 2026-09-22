@@ -122,12 +122,45 @@ THE CORNERS ARE NOT UNIT VECTORS, ON PURPOSE
     tick rotates the corners into the horizontal frame and keeps their
     lengths, for the same reason.
 
+HAND-MATCHED, WHERE THE DRAWING'S PROPORTIONS ARE NOT THE SKY'S
+
+    Hedberg drew figures, not star charts, and a few of them are not
+    proportioned like their stars: his swan's neck is short where the sky's
+    is long (Sadr is 6 degrees from Deneb and 16 from Albireo), his
+    scorpion's tail curls back to within 8 degrees of the body where Shaula
+    is 18 out, his eagle's wings are three times too long for its body. No
+    placement fixes a proportion -- a rigid fit that puts the sting on
+    Shaula doubles the scorpion, and a sheared one smears it -- and a refit
+    over all 84 figures moved the mean star-to-ink distance from 1.78 to
+    1.76 degrees, which is nothing. "so many are just off."
+
+    So those figures are matched BY HAND, the way an artist would redraw a
+    tail that stops short: figure-matching.json names landmarks on each
+    drawing (the sting's tip, the swan's beak, the eagle's neck) and the
+    star each must sit on, and a thin-plate spline moves the landmarks and
+    bends the rest of the drawing smoothly with them. Pins hold the parts
+    that already sit right, so a stretched tail does not drag the claws
+    along. The crop then follows the ink on the same plane, so a drawing
+    that grew to reach its stars keeps its resolution.
+
+    Every match prints how far it stretched any part of the drawing, and
+    MAX_STRETCH refuses one that asks too much. Eight of the twenty-five
+    are matched; the other seventeen already sit on their stars -- checked
+    one by one against the stars the app draws lines between, by anatomy
+    as well as by number, because a star correctly inside an outlined body
+    counts as far from ink and would fool the number alone.
+
+    The landmarks are read off the tile as this script crops it. Change
+    MARGIN or the crop rule, and they have to be read again.
+
 AND IT IS CHECKED, NOT ASSUMED
 
     A figure drawn upside down or half a sky away is worse than no figure.
     Every quad is tested against the app's OWN star catalogue: the
     constellation's brightest stars must fall inside it. Anything that fails
     is reported and the build stops.
+
+    Needs Pillow, numpy and scipy; all three are build-time only.
 """
 import argparse
 import csv
@@ -139,11 +172,14 @@ import sys
 import urllib.request
 from pathlib import Path
 
+import numpy as np
 from PIL import Image, ImageChops
+from scipy.ndimage import map_coordinates      # the hand-matching resample; build-time only
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_IMG = ROOT / "site" / "src" / "data" / "figures.webp"
 OUT_JS = ROOT / "site" / "src" / "data" / "figures.js"
+MATCHING = ROOT / "scripts" / "figure-matching.json"
 
 MANIFEST = ("http://data.openspaceproject.com/request"
             "?identifier=constellation_images&file_version=4&application_version=1")
@@ -170,6 +206,10 @@ TILE = 768
 COLS = 5
 MARGIN = 0.04       # of the ink's span, added on each side of the crop
 QUALITY = 85
+# How far a hand-match may stretch any part of a drawing before the build
+# refuses it. Scorpius's tail reaches its sting at x3.2; a drawing that
+# needs more than this is being pulled into a shape it was never drawn in.
+MAX_STRETCH = 3.5
 
 DEG = math.pi / 180
 # Galactic north pole and the galactic longitude of the ascending node, J2000.
@@ -297,6 +337,108 @@ def ink_box(img):
     return (x0, y0, x0 + round(side), y0 + round(side))
 
 
+def plane_of(corners):
+    """The plane the four corners are points of: centre and half-axes."""
+    tl, tr, br, bl = [np.array(c, dtype=float) for c in corners]
+    return (tl + tr + br + bl) / 4, (tr - tl) / 2, (tl - bl) / 2
+
+
+def star_on_tile(corners, star):
+    """Where a star's ray meets the figure's plane, as (u, v) of its tile."""
+    C, ex, ey = plane_of(corners)
+    n = np.cross(ex, ey)
+    den = float(np.dot(star, n))
+    if abs(den) < 1e-12:
+        return None
+    t = float(np.dot(C, n)) / den
+    if t <= 0:
+        return None
+    q = np.asarray(star, dtype=float) * t - C
+    return np.array([(float(np.dot(q, ex)) / float(np.dot(ex, ex)) + 1) / 2,
+                     (1 - float(np.dot(q, ey)) / float(np.dot(ey, ey))) / 2])
+
+
+def tps_fit(src, dst):
+    """A thin-plate spline taking the points src onto dst: the smoothest map that does."""
+    n = len(src)
+    r2 = ((src[:, None, :] - src[None, :, :]) ** 2).sum(-1)
+    K = np.where(r2 > 0, r2 * np.log(np.sqrt(r2) + 1e-12), 0.0)
+    P = np.hstack([np.ones((n, 1)), src])
+    L = np.zeros((n + 3, n + 3))
+    L[:n, :n], L[:n, n:], L[n:, :n] = K, P, P.T
+    rhs = np.zeros((n + 3, 2))
+    rhs[:n] = dst
+    return src, np.linalg.solve(L, rhs)
+
+
+def tps_apply(spline, pts):
+    src, W = spline
+    r2 = ((pts[:, None, :] - src[None, :, :]) ** 2).sum(-1)
+    U = np.where(r2 > 0, r2 * np.log(np.sqrt(r2) + 1e-12), 0.0)
+    return U @ W[:len(src)] + W[len(src)] + pts @ W[len(src) + 1:]
+
+
+def hand_match(tile, corners, controls, stars_by_greek):
+    """Move the drawing's landmarks onto their stars and bend the rest with them.
+
+    tile is the cropped, resized drawing; corners its plane corners; controls
+    the figure's entry in figure-matching.json; stars_by_greek the
+    constellation's stars by Bayer letter. Returns the reshaped tile, its new
+    corners (the crop follows the ink, on the same plane), how far any part
+    of the drawing was stretched, and how much the crop grew.
+    """
+    A = np.asarray(tile, dtype=float)
+    n = A.shape[0]
+    src = np.array([[u, v] for u, v, _ in controls], dtype=float)
+    dst = []
+    for u, v, target in controls:
+        if isinstance(target, list):
+            dst.append(target)
+        else:
+            star = stars_by_greek.get(target)
+            if star is None:
+                raise ValueError(f"no star '{target}' in the catalogue for this figure")
+            uv = star_on_tile(corners, star)
+            if uv is None:
+                raise ValueError(f"star '{target}' is behind the figure's plane")
+            dst.append(uv)
+    dst = np.array(dst, dtype=float)
+    forward, inverse = tps_fit(src, dst), tps_fit(dst, src)
+
+    # THE CROP FOLLOWS THE INK. Push the ink through the spline to see where
+    # it lands, and cut the new tile around that: a drawing that had to grow
+    # to reach its stars gets a bigger piece of the plane, one that shrank
+    # keeps its resolution.
+    ys, xs = np.nonzero(A > 8)
+    landed = tps_apply(forward, np.column_stack([(xs + 0.5) / n, (ys + 0.5) / n])[::5])
+    lo, hi = landed.min(0), landed.max(0)
+    side = float((hi - lo).max()) * (1 + 2 * MARGIN)
+    box0 = (lo + hi) / 2 - side / 2
+
+    gv, gu = np.mgrid[0:n, 0:n]
+    target = box0 + np.column_stack([(gu.ravel() + 0.5) / n, (gv.ravel() + 0.5) / n]) * side
+    source = tps_apply(inverse, target)
+    out = map_coordinates(A, np.array([source[:, 1] * n - 0.5, source[:, 0] * n - 0.5]),
+                          order=1, mode="constant", cval=0.0).reshape(n, n)
+
+    # The honesty number: the largest local stretch, from the spline's
+    # Jacobian at the pixels that carry ink.
+    du = tps_apply(inverse, target + np.array([1e-3, 0.0])) - source
+    dv = tps_apply(inverse, target + np.array([0.0, 1e-3])) - source
+    sv = np.linalg.svd(np.stack([du, dv], -1) / 1e-3, compute_uv=False)
+    inked = out.ravel() > 8
+    stretch = float((1 / sv[inked].min(axis=1)).max()) if inked.any() else 1.0
+
+    C, ex, ey = plane_of(corners)
+    def at(u, v):
+        p = C + (2 * u - 1) * ex + (1 - 2 * v) * ey
+        return (float(p[0]), float(p[1]), float(p[2]))
+    u0, v0 = float(box0[0]), float(box0[1])
+    u1, v1 = u0 + side, v0 + side
+    new_corners = [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)), new_corners, stretch, side
+
+
 def inside(corners, v):
     """Is direction v inside the spherical quad? Same-side test on each edge."""
     sign = None
@@ -346,19 +488,31 @@ def main() -> int:
     # constellation is the Bayer name's last field, which is the only place
     # this catalogue records it.
     stars = json.loads((ROOT / "site" / "src" / "data" / "stars.json").read_text())
-    by_con = {}
+    by_con, by_greek = {}, {}
     for row in stars:
         if len(row) < 6 or not row[5]:
             continue
+        # The constellation is always the field's last three characters:
+        # "9Alp CMa", "9Alp2Lib", "Mu 1Sco". Splitting on the space lost the
+        # last of those, and with it every star of a doubled Bayer letter.
         name = row[5].strip()
-        con = name.split()[-1] if " " in name else name[-3:]
-        if len(con) != 3:
+        con = name[-3:]
+        if len(name) < 4 or not con.isalpha():
             continue
         ra, dec, mag = float(row[0]), float(row[1]), float(row[2])
         v = (math.cos(dec * DEG) * math.cos(ra * DEG),
              math.cos(dec * DEG) * math.sin(ra * DEG),
              math.sin(dec * DEG))
         by_con.setdefault(con, []).append((mag, v))
+        # The Bayer letter, for the hand-matching: "9Alp CMa" and "9Alp2Lib"
+        # both give "Alp". The brightest star of a letter wins.
+        greek = "".join(ch for ch in name[:-3] if not ch.isdigit()).strip()
+        key = (con, greek)
+        if greek and (key not in by_greek or mag < by_greek[key][0]):
+            by_greek[key] = (mag, v)
+
+    matching = {k: v for k, v in json.loads(MATCHING.read_text(encoding="utf-8")).items()
+                if not k.startswith("_")}
 
     placements, bad = [], []
     atlas_rows = math.ceil(len(SELECTED) / COLS)
@@ -374,6 +528,21 @@ def main() -> int:
         uv = tuple(c / raw.width for c in box)
         corners = corners_for(row, uv)
 
+        # The ink as brightness: the drawing's own grey through its alpha.
+        crop = raw.crop(box)
+        ink = ImageChops.multiply(crop.convert("L"), crop.split()[3]).resize((TILE, TILE), Image.LANCZOS)
+        span = box[2] - box[0]
+        note = f"ink {span / raw.width:4.0%} of the tile"
+
+        # HAND-MATCHED, where the drawing's proportions are not the sky's.
+        if abbr in matching:
+            stars = {g: v for (c, g), (_, v) in by_greek.items() if c == abbr}
+            ink, corners, stretch, grown = hand_match(ink, corners, matching[abbr], stars)
+            note += f"; hand-matched on {len(matching[abbr])} points, stretched x{stretch:.2f}, crop x{grown:.2f}"
+            if stretch > MAX_STRETCH:
+                bad.append(f"{abbr}: hand-matching stretches the drawing x{stretch:.2f}, "
+                           f"more than the x{MAX_STRETCH} allowed")
+
         # CHECK: the constellation's three brightest stars should be inside.
         cands = sorted(by_con.get(abbr, []))[:3]
         if not cands:
@@ -383,11 +552,7 @@ def main() -> int:
             if hits == 0:
                 bad.append(f"{abbr}: none of its {len(cands)} brightest stars fall inside")
 
-        # The ink as brightness: the drawing's own grey through its alpha.
-        crop = raw.crop(box)
-        ink = ImageChops.multiply(crop.convert("L"), crop.split()[3])
-        atlas.paste(ink.resize((TILE, TILE), Image.LANCZOS),
-                    ((i % COLS) * TILE, (i // COLS) * TILE))
+        atlas.paste(ink, ((i % COLS) * TILE, (i // COLS) * TILE))
 
         placements.append({
             "a": abbr,
@@ -395,8 +560,7 @@ def main() -> int:
             "i": i,
             "c": [[round(c, 6) for c in v] for v in corners],
         })
-        span = box[2] - box[0]
-        print(f"  {i + 1:3}/{len(SELECTED)}  {abbr:4} {row[2]:18} ink {span / raw.width:4.0%} of the tile")
+        print(f"  {i + 1:3}/{len(SELECTED)}  {abbr:4} {row[2]:18} {note}")
 
     if bad:
         print("\nPLACEMENT CHECK FAILED -- a figure in the wrong place is worse "
@@ -421,7 +585,9 @@ def main() -> int:
         "// The galactic conversion, GLM's Euler convention, the plane maths\n"
         "// and the crop all happened in the build script, where they could\n"
         "// be checked against this app's own star catalogue. The atlas stores\n"
-        "// the ink as brightness on black; the app draws it additively.\n"
+        "// the ink as brightness on black; the app draws it additively. Some\n"
+        "// drawings are hand-matched to their stars (see figure-matching.json):\n"
+        "// their tiles are reshaped and their corners follow the reshaped ink.\n"
         "//\n"
         "// Artwork: James Hedberg (CUNY-CCNY), CC BY 4.0.\n"
         f"export const FIGURE_TILE = {TILE};\n"

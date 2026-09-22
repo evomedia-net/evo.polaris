@@ -199,6 +199,46 @@ test('a figure is culled cell by cell, not by its corners', () => {
   assert.match(art, /if \(d00 && d11 && d01\) triangle\(/);
 });
 
+// --- the hand-matching ---------------------------------------------------------------
+
+test('the hand-matching data is well formed, and every matched figure ships', () => {
+  // "so many are just off" -- and no placement fixes a drawing whose
+  // proportions are not the sky's, so those drawings are reshaped by hand:
+  // landmarks on the tile and the star each must sit on, applied by the
+  // build as a thin-plate spline. Three points is the least a spline can
+  // take; a target is a Bayer letter or a [u, v] pin.
+  const matching = JSON.parse(readFileSync(
+    fileURLToPath(new URL('../scripts/figure-matching.json', import.meta.url)), 'utf8'));
+  const figures = Object.keys(matching).filter((k) => !k.startsWith('_'));
+  assert.ok(figures.length >= 8, `${figures.length} figures are matched; eight were`);
+  for (const a of figures) {
+    assert.ok(abbrs.includes(a), `${a} is matched but does not ship`);
+    const pts = matching[a];
+    assert.ok(Array.isArray(pts) && pts.length >= 3, `${a}: a spline needs at least three points`);
+    for (const p of pts) {
+      assert.equal(p.length, 3, `${a}: a control point is [u, v, target]`);
+      const [u, v, t] = p;
+      assert.ok(u >= 0 && u <= 1 && v >= 0 && v <= 1, `${a}: landmark (${u}, ${v}) is off the tile`);
+      if (Array.isArray(t)) {
+        assert.equal(t.length, 2, `${a}: a pin is [u, v]`);
+      } else {
+        assert.match(t, /^[A-Z][a-z]{1,2}$/, `${a}: "${t}" is not a Bayer letter like Alp or Lam`);
+      }
+    }
+  }
+  for (const a of ['Sco', 'Cyg', 'Aql']) {
+    assert.ok(figures.includes(a), `${a} was the reported case and must stay matched`);
+  }
+});
+
+test('the build refuses a match that stretches a drawing too far', () => {
+  // The honesty number. A drawing pulled into a shape it was never drawn
+  // in is worse than one a degree off its stars.
+  assert.match(build, /^MAX_STRETCH = 3\.5$/m);
+  assert.match(build, /if stretch > MAX_STRETCH:/);
+  assert.match(build, /hand_match\(ink, corners, matching\[abbr\], stars\)/);
+});
+
 test('the credit rides with the picture, like the Milky Way’s', () => {
   assert.equal(CREDIT, 'Figures: James Hedberg');
   assert.match(appJs, /figureCredit\.hidden = !figures;/);
