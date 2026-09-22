@@ -1,4 +1,4 @@
-// Evomedia.net site chrome — NOT part of the app.
+// evomedia.net site chrome — NOT part of the app.
 //
 // polaris.evomedia.net is one page of a portfolio, and every other page there
 // carries the same header: the mark, the wordmark linking home, and the way
@@ -57,7 +57,7 @@ export function mountEvomediaChrome(hostname = window.location.hostname) {
 
   const nav = document.createElement('nav');
   nav.className = 'evo-chrome-nav';
-  nav.setAttribute('aria-label', 'Evomedia.net');
+  nav.setAttribute('aria-label', 'evomedia.net');
   for (const [label, href] of LINKS) {
     const a = document.createElement('a');
     a.href = href;
