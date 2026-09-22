@@ -28,6 +28,7 @@ import {
   drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_MIN_ALT,
 } from './skydraw.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
+import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
   moonRiseSet, describeMoonTimes,
@@ -1927,9 +1928,9 @@ function cancelGlide(arrive = false) {
  * clockwise, not three hundred and forty the other way, and getting that
  * wrong sends the whole sky the long way past everything.
  */
-function glideTo(az, alt) {
+function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic, floor = TARGET_MIN_ALT } = {}) {
   cancelGlide();
-  const to = clampAim(az, alt, TARGET_MIN_ALT, AIM_MAX_ALT);
+  const to = clampAim(az, alt, floor, AIM_MAX_ALT);
   const from = { ...skyAim };
   const dAz = signedTurn(from.az, to.az);
   const dAlt = to.alt - from.alt;
@@ -1946,12 +1947,13 @@ function glideTo(az, alt) {
   }
   const started = performance.now();
   const step = (now) => {
-    const t = Math.min(1, (now - started) / GLIDE_MS);
-    // Ease out: leaves quickly, settles gently. Constant speed reads as a
-    // machine moving the sky; this reads as the sky coming to rest.
-    const e = 1 - ((1 - t) ** 3);
+    const t = Math.min(1, (now - started) / ms);
+    // The journey eases OUT: leaves quickly, settles gently, which reads as
+    // the sky coming to rest. A nudge eases in AND out, because a press
+    // should not lurch. Constant speed reads as a machine moving the sky.
+    const e = ease(t);
     skyAim = clampAim(from.az + dAz * e, from.alt + dAlt * e,
-                      TARGET_MIN_ALT, AIM_MAX_ALT);
+                      floor, AIM_MAX_ALT);
     updateSkyMode();
     drawLiveSky();
     glide = t < 1 ? { raf: requestAnimationFrame(step), to } : null;
@@ -1961,6 +1963,102 @@ function glideTo(az, alt) {
 
 function pan(dAz, dAlt) {
   setAim(skyAim.az + dAz, skyAim.alt + dAlt);
+}
+
+// --- pressing an arrow ------------------------------------------------------
+//
+// "In manual mode if you press the arrow, it snaps to the point. I would
+// really prefer it to just slowly accelerate and stop." And then: "this
+// should be much more fluid than it is."
+//
+// An arrow used to cut fifteen degrees per press. Now a PRESS is a nudge --
+// the same fifteen degrees, travelled with an ease-in-and-out so it neither
+// lurches nor stops dead -- and a HOLD is a hold: the sky starts moving,
+// ramps up to a cruising speed while the finger stays down, and when it
+// lifts the movement coasts out through the same momentum a released drag
+// has. The finger decides how far; nothing snaps.
+//
+// Both go through the same limits as the pad always has (the hand floor, not
+// the target floor), so the arrows still reach exactly the places a tap or a
+// drag can and no further. The keyboard gets both as well -- keydown holds,
+// keyup releases -- so nothing here is a capability that belongs only to a
+// finger.
+const NUDGE_MS = 380;         // one press: long enough to see, short enough to feel
+const HOLD_RAMP_MS = 600;     // "slowly accelerate"
+const HOLD_CRUISE = 0.06;     // deg/ms once ramped: a full field in about a second
+const TAP_HOLD_MS = 220;      // shorter than this, the press was a tap, not a hold
+
+function nudge(dAz, dAlt) {
+  glideTo(skyAim.az + dAz, skyAim.alt + dAlt,
+          { ms: NUDGE_MS, ease: easeInOutCubic, floor: handFloor() });
+}
+
+let hold = null;              // { dAz, dAlt, t0, prev, raf, v }
+
+function holdStart(dAz, dAlt) {
+  if (hold) return;
+  cancelGlide();
+  cancelFling();
+  const t0 = performance.now();
+  hold = { dAz, dAlt, t0, prev: t0, raf: 0, v: { az: 0, alt: 0 } };
+  const step = (now) => {
+    if (!hold) return;
+    const dt = Math.min(now - hold.prev, 50);     // a dropped frame must not jump
+    hold.prev = now;
+    const speed = holdSpeed(now - hold.t0, { ramp: HOLD_RAMP_MS, cruise: HOLD_CRUISE });
+    hold.v = { az: hold.dAz * speed, alt: hold.dAlt * speed };
+    pan(hold.v.az * dt, hold.v.alt * dt);
+    hold.raf = requestAnimationFrame(step);
+  };
+  hold.raf = requestAnimationFrame(step);
+}
+
+/** The finger lifted: a tap becomes a nudge; a hold coasts to a stop. */
+function holdEnd() {
+  if (!hold) return;
+  const h = hold;
+  hold = null;
+  cancelAnimationFrame(h.raf);
+  if (performance.now() - h.t0 < TAP_HOLD_MS) {
+    nudge(h.dAz * STEP, h.dAlt * STEP);
+    return;
+  }
+  // "...and stop" -- but not dead. The same coast a released drag gets,
+  // which also means the same respect for reduced motion: there it stops
+  // at once.
+  flingFrom(h.v.az, h.v.alt);
+}
+
+/**
+ * Wire one arrow: pointer for the finger, keyboard for the rest, and a plain
+ * click for assistive tech that synthesises one without any pointer at all.
+ */
+function wireArrow(id, dAz, dAlt) {
+  const el = $(id);
+  if (!el) return;
+  let pointerHandled = 0;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    pointerHandled = performance.now();
+    // Capture keeps the release arriving here even if the finger slides off
+    // the button -- but capture can THROW, for a pointer the browser does not
+    // consider active (assistive tech, and anything synthesising events).
+    // Thrown before the hold started, it aborted the press and left the
+    // fallback click marked as already handled: the arrow did nothing at
+    // all. The hold must start whether or not capture is granted.
+    try { el.setPointerCapture(e.pointerId); } catch { /* no capture, still a press */ }
+    holdStart(dAz, dAlt);
+  });
+  const up = () => holdEnd();
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('lostpointercapture', up);
+  // A click that no pointer press produced -- a screen reader, or Enter and
+  // Space on the focused button -- is one press: one nudge.
+  el.addEventListener('click', () => {
+    if (performance.now() - pointerHandled < 600) return;
+    nudge(dAz * STEP, dAlt * STEP);
+  });
 }
 
 // --- touching the map -------------------------------------------------------
@@ -2125,10 +2223,12 @@ function updateSensorReadout() {
 }
 
 const STEP = 15;
-$('skyUp').onclick = () => pan(0, STEP);
-$('skyDown').onclick = () => pan(0, -STEP);
-$('skyLeft').onclick = () => pan(-STEP, 0);
-$('skyRight').onclick = () => pan(STEP, 0);
+// Direction as a unit, not a distance: a press moves STEP degrees, a hold
+// moves as far as it is held. Both pads, so the full-screen arrows hold too.
+for (const [id, dAz, dAlt] of [
+  ['skyUp', 0, 1], ['skyDown', 0, -1], ['skyLeft', -1, 0], ['skyRight', 1, 0],
+  ['fullUp', 0, 1], ['fullDown', 0, -1], ['fullLeft', -1, 0], ['fullRight', 1, 0],
+]) wireArrow(id, dAz, dAlt);
 $('skyPole').onclick = () => {
   // The pole button is the way back: it takes the ring and the arrow off the
   // station as well as re-aiming the view.
@@ -2161,10 +2261,17 @@ window.addEventListener('keydown', (e) => {
   // The mode picker is a tablist and owns left/right for itself.
   if (e.target.getAttribute && e.target.getAttribute('role') === 'tab') return;
   const moves = {
-    ArrowUp: [0, STEP], ArrowDown: [0, -STEP],
-    ArrowLeft: [-STEP, 0], ArrowRight: [STEP, 0],
+    ArrowUp: [0, 1], ArrowDown: [0, -1],
+    ArrowLeft: [-1, 0], ArrowRight: [1, 0],
   };
-  if (moves[e.key]) { e.preventDefault(); pan(...moves[e.key]); }
+  if (!moves[e.key]) return;
+  e.preventDefault();
+  // The key going down starts a hold, exactly like a finger; the OS's own
+  // auto-repeat is ignored, because the hold is already moving.
+  if (!e.repeat) holdStart(...moves[e.key]);
+});
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') holdEnd();
 });
 
 // The live sky view no longer has its own show/hide button: it IS the
@@ -2329,10 +2436,10 @@ $('fullOut').onclick = () => $('skyWider').click();
 // And the pan cluster: the pad's own handlers, so the step and the hand-off
 // from the sensor live in one place. This is also why the pad can never be
 // disabled -- a delegated click on a disabled button goes nowhere.
-$('fullUp').onclick = () => $('skyUp').click();
-$('fullDown').onclick = () => $('skyDown').click();
-$('fullLeft').onclick = () => $('skyLeft').click();
-$('fullRight').onclick = () => $('skyRight').click();
+// The four arrows are wired by wireArrow() above, both pads alike -- a
+// press and a hold are pointer events, and a click delegated from here to
+// the windowed pad would fire on top of them and nudge twice. The pole
+// button has no hold, so it still simply presses its twin.
 $('fullPole').onclick = () => $('skyPole').click();
 // One button, two places to press it. Delegating rather than copying the
 // behaviour is the same choice the pan cluster makes, and for the same

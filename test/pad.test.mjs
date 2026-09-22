@@ -74,7 +74,20 @@ test('full screen carries the pad, in the pad arrangement, delegating to it', ()
     assert.ok(tag, `#${full} is not inside the sky figure`);
     assert.ok(tag[0].includes(`aria-label="${label}"`), `#${full} must be named "${label}"`);
     assert.ok(tag[0].includes(area), `#${full} must sit in the pad's ${area} cell`);
-    assert.ok(appJs.includes(`$('${full}').onclick = () => $('${pad}').click();`),
-      `#${full} must delegate to #${pad}, not carry its own copy of the step`);
+    // ONE COPY OF THE STEP, still -- but the arrows no longer delegate by
+    // click. A press and a hold are pointer events, and a click delegated to
+    // the windowed pad fired on top of them and nudged twice. The arrows are
+    // wired by the same wireArrow() as the windowed pad, with the same
+    // direction, so there is still exactly one copy; the pole, which has no
+    // hold, still simply presses its twin.
+    if (full === 'fullPole') {
+      assert.ok(appJs.includes(`$('${full}').onclick = () => $('${pad}').click();`),
+        `#${full} must delegate to #${pad}, not carry its own copy of the step`);
+    } else {
+      assert.match(appJs, new RegExp(`\['${full}', -?[01], -?[01]\]`),
+        `#${full} must be wired by wireArrow with a unit direction, like #${pad}`);
+      assert.ok(!appJs.includes(`$('${full}').onclick`),
+        `#${full} must not also delegate a click, or a tap nudges twice`);
+    }
   }
 });

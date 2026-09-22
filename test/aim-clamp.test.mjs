@@ -81,10 +81,14 @@ test('the app asks the right question at each call site', () => {
     appJs.indexOf('function cancelGlide(') > appJs.indexOf('function glideTo(')
       ? appJs.indexOf('function cancelGlide(')
       : appJs.length);
-  assert.ok(/TARGET_MIN_ALT/.test(glide),
-    'travelling to a target must be allowed past the wandering floor');
-  // Both the destination AND every frame on the way: clamping the steps to
-  // the hand floor would stall the animation at -30 while claiming to arrive.
-  assert.equal((glide.match(/TARGET_MIN_ALT/g) || []).length, 2,
-    'the destination and the frames in flight must use the same range');
+  // The floor is a parameter now -- a nudge from the arrows passes the hand
+  // floor, a journey to a target takes the default -- so what is pinned is
+  // the default, and that both the destination and every frame use the SAME
+  // floor: clamping the steps to a different one would stall the animation
+  // short of where it claims to arrive.
+  assert.match(glide, /floor = TARGET_MIN_ALT/,
+    'travelling to a target must default to the whole sky');
+  const clampsWithFloor = glide.split('floor, AIM_MAX_ALT)').length - 1;
+  assert.equal(clampsWithFloor, 2,
+    'the destination and the frames in flight must use the same floor');
 });
