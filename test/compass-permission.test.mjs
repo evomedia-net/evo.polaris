@@ -26,14 +26,42 @@ const appJs = readFileSync(
 const startCompass = appJs.slice(appJs.indexOf('async function startCompass('),
   appJs.indexOf('// A toggle, not a one-way switch'));
 
-test('an ask without a gesture is deferred, not spent', () => {
-  // The whole bug. Calling requestPermission outside a gesture does not queue
-  // a prompt -- it rejects, and iOS remembers nothing, so the attempt is
-  // simply wasted.
+test('an ask without a gesture is MADE, and deferred only if refused', () => {
+  // THE FIRST VERSION OF THIS TEST PINNED A REGRESSION. It required that
+  // without a gesture the ask be skipped entirely, on the belief that
+  // requestPermission() existed only on iOS, where a gesture-less call is
+  // wasted. Chrome 152 grew the same function and grants it WITHOUT a
+  // gesture -- so on every current Android the view opened in Auto Mode with
+  // no listener attached, and nothing moved until the first tap on anything
+  // happened to be the deferred ask. "You have to go to manual mode and then
+  // back to auto mode for auto mode to enable on load."
+  //
+  // A wasted attempt on iOS costs nothing. A skipped attempt on Android cost
+  // the compass on load. So the call is always made, and the deferral is the
+  // response to a REFUSAL, not a guess made in advance.
   assert.match(appJs, /function startCompass\(\{ gesture = false \} = \{\}\)/,
-    'startCompass must know whether it was called from a gesture');
-  assert.match(startCompass, /if \(!gesture\) \{ askOnNextGesture\(\); return; \}/,
-    'without a gesture it must wait for one instead of asking and failing');
+    'startCompass must still know whether it was called from a gesture');
+  // The deferral line still exists -- as the response to a refusal, AFTER
+  // the ask. What must be gone is the version that came BEFORE it.
+  const ask = startCompass.indexOf('DeviceOrientationEvent.requestPermission()');
+  const defer = startCompass.indexOf('askOnNextGesture()');
+  assert.ok(ask >= 0 && defer > ask,
+    'the ask must not be skipped for want of a gesture -- that is the Android regression');
+  assert.match(startCompass, /ok = await DeviceOrientationEvent\.requestPermission\(\);/,
+    'the ask must be made regardless');
+  assert.match(startCompass, /\} catch \{\s*askOnNextGesture\(\);\s*return;/,
+    'a rejection -- iOS without a gesture -- is what defers it to a tap');
+});
+
+test('only a person can decline', () => {
+  // A non-answer to a call no finger was behind is the same as a rejection:
+  // wait for a real gesture. Treating it as a decline would show "permission
+  // was declined" to someone who was never asked.
+  const branch = startCompass.slice(startCompass.indexOf("if (ok !== 'granted')"));
+  assert.ok(branch.indexOf('if (!gesture) { askOnNextGesture(); return; }') >= 0
+    && branch.indexOf('if (!gesture) { askOnNextGesture(); return; }')
+       < branch.indexOf('Compass permission was declined'),
+    'a non-granted answer without a gesture must defer, before any decline is announced');
 });
 
 test('it waits for a completed tap, not the start of one', () => {
@@ -58,8 +86,9 @@ test('it waits for a completed tap, not the start of one', () => {
 });
 
 test('a press asks outright, because a press IS the gesture', () => {
-  // Both of these are real presses, so they must not defer -- deferring would
-  // mean a second tap was needed for something the user just asked for.
+  // Both of these are real presses. With the ask always made now, what the
+  // flag still decides is how a refusal is read: after a press it is a real
+  // decline and says so; without one it is deferred to the next tap.
   const modeBtn = appJs.slice(appJs.indexOf("$('modeBtn').onclick"),
     appJs.indexOf("$('modeBtn').onclick") + 400);
   assert.match(modeBtn, /startCompass\(\{ gesture: true \}\)/,

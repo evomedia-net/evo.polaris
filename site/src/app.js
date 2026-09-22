@@ -1115,21 +1115,34 @@ function askOnNextGesture() {
 
 async function startCompass({ gesture = false } = {}) {
   if (compassNeedsAsking() && !compassGranted) {
-    if (!gesture) { askOnNextGesture(); return; }
+    // ASK FIRST, DEFER ONLY IF REFUSED. This used to defer without asking
+    // whenever there was no gesture, on the belief that requestPermission()
+    // existed only on iOS, where a gesture-less call is wasted. Then Chrome
+    // 152 grew the same function -- and grants it WITHOUT a gesture -- so on
+    // every current Android the view opened in Auto Mode with no listener
+    // attached, and nothing moved until the first tap on anything happened
+    // to be the deferred ask. Reported as a regression: "you have to go to
+    // manual mode and then back to auto mode".
+    //
+    // A wasted attempt on iOS costs nothing; a skipped attempt on Android
+    // cost the compass on load. So the call is always made. On iOS without a
+    // gesture it rejects, and THAT is when the ask is deferred to a tap.
+    let ok;
     try {
-      const ok = await DeviceOrientationEvent.requestPermission();
-      if (ok !== 'granted') {
-        $('guideText').textContent =
-          'Compass permission was declined. The chart and the buttons still work.';
-        return;
-      }
-      compassGranted = true;
+      ok = await DeviceOrientationEvent.requestPermission();
     } catch {
-      // Refused for want of a gesture after all: wait for a better one rather
-      // than attaching a listener to a sensor nobody has granted.
       askOnNextGesture();
       return;
     }
+    if (ok !== 'granted') {
+      // Only a person can decline. A non-answer to a call that no finger was
+      // behind is the same as a rejection: wait for a real gesture.
+      if (!gesture) { askOnNextGesture(); return; }
+      $('guideText').textContent =
+        'Compass permission was declined. The chart and the buttons still work.';
+      return;
+    }
+    compassGranted = true;
   }
   orientEvent = 'ondeviceorientationabsolute' in window
     ? 'deviceorientationabsolute' : 'deviceorientation';
