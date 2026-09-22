@@ -914,6 +914,18 @@ html[data-night='on'] .sky-legend {
   z-index: 2;
   /* Never more than a third of the width, so the key keeps its corner. */
   max-width: 34%;
+  /* AND NEVER DOWN INTO THE PAD. On a 375x812 phone this column reached
+     the top of "Look up" -- a label was overlapping a control. The fix is
+     NOT smaller buttons: "We do not want to change the button size. For
+     older phones, I would cap the screen." So the column is capped at the
+     screen, above the pad, and scrolls within itself when it is too tall.
+     The pad is three rows of 3.4rem with two 0.35rem gaps over a 0.6rem
+     inset -- 11.5rem -- plus this column's own 0.6rem inset and a 0.6rem
+     gap: 12.7rem the column may never enter. */
+  max-height: calc(100% - 12.7rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .target-grid {
   display: grid;
