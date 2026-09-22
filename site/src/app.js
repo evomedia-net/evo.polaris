@@ -26,7 +26,7 @@ import {
 } from './iss.js';
 import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
 import {
-  drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_MIN_ALT, SUN_MIN_ALT,
+  drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_SET_ALT, SUN_MIN_ALT,
 } from './skydraw.js';
 import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
@@ -1838,7 +1838,7 @@ function aimTarget(issLook) {
  */
 function targetLabel(t) {
   if (!t) return '';
-  return targetIsPainted(t) ? t.name : `${t.name} — has set`;
+  return targetHasSet(t) ? `${t.name} — has set` : t.name;
 }
 
 function targetIsPainted(t) {
@@ -1848,9 +1848,24 @@ function targetIsPainted(t) {
   // A figure is a place in the sky rather than a body, but a figure whose
   // middle is under the ground is one you cannot see either.
   if (guideTarget.startsWith('const:')) return t.alt > 0;
-  if (PLANET_NAMES.includes(guideTarget)) return t.alt > PLANET_MIN_ALT;
-  return true;                     // the pole is a place, not a body; the ISS
-}                                  // has said this for itself all along
+  return true;                     // a planet is painted wherever it is; the
+}                                  // pole is a place, not a body; the ISS has
+                                   // said this for itself all along
+
+/**
+ * Has the thing the ring is on gone below the horizon -- painted or not?
+ *
+ * "has set" is a fact about the sky, and it stayed true when the planets
+ * started being drawn under the wireframe ground. What changed is that a set
+ * planet is no longer an empty ring, so the two questions had to come apart:
+ * the caption asks this one, the status line asks targetIsPainted() before
+ * it says the ring is empty.
+ */
+function targetHasSet(t) {
+  if (!t) return false;
+  if (PLANET_NAMES.includes(guideTarget)) return t.alt <= PLANET_SET_ALT;
+  return !targetIsPainted(t);
+}
 
 function aimAtPole() {
   if (!solution) return;
@@ -1889,6 +1904,14 @@ function updateSkyMode() {
       `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, so the ring is empty and '
       + 'the arrow points down at it. It is not missing; it has set.';
+  } else if (ringOn && targetHasSet(ringOn)) {
+    // A set planet IS painted -- that is what the see-through ground is for
+    // -- so the ring is not empty, and these words must not say it is.
+    const az = Math.round(((ringOn.az % 360) + 360) % 360);
+    $('skyTarget').textContent =
+      `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
+      + 'horizon — it is under the ground from here, drawn through the '
+      + 'wireframe, and the arrow points down at it. It has set.';
   } else {
     $('skyTarget').textContent = '';
   }

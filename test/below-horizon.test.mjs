@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { drawSkyView, MOON_MIN_ALT, PLANET_MIN_ALT } from '../site/src/skydraw.js';
+import { drawSkyView, MOON_MIN_ALT, PLANET_SET_ALT } from '../site/src/skydraw.js';
 import { altAzToVector } from '../site/src/skyview.js';
 
 // A RING AROUND NOTHING, AND NOT A WORD ABOUT WHY.
@@ -18,9 +18,19 @@ import { altAzToVector } from '../site/src/skyview.js';
 // So the app looked broken at the exact moment it was being most accurate.
 // The ISS has always said this properly -- "it is under the ground from here,
 // and the arrow points down at it" -- and the Moon and the planets now do too.
+//
+// THE PLANETS THEN CAME BACK. The ground became a see-through wireframe so
+// that a set planet you are pointing at does not vanish -- and the planet
+// gate, written for the solid ground, went on hiding it: ring on the path,
+// nothing inside. "planets should be visible even if set." A planet is now
+// painted wherever it is, its caption still says it has set, and the status
+// line no longer claims the ring is empty when it is not. The Moon keeps its
+// gate: it has a degree of refraction behind it, and nobody asked.
 
 const appJs = readFileSync(
   fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
+const skydraw = readFileSync(
+  fileURLToPath(new URL('../site/src/skydraw.js', import.meta.url)), 'utf8');
 
 /** A context that records the text drawn and the filled discs. */
 function stubCtx() {
@@ -81,12 +91,55 @@ test('a Moon that has set is not painted, and neither is its name', () => {
     + 'renderer without this half');
 });
 
+/** Render one frame with a planet at a given altitude, aimed straight at it. */
+function frameWithPlanetAt(alt) {
+  const ctx = stubCtx();
+  const az = 264;
+  drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, tracks: null, iss: null,
+    moon: null, planetArt: null,
+    planets: [{
+      name: 'Jupiter', alt, az, v: altAzToVector(alt, az),
+      vNorth: altAzToVector(alt + 0.25, az), vEast: altAzToVector(alt, az + 0.25),
+      magnitude: -2.5, colour: '#f2e6c8', illuminated: 1, ringTilt: null,
+    }],
+    aim: { az, alt },
+    alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: alt, targetAz: az, targetName: 'Target',
+    w: 780, h: 520, fov: 65, night: false,
+  });
+  return ctx;
+}
+
+test('a planet that has set is still painted, and named', () => {
+  // The reported case: Jupiter, ringed on its own path, and not there.
+  assert.ok(frameWithPlanetAt(-12).texts.includes('Jupiter'),
+    'a set planet must be drawn under the wireframe ground');
+  assert.ok(frameWithPlanetAt(30).texts.includes('Jupiter'), 'and up, of course');
+  assert.doesNotMatch(skydraw, /p\.alt <= PLANET/,
+    'the renderer must not gate a planet on altitude anywhere');
+});
+
+test('the caption still says it has set, and the status line stops calling the ring empty', () => {
+  const label = appJs.slice(appJs.indexOf('function targetLabel('),
+    appJs.indexOf('function targetIsPainted('));
+  assert.match(label, /targetHasSet\(t\) \? `\$\{t\.name\} — has set` : t\.name/);
+  const hasSet = appJs.slice(appJs.indexOf('function targetHasSet('),
+    appJs.indexOf('function aimAtPole('));
+  assert.match(hasSet, /PLANET_NAMES\.includes\(guideTarget\)\) return t\.alt <= PLANET_SET_ALT;/,
+    'a planet "has set" at the exported threshold');
+  const block = appJs.slice(appJs.indexOf('} else if (ringOn && targetHasSet(ringOn))'),
+    appJs.indexOf("$('skyTarget').textContent = '';"));
+  assert.match(block, /drawn through the/, 'the words say the planet is there');
+  assert.doesNotMatch(block, /the ring is empty/, 'because it is not');
+});
+
 test('the gate is one degree, and refraction is why', () => {
   // A Moon geometrically just below the horizon really is visible, lifted by
-  // the atmosphere, so it keeps a degree of slack. A planet is a point of
-  // light and gets none.
+  // the atmosphere, so it keeps a degree of slack. A planet has no gate at
+  // all any more; zero is where its caption starts saying it has set.
   assert.equal(MOON_MIN_ALT, -1);
-  assert.equal(PLANET_MIN_ALT, 0);
+  assert.equal(PLANET_SET_ALT, 0);
   assert.ok(frameWithMoonAt(-0.5).texts.includes('Moon'),
     'a Moon within refraction of the horizon must still be drawn');
   assert.ok(!frameWithMoonAt(-1.5).texts.includes('Moon'),
@@ -98,12 +151,12 @@ test('the renderer and the words read the same threshold', () => {
   // own copy of the planet gate and NO copy of the Moon's, so with the Moon
   // under the ground it still pushed neighbouring labels aside to keep room
   // for a word it never painted.
-  assert.match(appJs, /MOON_MIN_ALT, PLANET_MIN_ALT(?:, SUN_MIN_ALT)?,?\s*\n?\} from '\.\/skydraw\.js'/,
+  assert.match(appJs, /MOON_MIN_ALT, PLANET_SET_ALT(?:, SUN_MIN_ALT)?,?\s*\n?\} from '\.\/skydraw\.js'/,
     'the app must import the gates rather than keep its own copy');
   const fn = appJs.slice(appJs.indexOf('function targetIsPainted('),
-    appJs.indexOf('function aimAtPole('));
+    appJs.indexOf('function targetHasSet('));
   assert.match(fn, /t\.alt > MOON_MIN_ALT/);
-  assert.match(fn, /t\.alt > PLANET_MIN_ALT/);
+  assert.doesNotMatch(fn, /PLANET/, 'a planet is painted wherever it is');
   assert.match(fn, /return true;/,
     'the pole is a place rather than a body, and the ISS says this itself');
 });

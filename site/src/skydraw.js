@@ -27,10 +27,16 @@ const CARDINALS = [[0, 'N'], [45, 'NE'], [90, 'E'], [135, 'SE'],
 // nothing is the app looking broken while it is in fact being accurate.
 //
 // The Moon gets a degree of slack because refraction genuinely lifts it into
-// view when it is geometrically just below; a planet is a point of light and
-// gets none.
+// view when it is geometrically just below.
 export const MOON_MIN_ALT = -1;
-export const PLANET_MIN_ALT = 0;
+// A PLANET IS PAINTED WHEREVER IT IS. It was gated at the horizon like the
+// Moon, back when the ground was a solid fill. Then the ground became a
+// see-through wireframe whose whole point was to show where a set planet
+// sits under it -- and the gate went on hiding the planet, so the ring sat
+// on its dashed path with nothing inside. "planets should be visible even
+// if set." This is where the caption starts saying it has set, which stays
+// true and stays worth saying; it no longer decides whether to draw.
+export const PLANET_SET_ALT = 0;
 // The Sun is drawn while any of it is above the horizon: half a degree
 // across, and refraction lifts it another half, so the disc is still in
 // view with its centre almost a degree down. Sunset, as people see it.
@@ -275,7 +281,8 @@ export function drawSkyView(ctx, o) {
   // twinkling point.
   if (o.planets) {
     for (const p of o.planets) {
-      if (p.alt <= PLANET_MIN_ALT) continue;    // under your feet, not off-screen
+      // No altitude gate: a set planet is drawn under the wireframe ground,
+      // on the path that was always drawn there. See PLANET_SET_ALT.
       const q = projectToScreen(p.v, basis, focal);
       if (!q) continue;
       const x = cx + q.x, y = cy + q.y;
@@ -738,7 +745,7 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed,
   }
   if (o.planets) {
     for (const p of o.planets) {
-      if (p.alt <= PLANET_MIN_ALT) continue;
+      // Every planet, at any altitude: the same rule the painter uses.
       const q = projectToScreen(p.v, basis, focal);
       if (!q) continue;
       const x = cx + q.x, y = cy + q.y;
