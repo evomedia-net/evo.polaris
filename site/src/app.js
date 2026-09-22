@@ -128,8 +128,8 @@ let skyFigures = store.get('figures', true);
 // The figures' corners in the HORIZONTAL frame, rebuilt on the slow tick
 // beside the stars. They are stored in equatorial J2000, and the projection
 // works in the horizontal frame, so they have to make the same journey
-// every star makes -- 84 figures, four corners, a few hundred rotations a
-// tick and none at all per frame.
+// every star makes -- twenty-five figures, four corners, a hundred rotations
+// a tick and none at all per frame.
 let skyFigureCorners = [];
 let skyMilkyWay = true;
 // The planets and the Moon are why half of this pane exists now, so both are
@@ -1438,11 +1438,21 @@ function refreshSkyVectors() {
   // The artwork turns with the sky, exactly as the stars do.
   skyFigureCorners = FIGURES.map((f) => ({
     i: f.i,
-    c: f.c.map((v) => equatorialToVector(
-      Math.atan2(v[1], v[0]) * 180 / Math.PI,
-      Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI,
-      lst, site.lat, precess,
-    )),
+    c: f.c.map((v) => {
+      // A corner is NOT a unit vector: it sits at its true distance on the
+      // figure's plane, which OpenSpace tilts up to 28 degrees from the line
+      // of sight. Rotating its direction and giving the length back keeps
+      // the four a plane, so the layer's blend of them lands on the drawing
+      // exactly. Normalise here and the middle of Pegasus moves six degrees
+      // while its corners stay put.
+      const m = Math.hypot(v[0], v[1], v[2]);
+      const d = equatorialToVector(
+        Math.atan2(v[1], v[0]) * 180 / Math.PI,
+        Math.asin(Math.max(-1, Math.min(1, v[2] / m))) * 180 / Math.PI,
+        lst, site.lat, precess,
+      );
+      return [d[0] * m, d[1] * m, d[2] * m];
+    }),
   }));
   // Same slow tick as the stars: the band turns with the sky, not with you.
   milkyWay = buildMilkyWay(lst, site.lat, 6, 3, 18, precess);

@@ -1,10 +1,11 @@
 // The constellation figures, ghosted onto the sky.
 //
-// James Hedberg drew all 88 of them and placed them where they belong; this
-// draws them faintly behind the stars, so the lines the app already draws
-// stop being an abstract join-the-dots and become the figure they are named
-// for. Faint ON PURPOSE -- the stars are the subject and the art is a hint
-// behind them, which is also how OpenSpace renders the same pieces.
+// James Hedberg drew all 88 of them and placed them where they belong; the
+// app ships twenty-five -- the zodiac, and the figures a beginner's chart
+// names first, chosen in scripts/build-constellation-art.py -- and draws
+// them behind the stars, so the lines the app already draws stop being an
+// abstract join-the-dots and become the figure they are named for. The
+// stars are drawn after the art, so they stay the subject.
 //
 // WHERE THE GEOMETRY IS. Not here. Each figure's four corners are worked
 // out once by scripts/build-constellation-art.py, in equatorial J2000, and
@@ -51,23 +52,37 @@ const CELLS = 4;
 
 // HOW STRONGLY THE FIGURES SHOW.
 //
-// This moved twice. It shipped at 0.16 and read as "very dim"; 0.30 was
-// picked from three rendered side by side. Then a planetarium screenshot
-// settled it: there the figures are confident white line-art you read at a
-// glance, not a hint you have to look for, and that is the thing people
-// actually recognise -- "I prefer the brighter". 0.60 is that, and the
-// stars still sit on top of it because they are drawn after.
+// This has moved three times. It shipped at 0.16 and read as "very dim";
+// 0.30 was picked from three rendered side by side; a planetarium
+// screenshot then made it 0.60 -- there the figures are confident white
+// line-art you read at a glance, not a hint you have to look for, and that
+// is the thing people actually recognise. Then the tiles went from 256 px
+// to 768, and the same number read dimmer: a fine line puts less light in
+// the eye than a blurred one spread over more pixels. "I think I'd like
+// brighter" -- 0.85 is that, close to the source drawings' own white on
+// black, and the stars still sit on top because they are drawn after.
 //
-// It is one constant, and the switch in Visual Settings is the real answer
-// for anyone who wants the plain sky back.
-const DAY_ALPHA = 0.60;
+// It is one constant, and the switch in Visual Settings (the Art button in
+// full screen) is the real answer for anyone who wants the plain sky back.
+const DAY_ALPHA = 0.85;
 // LOWER AT NIGHT, AND NOT FOR TASTE. Dark adaptation is spent by TOTAL light
 // reaching the eye, not by hue, so a red field that is merely bright is
 // still a red field that costs twenty minutes to get back. Two thirds of the
 // day value, the same ratio as before.
-const NIGHT_ALPHA = 0.40;
+const NIGHT_ALPHA = 0.55;
 
-/** Spherical-ish bilinear: mix the four corners, then put it back on the sphere. */
+/**
+ * A point of the drawing, as a direction: blend the four corners, then put
+ * the result back on the sphere.
+ *
+ * EXACT, AND ONLY BECAUSE THE CORNERS ARE NOT UNIT VECTORS. The four are
+ * points of the figure's own flat plane at their true distances, and the
+ * blend of four corners of a flat parallelogram is a point of that plane;
+ * normalising it gives the direction the drawing was placed in, tilt and
+ * all. Blending unit corners instead flattens the tilt away -- measured,
+ * that moved Orion's middle by a degree and Pegasus's by six while every
+ * corner stayed exactly right.
+ */
 function corner(c, u, v) {
   const [tl, tr, br, bl] = c;
   const x = (1 - u) * (1 - v) * tl[0] + u * (1 - v) * tr[0] + u * v * br[0] + (1 - u) * v * bl[0];
@@ -135,6 +150,13 @@ export function createConstellationArt({ forceOff = false } = {}) {
    * would put grey on the screen however faint it was -- which is exactly
    * the dark adaptation the mode exists to protect. Tinted once, on first
    * use, rather than per frame.
+   *
+   * Tinted by a multiply with pure red, which keeps the red channel and
+   * zeroes the other two exactly, in place. The earlier way -- getImageData,
+   * a loop over every pixel, putImageData -- copied the whole atlas through
+   * JavaScript, and at 3840 x 3840 that copy is nearly sixty megabytes on a
+   * phone. This canvas is the same size as the atlas, which is why the atlas
+   * stays inside 4096 x 4096: the largest canvas every phone will make.
    */
   function redAtlas() {
     if (red || !img) return red;
@@ -142,9 +164,14 @@ export function createConstellationArt({ forceOff = false } = {}) {
     c.width = img.width; c.height = img.height;
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
-    const d = g.getImageData(0, 0, c.width, c.height);
-    for (let i = 0; i < d.data.length; i += 4) { d.data[i + 1] = 0; d.data[i + 2] = 0; }
-    g.putImageData(d, 0, 0);
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = '#ff0000';
+    g.fillRect(0, 0, c.width, c.height);
+    // The atlas ships opaque, brightness on black. Should it ever ship with
+    // an alpha channel again, this keeps the multiply from painting its
+    // transparent parts red.
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(img, 0, 0);
     red = c;
     return red;
   }
@@ -159,8 +186,16 @@ export function createConstellationArt({ forceOff = false } = {}) {
     ctx.save();
     ctx.globalAlpha = opacity === null ? (night ? NIGHT_ALPHA : DAY_ALPHA) : opacity;
     // Additive, so the art only ever LIGHTENS the sky: a ghost that could
-    // darken would punch holes in the Milky Way behind it.
+    // darken would punch holes in the Milky Way behind it. It is also why
+    // the atlas needs no alpha channel: black adds nothing, so the ink is
+    // stored as brightness on black, at a third of the size.
     ctx.globalCompositeOperation = 'lighter';
+    // A tile is 768 px and is usually drawn smaller than that, so this is a
+    // downscale. The default filter takes one sample per screen pixel, and
+    // a line thinner than the gap between samples flickers as the view
+    // moves; the high setting averages the pixels it would skip. Ignored
+    // where unsupported, which simply leaves the old look.
+    ctx.imageSmoothingQuality = 'high';
 
     for (const fig of figures) {
       // Project the grid once.

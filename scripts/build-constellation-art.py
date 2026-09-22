@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Build the ghosted constellation figures from James Hedberg's artwork.
 
-    python scripts/build-constellation-art.py
+    python scripts/build-constellation-art.py                # download and build
+    python scripts/build-constellation-art.py --cache DIR    # keep the downloads in DIR
 
 Writes two committed files and prints what it did:
 
-    site/src/data/figures.webp     one atlas, every figure, greyscale
+    site/src/data/figures.webp     one atlas, the chosen figures, ink as brightness
     site/src/data/figures.js       where each one hangs in the sky
 
 SOURCE, AND ITS LICENCE
@@ -27,6 +28,55 @@ SOURCE, AND ITS LICENCE
     acceptable for public artwork whose bytes are then committed and reviewed,
     and would not be for anything else.
 
+WHICH FIGURES, AND WHY NOT ALL OF THEM
+
+    Hedberg drew all 88. Shipping 84 of them read as "a bit crowded": at a
+    wide field a dozen figures lie over the stars a person is trying to
+    recognise, and most of those figures are ones nobody recognises. So the
+    app ships the ones people know -- the twelve of the zodiac, and thirteen
+    more that a beginner's chart names first, the three of the Polaris
+    star-hop above all, since finding Polaris is what this app is for. The
+    two lists are just below; a figure joins or leaves by editing them.
+
+    Twenty-five is not a round number by accident. Night Mode tints a copy
+    of the atlas on a canvas the same size, and 4096 x 4096 is the largest
+    canvas every phone this app runs on will make. At 768 px a tile that is
+    five tiles by five, and five by five is twenty-five.
+
+URSA MAJOR, WHICH NEVER SHIPPED
+
+    The first build matched each CSV row to its image by the abbreviation
+    column, and the CSV spells Ursa Major "Uma" while its image is
+    "UMa.png". The match failed silently, and the Big Dipper -- the pointer
+    to Polaris, on this app's own front page -- was the one figure missing.
+    A row is now matched by the image name it carries itself, and the
+    abbreviation comes from that, which is also the spelling the star
+    catalogue uses.
+
+RESOLUTION: CROP TO THE INK FIRST
+
+    Every source image is 2048 px square, but the drawing occupies only the
+    middle of it: across the set, the ink spans between a fifth and nine
+    tenths of the tile edge. So a 256 px tile gave Orion about 130 px of
+    actual drawing -- which is where "very blurry" came from -- and scaling
+    the tile up would have spent most of the new pixels on nothing.
+
+    Each figure is therefore cropped to a square around its ink first, with
+    a small margin, and THAT is resampled to the tile. The crop is a
+    sub-rectangle of the same flat plane, so its corners are the plane's
+    own points at the crop's edges and nothing moves on the sky.
+    fit-constellation-art.py measures how far each star sits from the ink,
+    and is the check that the crop changed nothing.
+
+INK AS BRIGHTNESS, NOT AS ALPHA
+
+    The source is pure white with the drawing in its alpha channel. WebP
+    stores an alpha plane losslessly, and that plane is the whole file:
+    measured at this size, the same atlas costs three times as much stored
+    as alpha as it does stored as brightness on black. The app draws the
+    art additively, where black adds nothing, so brightness on black IS
+    transparency, and the atlas ships as one grey channel.
+
 THE HARD GEOMETRY HAPPENS HERE, ONCE
 
     OpenSpace hangs each figure as a flat plane in space: a direction, an
@@ -35,9 +85,10 @@ THE HARD GEOMETRY HAPPENS HERE, ONCE
     convention and a plane's corner maths into the app, where none of it
     could be checked.
 
-    So this script does it once and ships the ANSWER: four unit vectors per
-    figure, in equatorial J2000, which the app projects like any other point
-    on the sky. The runtime keeps no constellation geometry at all.
+    So this script does it once and ships the ANSWER: four corner vectors
+    per figure, in equatorial J2000, which the app blends, normalises and
+    projects like any other point on the sky. The runtime keeps no
+    constellation geometry at all.
 
     The conventions, which were read rather than guessed:
       * the CSV's x, y, z are GALACTIC -- confirmed by converting and landing
@@ -47,6 +98,30 @@ THE HARD GEOMETRY HAPPENS HERE, ONCE
       * the plane spans +/- Size about its centre, with
         Size / distance = 0.32407 * scale.
 
+THE CORNERS ARE NOT UNIT VECTORS, ON PURPOSE
+
+    OpenSpace's planes do not face the viewer square on: measured across
+    the set, each is tilted between 2 and 28 degrees from its own line of
+    sight. Seen from the origin a tilted plane is foreshortened, its far
+    edge smaller than its near one, and that keystone is part of where
+    Hedberg put every line of the drawing.
+
+    The app finds a point of the drawing by blending its four corners and
+    putting the result back on the sphere. Blending the corners AS UNIT
+    VECTORS throws the tilt away -- near and far corners are made the same
+    length, the blend lands between them in the wrong place, and only the
+    corners themselves are still right. Measured before this was fixed:
+    Orion's interior was off by up to 1.1 degrees, Virgo's by 3.5 and
+    Pegasus's by 6.1, with every corner exactly in place. That is the
+    signature of the residual reported as "closer but still off a bit".
+
+    So each corner ships at its true distance from the eye, on the plane.
+    Blending four corners of a flat parallelogram gives a point of that
+    same plane exactly, and normalising afterwards gives its direction,
+    which is the perspective the drawing was placed in. The app's slow
+    tick rotates the corners into the horizontal frame and keeps their
+    lengths, for the same reason.
+
 AND IT IS CHECKED, NOT ASSUMED
 
     A figure drawn upside down or half a sky away is worse than no figure.
@@ -54,6 +129,7 @@ AND IT IS CHECKED, NOT ASSUMED
     constellation's brightest stars must fall inside it. Anything that fails
     is reported and the build stops.
 """
+import argparse
 import csv
 import io
 import json
@@ -63,7 +139,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_IMG = ROOT / "site" / "src" / "data" / "figures.webp"
@@ -72,16 +148,28 @@ OUT_JS = ROOT / "site" / "src" / "data" / "figures.js"
 MANIFEST = ("http://data.openspaceproject.com/request"
             "?identifier=constellation_images&file_version=4&application_version=1")
 
-# 256, NOT 128. A figure spans thirty or forty degrees, which at any field
-# this app draws is several hundred screen pixels -- a 128px tile was a
-# three-to-four times upscale and read as "very blurry". 256 halves that.
-# Measured across a sample before choosing: 128px cost 151 KB for all 84,
-# 192px 270 KB, 256px 424 KB, 320px 638 KB. 320 buys little over 256 for
-# half again the weight, and this app is precached whole before it is
-# needed, so the weight is a real cost rather than a lazy one.
-TILE = 256
-QUALITY = 60
-COLS = 10
+# The twelve of the zodiac, in their traditional order.
+ZODIAC = ["Ari", "Tau", "Gem", "Cnc", "Leo", "Vir", "Lib", "Sco", "Sgr", "Cap", "Aqr", "Psc"]
+# Thirteen a beginner's chart names first. The first three are the Polaris
+# star-hop and are not negotiable. Cygnus, Lyra and Aquila are the Summer
+# Triangle and travel together, as do Perseus, Andromeda and Pegasus in the
+# autumn; Crux is the figure the southern half of the world knows best.
+KNOWN = ["UMa", "UMi", "Cas", "Ori", "CMa", "Boo",
+         "Cyg", "Lyr", "Aql", "Per", "And", "Peg", "Cru"]
+SELECTED = ZODIAC + KNOWN
+
+# 768 px tiles, cropped to the ink, in a 5 x 5 atlas of 3840 x 3840: the
+# largest that stays inside the 4096 x 4096 canvas every phone will make.
+# Measured for this set, stored as brightness on black at quality 85:
+# 512 px 312 KB, 640 px 423 KB, 768 px 534 KB, 1024 px 784 KB. Against the
+# old 256 px tiles of whole images that is three times the pixels per
+# degree before the crop, and the crop adds between a tenth and four times
+# more on top, figure by figure: Orion went from 4 px per degree of sky to
+# 23, Lyra from 8 to 103.
+TILE = 768
+COLS = 5
+MARGIN = 0.04       # of the ink's span, added on each side of the crop
+QUALITY = 85
 
 DEG = math.pi / 180
 # Galactic north pole and the galactic longitude of the ascending node, J2000.
@@ -97,6 +185,20 @@ def get(url, timeout=120):
     req = urllib.request.Request(url, headers={"User-Agent": "evo.polaris build script"})
     with urllib.request.urlopen(req, timeout=timeout, context=CTX) as r:
         return r.read()
+
+
+def fetch(url, cache, name=None):
+    """get(), through an optional on-disk cache so a rebuild is not a download."""
+    name = name or url.rsplit("/", 1)[1]
+    if cache:
+        p = cache / name
+        if p.exists() and p.stat().st_size:
+            return p.read_bytes()
+    data = get(url)
+    if cache:
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / name).write_bytes(data)
+    return data
 
 
 def euler_to_quat(x, y, z):
@@ -140,8 +242,21 @@ def unit(v):
     return (v[0] / m, v[1] / m, v[2] / m)
 
 
-def corners_for(row):
-    """The figure's four corners as equatorial unit vectors, in image order."""
+def corners_for(row, uv=(0.0, 0.0, 1.0, 1.0)):
+    """The figure's four corners as equatorial J2000 vectors, in image order.
+
+    uv is the crop as (u0, v0, u1, v1) in fractions of the image, u to the
+    right and v DOWN as in the image; the whole image is (0, 0, 1, 1). A
+    point (u, v) of the image lies on the plane at
+
+        centre + (2u - 1) * ex + (1 - 2v) * ey
+
+    so a crop's corners are simply that, evaluated at its edges. The plane
+    is the same plane; only the piece of it that carries pixels changes.
+
+    The corners are returned at their true distance from the eye, not as
+    unit vectors: see "THE CORNERS ARE NOT UNIT VECTORS" in the docstring.
+    """
     x, y, z = float(row[3]), float(row[4]), float(row[5])
     scale = float(row[6])
     q = euler_to_quat(float(row[8]), float(row[9]), float(row[10]))
@@ -150,13 +265,36 @@ def corners_for(row):
     # The plane lies in its own XY, so its edges are the rotated X and Y axes.
     ex = rotate(q, (s, 0.0, 0.0))
     ey = rotate(q, (0.0, s, 0.0))
+    u0, v0, u1, v1 = uv
     out = []
-    for sx, sy in ((-1, 1), (1, 1), (1, -1), (-1, -1)):      # TL, TR, BR, BL
-        g = (centre[0] + sx * ex[0] + sy * ey[0],
-             centre[1] + sx * ex[1] + sy * ey[1],
-             centre[2] + sx * ex[2] + sy * ey[2])
-        out.append(gal_to_eq(unit(g)))
+    for u, v in ((u0, v0), (u1, v0), (u1, v1), (u0, v1)):      # TL, TR, BR, BL
+        a, b = 2 * u - 1, 1 - 2 * v
+        g = (centre[0] + a * ex[0] + b * ey[0],
+             centre[1] + a * ex[1] + b * ey[1],
+             centre[2] + a * ex[2] + b * ey[2])
+        # Rotated into the equatorial frame, and given its length back: the
+        # corner keeps its distance from the eye, so the four stay a plane.
+        r = math.sqrt(g[0] * g[0] + g[1] * g[1] + g[2] * g[2])
+        e = gal_to_eq(g)
+        out.append((e[0] * r, e[1] * r, e[2] * r))
     return out
+
+
+def ink_box(img):
+    """A square around the drawing, with a margin, in pixels of the source.
+
+    It may run past the image's edges for a drawing that fills its tile;
+    PIL pads a crop like that with transparency, which is exactly right.
+    """
+    alpha = img.split()[3]
+    bb = alpha.point(lambda v: 255 if v > 8 else 0).getbbox()
+    if not bb:
+        return None
+    w, h = bb[2] - bb[0], bb[3] - bb[1]
+    side = max(w, h) * (1 + 2 * MARGIN)
+    cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+    x0, y0 = round(cx - side / 2), round(cy - side / 2)
+    return (x0, y0, x0 + round(side), y0 + round(side))
 
 
 def inside(corners, v):
@@ -175,13 +313,33 @@ def inside(corners, v):
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--cache", type=Path, default=None,
+                    help="directory to keep the downloaded CSV and images in")
+    args = ap.parse_args()
+    cache = args.cache
+
     print("fetching the manifest")
-    urls = [u for u in get(MANIFEST, 60).decode().split() if u.strip()]
+    urls = [u for u in fetch(MANIFEST, cache, "manifest.txt").decode().split() if u.strip()]
     csv_url = next(u for u in urls if u.endswith(".csv"))
     png_urls = {u.rsplit("/", 1)[1][:-4]: u for u in urls if u.endswith(".png")}
-    rows = list(csv.reader(io.StringIO(get(csv_url, 60).decode())))[1:]
-    rows = [r for r in rows if len(r) > 10 and r[1] in png_urls]
-    print(f"  {len(rows)} figures with both placement and artwork")
+    rows = list(csv.reader(io.StringIO(fetch(csv_url, cache).decode())))[1:]
+    # Matched by the IMAGE NAME the row carries, never by its abbreviation
+    # column: that column spells Ursa Major "Uma", the image is "UMa.png",
+    # and matching on it lost the Big Dipper. See the docstring.
+    by_image = {r[7][:-4]: r for r in rows if len(r) > 10 and r[7].lower().endswith(".png")}
+    print(f"  {len(by_image)} figures with placement, {len(png_urls)} with artwork")
+
+    missing = [a for a in SELECTED if a not in by_image or a not in png_urls]
+    if missing:
+        print(f"no source for: {', '.join(missing)}", file=sys.stderr)
+        return 1
+    if len(SELECTED) != len(set(SELECTED)):
+        print("a figure is listed twice", file=sys.stderr)
+        return 1
+    if len(SELECTED) > COLS * COLS:
+        print(f"{len(SELECTED)} figures do not fit a {COLS} x {COLS} atlas", file=sys.stderr)
+        return 1
 
     # --- the stars this app already ships, to check the placement against ---
     # [ra_degrees, dec_degrees, magnitude, b-v, hr, "9Alp CMa"] -- the
@@ -203,25 +361,33 @@ def main() -> int:
         by_con.setdefault(con, []).append((mag, v))
 
     placements, bad = [], []
-    atlas_rows = math.ceil(len(rows) / COLS)
-    atlas = Image.new("RGBA", (COLS * TILE, atlas_rows * TILE), (0, 0, 0, 0))
+    atlas_rows = math.ceil(len(SELECTED) / COLS)
+    atlas = Image.new("L", (COLS * TILE, atlas_rows * TILE), 0)
 
-    for i, row in enumerate(rows):
-        abbr = row[1]
-        corners = corners_for(row)
+    for i, abbr in enumerate(SELECTED):
+        row = by_image[abbr]
+        raw = Image.open(io.BytesIO(fetch(png_urls[abbr], cache))).convert("RGBA")
+        box = ink_box(raw)
+        if not box:
+            bad.append(f"{abbr}: the image has no ink")
+            continue
+        uv = tuple(c / raw.width for c in box)
+        corners = corners_for(row, uv)
 
         # CHECK: the constellation's three brightest stars should be inside.
         cands = sorted(by_con.get(abbr, []))[:3]
-        if cands:
+        if not cands:
+            bad.append(f"{abbr}: no stars in the catalogue to check it against")
+        else:
             hits = sum(1 for _, v in cands if inside(corners, v))
             if hits == 0:
                 bad.append(f"{abbr}: none of its {len(cands)} brightest stars fall inside")
 
-        raw = Image.open(io.BytesIO(get(png_urls[abbr]))).convert("RGBA")
-        a = raw.resize((TILE, TILE), Image.LANCZOS)
-        grey = a.convert("L")
-        ghost = Image.merge("RGBA", (grey, grey, grey, a.split()[3]))
-        atlas.paste(ghost, ((i % COLS) * TILE, (i // COLS) * TILE))
+        # The ink as brightness: the drawing's own grey through its alpha.
+        crop = raw.crop(box)
+        ink = ImageChops.multiply(crop.convert("L"), crop.split()[3])
+        atlas.paste(ink.resize((TILE, TILE), Image.LANCZOS),
+                    ((i % COLS) * TILE, (i // COLS) * TILE))
 
         placements.append({
             "a": abbr,
@@ -229,7 +395,8 @@ def main() -> int:
             "i": i,
             "c": [[round(c, 6) for c in v] for v in corners],
         })
-        print(f"  {i + 1:3}/{len(rows)}  {abbr:4} {row[2]}")
+        span = box[2] - box[0]
+        print(f"  {i + 1:3}/{len(SELECTED)}  {abbr:4} {row[2]:18} ink {span / raw.width:4.0%} of the tile")
 
     if bad:
         print("\nPLACEMENT CHECK FAILED -- a figure in the wrong place is worse "
@@ -244,11 +411,17 @@ def main() -> int:
         "// GENERATED by scripts/build-constellation-art.py -- do not edit.\n"
         "//\n"
         "// Where each of James Hedberg's constellation figures hangs in the sky:\n"
-        "// four corner unit vectors in equatorial J2000, in the image's own\n"
-        "// order (top-left, top-right, bottom-right, bottom-left), plus the\n"
-        "// tile index into figures.webp. The galactic conversion, GLM's Euler\n"
-        "// convention and the plane maths all happened in the build script,\n"
-        "// where they could be checked against this app's own star catalogue.\n"
+        "// four corner vectors in equatorial J2000, in the image's own order\n"
+        "// (top-left, top-right, bottom-right, bottom-left), plus the tile\n"
+        "// index into figures.webp. THE CORNERS ARE NOT UNIT VECTORS: each\n"
+        "// sits at its true distance on the figure's plane, which OpenSpace\n"
+        "// tilts up to 28 degrees from the line of sight, so that blending\n"
+        "// them gives points of that plane exactly. Each tile is the drawing\n"
+        "// cropped to its ink, and the corners are the corners of that crop.\n"
+        "// The galactic conversion, GLM's Euler convention, the plane maths\n"
+        "// and the crop all happened in the build script, where they could\n"
+        "// be checked against this app's own star catalogue. The atlas stores\n"
+        "// the ink as brightness on black; the app draws it additively.\n"
         "//\n"
         "// Artwork: James Hedberg (CUNY-CCNY), CC BY 4.0.\n"
         f"export const FIGURE_TILE = {TILE};\n"
@@ -256,12 +429,12 @@ def main() -> int:
         "export const FIGURES = "
         + json.dumps(placements, separators=(",", ":"))
         + ";\n",
-        encoding="utf-8")
+        encoding="utf-8", newline="\n")     # LF on every platform; the repo is LF
 
     print(f"\nwrote {OUT_IMG.relative_to(ROOT)}  {atlas.width}x{atlas.height}  "
           f"{OUT_IMG.stat().st_size / 1024:.1f} KB")
     print(f"wrote {OUT_JS.relative_to(ROOT)}  {OUT_JS.stat().st_size / 1024:.1f} KB")
-    print(f"placement checked against the star catalogue for {len(rows)} figures")
+    print(f"placement checked against the star catalogue for {len(placements)} figures")
     return 0
 
 
