@@ -98,7 +98,15 @@ export function drawSkyView(ctx, o) {
   // The Milky Way, first, because it is the sky rather than something drawn on
   // it. Soft additive blobs rather than a filled polygon: a hard-edged band
   // reads as a drawn shape, and the real thing has no edge.
-  if (o.milkyWay && o.milkyWay.length) {
+  // THE PHOTOGRAPH FIRST, THE FORMULA IF IT CANNOT. milkyLayer projects
+  // ESO's panorama through the same basis and focal length as everything
+  // else here; draw() answers false when it has no image yet, when WebGL has
+  // lost its context, or when anything in it threw -- and then the procedural
+  // blobs below are exactly what they always were. The band is never absent.
+  if (o.milkyLayer && o.galactic
+      && o.milkyLayer.draw(ctx, { basis, focal, w, h, night, galactic: o.galactic })) {
+    // painted from the picture
+  } else if (o.milkyWay && o.milkyWay.length) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const blob = Math.max(18, w / 9);

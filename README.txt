@@ -262,3 +262,11 @@ Data and licence
 MIT. Bundled data is public domain: the Yale Bright Star Catalog (CDS VizieR
 V/50, 9,096 stars) and NOAA's World Magnetic Model 2025, valid through 2030.
 See LICENSE.
+
+The Milky Way is a photograph: [ESO/S. Brunier's all-sky
+panorama](https://www.eso.org/public/images/eso0932a/), licensed
+CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), projected onto the
+sky with its stars removed so that only the catalogue's stars are drawn. The
+credit appears on the map wherever the picture does, because the licence puts
+it there. scripts/build-milkyway.py makes the texture from the original and
+records how its orientation was checked against the Magellanic Clouds.

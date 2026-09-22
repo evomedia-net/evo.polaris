@@ -104,8 +104,11 @@ test('the key never eats a tap meant for the map', () => {
 test('a row appears only when its path is actually drawn', () => {
   // A key to a line that is not on the map sends someone hunting the sky for
   // something that was never there.
-  const fn = appJs.slice(appJs.indexOf('function updateLegend()'),
-    appJs.indexOf('function updateLegend()') + 900);
+  // To the end of the function, not a fixed 900 characters: a comment added
+  // above the last line pushed it out of the window and this failed against
+  // correct code.
+  const start = appJs.indexOf('function updateLegend()');
+  const fn = appJs.slice(start, appJs.indexOf('\n}', start));
   assert.match(fn, /\['legIss', 'iss', !!issSamples\]/,
     'the station row must follow whether its orbit has been fetched');
   assert.match(fn, /\['legPlanets', 'planets', skyShowPlanets\]/);

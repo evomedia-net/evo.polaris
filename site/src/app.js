@@ -27,6 +27,7 @@ import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
 import {
   drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_MIN_ALT,
 } from './skydraw.js';
+import { createMilkyWay, galacticBasis } from './milkyway.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
   moonRiseSet, describeMoonTimes,
@@ -95,6 +96,24 @@ let skyMilkyWay = true;
 let skyShowPlanets = true;
 let skyShowMoon = true;
 let milkyWay = null;
+// The Milky Way as a photograph -- see milkyway.js. The procedural `milkyWay`
+// above stays: it is what gets drawn if the image never arrives or the GL
+// context is lost, so the band is never simply absent. `galactic` is where
+// the galactic axes point right now, recomputed with the stars.
+// ?nogl=1 forces the JavaScript fallback, which is how that path gets looked
+// at on a device that would never otherwise use it.
+const milkyLayer = createMilkyWay({
+  forceFallback: new URLSearchParams(location.search).get('nogl') === '1',
+});
+let galactic = null;
+milkyLayer.ready.then(() => {
+  // Which renderer took the picture, on the root element -- so a test in a
+  // real browser can prove WebGL is what is drawing, rather than infer it
+  // from the absence of a fallback.
+  document.documentElement.dataset.milkyway = milkyLayer.mode;
+  updateLegend();
+  if (skyOn) drawLiveSky();
+});
 let skyPlanetList = [];
 let skyMoonBody = null;
 
@@ -173,6 +192,17 @@ function updateLegend() {
     line.setAttribute('stroke', night ? style.nightColour : style.colour);
     line.setAttribute('stroke-dasharray', style.dash.join(' '));
   }
+  // THE CREDIT FOLLOWS THE PICTURE. Shown exactly when the photograph is
+  // what is on screen: not while the Milky Way is hidden, and not while the
+  // procedural band is standing in for an image that has not arrived -- a
+  // credit for a picture that is not there is its own kind of wrong. ESO's
+  // terms put it ON the image, so it is on this plate in full screen and
+  // spelled out with the link under the map.
+  const photo = skyMilkyWay && milkyLayer.mode !== 'none' && milkyLayer.mode !== 'loading';
+  $('legMilky').hidden = !photo;
+  const credit = $('milkyCredit');
+  if (credit) credit.hidden = !photo;
+  if (photo) any = true;
   $('skyLegend').hidden = !any;
 }
 
@@ -1309,6 +1339,7 @@ function refreshSkyVectors() {
   skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5, precess);
   // Same slow tick as the stars: the band turns with the sky, not with you.
   milkyWay = buildMilkyWay(lst, site.lat, 6, 3, 18, precess);
+  galactic = galacticBasis(lst, site.lat, precess);
 
   // The planets and the Moon move against the stars, so they are rebuilt on
   // the same tick rather than cached alongside them. Both go through the same
@@ -1530,6 +1561,8 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     milkyWay: skyMilkyWay ? milkyWay : null,
+    milkyLayer: skyMilkyWay ? milkyLayer : null,
+    galactic,
     tracks: skyTracks,
     planets: skyShowPlanets ? skyPlanetList : null,
     moon: skyShowMoon ? skyMoonBody : null,
@@ -2208,6 +2241,7 @@ $('skyMilky').onclick = () => {
   skyMilkyWay = !skyMilkyWay;
   $('skyMilky').textContent = skyMilkyWay
     ? 'Hide the Milky Way' : 'Show the Milky Way';
+  updateLegend();                 // the credit goes with the picture
   drawLiveSky();
 };
 

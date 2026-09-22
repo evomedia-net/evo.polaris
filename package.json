@@ -12,6 +12,7 @@
     "version:stage": "node scripts/bump-version.mjs bump-stage",
     "version:tag": "node scripts/bump-version.mjs tag-command",
     "build-data": "python scripts/build-data.py",
+    "build-milkyway": "python scripts/build-milkyway.py",
     "serve": "node scripts/serve.mjs",
     "docs:twins": "node scripts/md-txt.mjs",
     "docs:check": "node scripts/md-txt.mjs --check",

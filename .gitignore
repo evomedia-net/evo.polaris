@@ -8,3 +8,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+# The ESO panorama build-milkyway.py downloads. 28 MB of source for a
+# 59 KB output, and the output is what is committed.
+.cache/
