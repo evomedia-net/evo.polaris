@@ -6,12 +6,22 @@
 // for. Faint ON PURPOSE -- the stars are the subject and the art is a hint
 // behind them, which is also how OpenSpace renders the same pieces.
 //
-// WHERE THE GEOMETRY IS. Not here. Each figure arrives as four corner unit
-// vectors in equatorial J2000, worked out once by
-// scripts/build-constellation-art.py and checked there against this app's
-// own star catalogue. The runtime carries no galactic conversion, no Euler
-// convention and no plane maths -- it projects four points like any other
-// points on the sky.
+// WHERE THE GEOMETRY IS. Not here. Each figure's four corners are worked
+// out once by scripts/build-constellation-art.py, in equatorial J2000, and
+// checked there against this app's own star catalogue. This module carries
+// no galactic conversion, no Euler convention and no plane maths.
+//
+// IT ALSO DOES NOT CONVERT FRAMES, AND THAT IS THE POINT OF TAKING THE
+// CORNERS AS AN ARGUMENT. Everything else on this canvas -- every star,
+// every planet -- is rotated out of equatorial coordinates into the
+// horizontal frame before it is projected, because the basis the projection
+// uses is a horizontal one. This layer originally projected the corners
+// straight from J2000 against that same basis, which is a frame mismatch:
+// the figures landed at a sky position that depended on the time of night
+// and the latitude, so they drifted away from the very stars they were
+// drawn around. Reported as "that orion image isn't even close to the
+// reference". The caller now hands over corners already in the frame the
+// basis is in, the same way it hands over stars.
 //
 // WHY A QUAD IS NOT ENOUGH. A figure spans thirty or forty degrees, and a
 // gnomonic projection bends a shape that size: its edges are curves, not
@@ -27,7 +37,7 @@
 // shows through along every shared edge, and a grid of hairlines across a
 // ghost is far more visible than the ghost.
 
-import { FIGURES, FIGURE_TILE, FIGURE_COLS } from './data/figures.js';
+import { FIGURE_TILE, FIGURE_COLS } from './data/figures.js';
 import { projectToScreen } from './skyview.js';
 
 const SRC = './src/data/figures.webp';
@@ -39,19 +49,23 @@ export const CREDIT = 'Figures: James Hedberg';
 // visible figures stay well inside one frame.
 const CELLS = 4;
 
-// HOW STRONGLY THE GHOST SHOWS.
+// HOW STRONGLY THE FIGURES SHOW.
 //
-// It shipped at 0.16 and read as "very dim" -- barely there at a wide field,
-// where the lines are thinnest and there is the most sky to compete with.
-// 0.30 was chosen from three rendered side by side: it is plainly readable
-// while the stars stay the subject, where 0.45 started to make the artwork
-// the main thing on screen.
-const DAY_ALPHA = 0.30;
+// This moved twice. It shipped at 0.16 and read as "very dim"; 0.30 was
+// picked from three rendered side by side. Then a planetarium screenshot
+// settled it: there the figures are confident white line-art you read at a
+// glance, not a hint you have to look for, and that is the thing people
+// actually recognise -- "I prefer the brighter". 0.60 is that, and the
+// stars still sit on top of it because they are drawn after.
+//
+// It is one constant, and the switch in Visual Settings is the real answer
+// for anyone who wants the plain sky back.
+const DAY_ALPHA = 0.60;
 // LOWER AT NIGHT, AND NOT FOR TASTE. Dark adaptation is spent by TOTAL light
 // reaching the eye, not by hue, so a red field that is merely bright is
 // still a red field that costs twenty minutes to get back. Two thirds of the
-// day value keeps the figures readable and the screen cheap to look at.
-const NIGHT_ALPHA = 0.20;
+// day value, the same ratio as before.
+const NIGHT_ALPHA = 0.40;
 
 /** Spherical-ish bilinear: mix the four corners, then put it back on the sphere. */
 function corner(c, u, v) {
@@ -135,8 +149,8 @@ export function createConstellationArt({ forceOff = false } = {}) {
     return red;
   }
 
-  layer.draw = function draw(ctx, { basis, focal, cx, cy, w, h, night, opacity = null }) {
-    if (!img) return 0;
+  layer.draw = function draw(ctx, { figures, basis, focal, cx, cy, w, h, night, opacity = null }) {
+    if (!img || !figures || !figures.length) return 0;
     let drawn = 0;
 
     const sheet = night ? redAtlas() : img;
@@ -148,22 +162,31 @@ export function createConstellationArt({ forceOff = false } = {}) {
     // darken would punch holes in the Milky Way behind it.
     ctx.globalCompositeOperation = 'lighter';
 
-    for (const fig of FIGURES) {
-      // Project the grid once; a cell whose corners are all off the canvas,
-      // or behind the viewer, is skipped without touching the context.
+    for (const fig of figures) {
+      // Project the grid once.
+      //
+      // CULLED CELL BY CELL, NOT FIGURE BY FIGURE. This used to skip the
+      // whole figure the moment ANY of its corners failed to project, and a
+      // figure is forty or fifty degrees across -- so zoomed in, a corner is
+      // routinely off the edge or behind the viewer, and the figure you were
+      // looking straight at was the first to vanish. What stayed on screen
+      // were its NEIGHBOURS, whose corners still projected, which reads
+      // exactly like artwork that does not line up with its stars. Reported
+      // as "do these look aligned to you?" -- they were not, because the
+      // aligned one was not being drawn at all.
       const pts = [];
-      let anyOn = false, allProjected = true;
+      let anyOn = false;
       for (let iy = 0; iy <= CELLS; iy++) {
         for (let ix = 0; ix <= CELLS; ix++) {
           const v = corner(fig.c, ix / CELLS, iy / CELLS);
           const q = projectToScreen(v, basis, focal);
-          if (!q) { allProjected = false; pts.push(null); continue; }
+          if (!q) { pts.push(null); continue; }
           const x = cx + q.x, y = cy + q.y;
           if (x > -w && x < w * 2 && y > -h && y < h * 2) anyOn = true;
           pts.push([x, y]);
         }
       }
-      if (!anyOn || !allProjected) continue;      // wholly off screen, or wrapping behind
+      if (!anyOn) continue;                       // nothing of it is on screen
 
       const col = fig.i % FIGURE_COLS, row = Math.floor(fig.i / FIGURE_COLS);
       const sx = col * FIGURE_TILE, sy = row * FIGURE_TILE;
@@ -176,8 +199,10 @@ export function createConstellationArt({ forceOff = false } = {}) {
           const s11 = src(ix + 1, iy + 1), s01 = src(ix, iy + 1);
           const d00 = at(ix, iy), d10 = at(ix + 1, iy);
           const d11 = at(ix + 1, iy + 1), d01 = at(ix, iy + 1);
-          triangle(ctx, sheet, s00, s10, s11, d00, d10, d11);
-          triangle(ctx, sheet, s00, s11, s01, d00, d11, d01);
+          // A cell with a corner behind the viewer has no honest shape on
+          // screen; the rest of the figure is still perfectly drawable.
+          if (d00 && d10 && d11) triangle(ctx, sheet, s00, s10, s11, d00, d10, d11);
+          if (d00 && d11 && d01) triangle(ctx, sheet, s00, s11, s01, d00, d11, d01);
         }
       }
       drawn++;

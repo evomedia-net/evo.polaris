@@ -175,7 +175,7 @@ export function drawSkyView(ctx, o) {
   // -- see constellation-art.js -- so it lightens the sky rather than
   // covering it.
   if (o.figureArt) {
-    o.figureArt.draw(ctx, { basis, focal, cx, cy, w, h, night });
+    o.figureArt.draw(ctx, { figures: o.figures, basis, focal, cx, cy, w, h, night });
   }
 
   // Constellation figures. Drawn before the stars so the lines pass behind

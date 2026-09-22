@@ -265,6 +265,13 @@
 
         <!-- Right edge, full screen only: the field of view. -->
         <div class="full-zoom" aria-label="Zoom">
+          <!-- THE CONSTELLATION ART, AT THE TOP OF THE COLUMN. Its switch
+               lived only in Visual Settings, which sits below the map -- and
+               in full screen there is no below, so the one place the figures
+               fill the screen was the one place they could not be turned
+               off. Three asterisks for a group of stars; the word says what
+               pressing does, and the accessible name contains it. -->
+          <button id="fullFigures" class="map-btn map-zoom-btn tagged" aria-label="Hide the constellation art" title="Hide the constellation art"><span class="btn-glyph" aria-hidden="true">&#8258;</span><span class="btn-tag" aria-hidden="true">Art</span></button>
           <!-- The ground, above the zoom: a half-filled circle, which is what
                a horizon with solid ground under it looks like. The words are
                on the aria-label and the title, and follow the button rule:

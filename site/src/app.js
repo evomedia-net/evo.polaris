@@ -10,6 +10,7 @@ import { spellAngle, compassPoint } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
+  equatorialToVector,
   screenToVector, focalLength, vectorToAltAz,
   clampAim, figureCentre,
 } from './skyview.js';
@@ -31,6 +32,7 @@ import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
 import { createPlanetArt, CREDIT as PLANET_CREDIT } from './planet-art.js';
 import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation-art.js';
+import { FIGURES } from './data/figures.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import * as quat from './quat.js';
 import {
@@ -123,6 +125,12 @@ let skyConstellations = true;
 // turns a join-the-dots into the figure it is named after, and anyone who
 // finds it busy can turn it off in one press.
 let skyFigures = store.get('figures', true);
+// The figures' corners in the HORIZONTAL frame, rebuilt on the slow tick
+// beside the stars. They are stored in equatorial J2000, and the projection
+// works in the horizontal frame, so they have to make the same journey
+// every star makes -- 84 figures, four corners, a few hundred rotations a
+// tick and none at all per frame.
+let skyFigureCorners = [];
 let skyMilkyWay = true;
 // The planets and the Moon are why half of this pane exists now, so both are
 // on. They are also the two things that can hide something you were looking
@@ -1427,6 +1435,15 @@ function refreshSkyVectors() {
   // why Polaris was right on the dial and 22 arcminutes off in the view.
   const precess = precessionMatrix(jd);
   skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5, precess);
+  // The artwork turns with the sky, exactly as the stars do.
+  skyFigureCorners = FIGURES.map((f) => ({
+    i: f.i,
+    c: f.c.map((v) => equatorialToVector(
+      Math.atan2(v[1], v[0]) * 180 / Math.PI,
+      Math.asin(Math.max(-1, Math.min(1, v[2]))) * 180 / Math.PI,
+      lst, site.lat, precess,
+    )),
+  }));
   // Same slow tick as the stars: the band turns with the sky, not with you.
   milkyWay = buildMilkyWay(lst, site.lat, 6, 3, 18, precess);
   galactic = galacticBasis(lst, site.lat, precess);
@@ -1715,6 +1732,7 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     figureArt: skyFigures && figureArt.mode === 'figures' ? figureArt : null,
+    figures: skyFigureCorners,
     milkyWay: skyMilkyWay ? milkyWay : null,
     milkyLayer: skyMilkyWay ? milkyLayer : null,
     galactic,
@@ -2592,11 +2610,34 @@ $('skyConst').onclick = () => {
     ? 'Hide the constellations' : 'Show the constellations';
   drawLiveSky();
 };
+/**
+ * The art toggle's label, from the setting rather than from the markup.
+ *
+ * This is the ONLY one of these switches whose state is remembered, and it
+ * shipped saying "Hide the constellation art" on every load -- the static
+ * text in the HTML -- however it had been left. Turn the art off, reload,
+ * and the button claimed it was on while the sky said otherwise: the exact
+ * mix of "what pressing does" and "the state you are in" the button rule
+ * exists to forbid.
+ */
+function applyFiguresLabel() {
+  const label = skyFigures
+    ? 'Hide the constellation art' : 'Show the constellation art';
+  $('skyFigures').textContent = label;
+  // The full-screen glyph carries the same words for a screen reader and the
+  // same state, so the two can never disagree about what pressing does.
+  const full = $('fullFigures');
+  if (full) {
+    full.setAttribute('aria-label', label);
+    full.title = label;
+  }
+}
+applyFiguresLabel();
+
 $('skyFigures').onclick = () => {
   skyFigures = !skyFigures;
   store.set('figures', skyFigures);
-  $('skyFigures').textContent = skyFigures
-    ? 'Hide the constellation art' : 'Show the constellation art';
+  applyFiguresLabel();
   updateLegend();
   drawLiveSky();
 };
@@ -2625,6 +2666,8 @@ $('skyGround').onclick = () => {
 // One control, two places. The full-screen button is a glyph because the
 // corner has no room for words; it presses the real one.
 $('fullGround').onclick = () => $('skyGround').click();
+// Same arrangement for the artwork: one control, pressed from either place.
+$('fullFigures').onclick = () => $('skyFigures').click();
 
 // The one crossing between the two panes. Finding the pole is an alignment
 // step, but the live view is the best tool for it, so the alignment side can
