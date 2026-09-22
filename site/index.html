@@ -225,6 +225,11 @@
 
         <!-- Right edge, full screen only: the field of view. -->
         <div class="full-zoom" aria-label="Zoom">
+          <!-- The ground, above the zoom: a half-filled circle, which is what
+               a horizon with solid ground under it looks like. The words are
+               on the aria-label and the title, and follow the button rule:
+               they say what pressing does. -->
+          <button id="fullGround" class="map-btn map-zoom-btn" aria-label="Hide the ground" title="Hide the ground">&#9682;</button>
           <button id="fullIn" class="map-btn map-zoom-btn" aria-label="Show less sky">+</button>
           <button id="fullOut" class="map-btn map-zoom-btn" aria-label="Show more sky">&minus;</button>
         </div>
@@ -278,6 +283,7 @@
           <button id="skyMilky" class="big-btn">Hide the Milky Way</button>
           <button id="skyPlanets" class="big-btn">Hide the planets</button>
           <button id="skyMoon" class="big-btn">Hide the Moon</button>
+          <button id="skyGround" class="big-btn">Hide the ground</button>
         </div>
       </details>
 

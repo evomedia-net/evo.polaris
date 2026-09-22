@@ -95,6 +95,12 @@ let skyMilkyWay = true;
 // for -- the Moon is drawn larger than life -- hence the switches.
 let skyShowPlanets = true;
 let skyShowMoon = true;
+// The ground: a solid wireframe Earth below the horizon that hides the sky
+// under it, the way the real one does. On by default -- a view that shows
+// stars through the ground is a view lying about what you can see -- and
+// switchable, because "where is that set planet sitting under the ground" is
+// a fair question this app was answering before and can still answer.
+let skyGround = true;
 let milkyWay = null;
 // The Milky Way as a photograph -- see milkyway.js. The procedural `milkyWay`
 // above stays: it is what gets drawn if the image never arrives or the GL
@@ -1576,6 +1582,7 @@ function drawLiveSky() {
     milkyWay: skyMilkyWay ? milkyWay : null,
     milkyLayer: skyMilkyWay ? milkyLayer : null,
     galactic,
+    ground: skyGround,
     tracks: skyTracks,
     planets: skyShowPlanets ? skyPlanetList : null,
     moon: skyShowMoon ? skyMoonBody : null,
@@ -2257,6 +2264,22 @@ $('skyMilky').onclick = () => {
   updateLegend();                 // the credit goes with the picture
   drawLiveSky();
 };
+$('skyGround').onclick = () => {
+  skyGround = !skyGround;
+  const label = skyGround ? 'Hide the ground' : 'Show the ground';
+  $('skyGround').textContent = label;
+  // The full-screen glyph carries the same words for a screen reader, and
+  // the same state, so the two can never disagree about what pressing does.
+  const full = $('fullGround');
+  if (full) {
+    full.setAttribute('aria-label', label);
+    full.title = label;
+  }
+  drawLiveSky();
+};
+// One control, two places. The full-screen button is a glyph because the
+// corner has no room for words; it presses the real one.
+$('fullGround').onclick = () => $('skyGround').click();
 
 // The one crossing between the two panes. Finding the pole is an alignment
 // step, but the live view is the best tool for it, so the alignment side can

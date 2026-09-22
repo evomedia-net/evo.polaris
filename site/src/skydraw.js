@@ -125,49 +125,8 @@ export function drawSkyView(ctx, o) {
     ctx.restore();
   }
 
-  // The horizon, drawn as a real projected curve rather than a straight rule:
-  // under a rectilinear projection it only looks straight when you are level,
-  // and faking that is how a view starts lying about which way is down.
-  ctx.strokeStyle = dim;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  let started = false;
-  for (let az = 0; az <= 360; az += 2) {
-    const p = projectToScreen(altAzToVector(0, az), basis, focal);
-    if (!p) { started = false; continue; }
-    const x = cx + p.x, y = cy + p.y;
-    if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
-  }
-  ctx.stroke();
-
-  // Ground below the horizon, so "down" is unmistakable.
-  ctx.save();
-  ctx.globalAlpha = night ? 0.35 : 0.5;
-  for (let az = 0; az <= 360; az += 6) {
-    const a = projectToScreen(altAzToVector(0, az), basis, focal);
-    const b = projectToScreen(altAzToVector(-12, az), basis, focal);
-    if (!a || !b) continue;
-    ctx.strokeStyle = dim;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx + a.x, cy + a.y);
-    ctx.lineTo(cx + b.x, cy + b.y);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // Cardinal points on the horizon.
-  ctx.font = `600 ${Math.round(ref / 26)}px system-ui, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const [az, label] of CARDINALS) {
-    const p = projectToScreen(altAzToVector(0, az), basis, focal);
-    if (!p) continue;
-    const x = cx + p.x, y = cy + p.y;
-    if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
-    ctx.fillStyle = label.length === 1 ? ink : dim;
-    ctx.fillText(label, x, y + ref / 34);
-  }
+  // THE HORIZON AND THE GROUND ARE DRAWN LATER NOW -- after the stars, the
+  // paths and the bodies, so the ground can COVER them. See drawGround().
 
   // Constellation figures. Drawn before the stars so the lines pass behind
   // them rather than across their faces.
@@ -338,6 +297,10 @@ export function drawSkyView(ctx, o) {
     }
   }
 
+  // THE GROUND. After every sky layer and before the ring, the pointer and
+  // the ISS marker, so it blocks the sky below the horizon and nothing else.
+  drawGround(ctx, o.ground !== false, basis, focal, cx, cy, w, h, ref, night, ink, dim);
+
   // The target: the pole itself, ringed, because that is what you align to.
   //
   // THE RING IS LOCKED TO THE SCREEN: h/14 px at every zoom.
@@ -470,6 +433,119 @@ export function drawSkyView(ctx, o) {
  * coming from by rotating the canvas first -- which is exactly what the
  * difference between the two is.
  */
+/**
+ * The cells of the ground hemisphere: quads of (alt, az) below the horizon.
+ *
+ * Pure, so a test can hold every corner to alt <= 0 without a canvas. Ten
+ * degrees a side is fine enough that the curvature reads and coarse enough
+ * that the whole hemisphere is 36 x 9 = 324 quads a frame.
+ */
+export function groundCells(stepAz = 10, stepAlt = 10) {
+  const cells = [];
+  for (let alt = 0; alt > -90; alt -= stepAlt) {
+    for (let az = 0; az < 360; az += stepAz) {
+      cells.push([[alt, az], [alt, az + stepAz], [alt - stepAlt, az + stepAz], [alt - stepAlt, az]]);
+    }
+  }
+  return cells;
+}
+
+/**
+ * The horizon, and either the solid wireframe Earth below it or the old open
+ * marks.
+ *
+ * "a wireframe earth or something that really shows the horizon and blocks
+ * everything below it". Until this, everything below the horizon was drawn
+ * through the ground -- stars, the Milky Way, the planets' paths -- with only
+ * a comb of short ticks to say which way was down. The real sky never does
+ * that: the one thing you cannot see from the ground is through it.
+ *
+ * ON: the hemisphere below the horizon is painted solid, cell by cell, with
+ * its lines of altitude and azimuth drawn as a wireframe so the surface
+ * reads as a globe you are standing on rather than as a black hole. OFF: the
+ * horizon line and the ticks, exactly as before, for anyone who wants to see
+ * where a set body is sitting under the ground. Either way this runs AFTER
+ * the sky layers and BEFORE the ring and the pointer, so a target that has
+ * set keeps its marker while the sky it is in is honestly hidden.
+ *
+ * Cells whose corners come too close to the edge of the projection are
+ * skipped: a gnomonic projection sends a point at 90 degrees from the centre
+ * to infinity, and a quad with one corner there would paint a wedge across
+ * the whole canvas. Nothing that near the edge is on screen anyway.
+ */
+export function drawGround(ctx, on, basis, focal, cx, cy, w, h, ref, night, ink, dim) {
+  const proj = (alt, az) => projectToScreen(altAzToVector(alt, az), basis, focal);
+  const sane = (p) => p && p.depth > 0.05 && Math.abs(p.x) < w * 8 && Math.abs(p.y) < h * 8;
+
+  if (on) {
+    ctx.save();
+    // Solid, then wire. The fill is fully opaque -- a translucent ground is a
+    // ground you can see the Milky Way through, which is the thing being
+    // fixed -- and a shade above the sky's black so the surface reads as a
+    // surface. Night Mode keeps to red on black, as everything does.
+    ctx.fillStyle = night ? '#0c0000' : '#0b0f19';
+    ctx.strokeStyle = night ? '#5a0000' : '#33405a';
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'round';
+    for (const cell of groundCells()) {
+      const pts = cell.map(([alt, az]) => proj(alt, az));
+      if (!pts.every(sane)) continue;
+      ctx.beginPath();
+      ctx.moveTo(cx + pts[0].x, cy + pts[0].y);
+      for (let i = 1; i < 4; i++) ctx.lineTo(cx + pts[i].x, cy + pts[i].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // The horizon, drawn as a real projected curve rather than a straight rule:
+  // under a rectilinear projection it only looks straight when you are level,
+  // and faking that is how a view starts lying about which way is down.
+  ctx.strokeStyle = on ? ink : dim;
+  ctx.lineWidth = on ? 2 : 1.5;
+  ctx.beginPath();
+  let started = false;
+  for (let az = 0; az <= 360; az += 2) {
+    const p = proj(0, az);
+    if (!sane(p)) { started = false; continue; }
+    const x = cx + p.x, y = cy + p.y;
+    if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+  }
+  ctx.stroke();
+
+  if (!on) {
+    // Ground below the horizon, so "down" is unmistakable -- the open version.
+    ctx.save();
+    ctx.globalAlpha = night ? 0.35 : 0.5;
+    for (let az = 0; az <= 360; az += 6) {
+      const a = proj(0, az), b = proj(-12, az);
+      if (!a || !b) continue;
+      ctx.strokeStyle = dim;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + a.x, cy + a.y);
+      ctx.lineTo(cx + b.x, cy + b.y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Cardinal points on the horizon. After the ground, so they sit on it.
+  ctx.font = `600 ${Math.round(ref / 26)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const [az, label] of CARDINALS) {
+    const p = proj(0, az);
+    if (!sane(p)) continue;
+    const x = cx + p.x, y = cy + p.y;
+    if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
+    ctx.fillStyle = label.length === 1 ? ink : dim;
+    ctx.fillText(label, x, y + ref / 34);
+  }
+}
+
 function moonFace(ctx, r, illuminated, night) {
   ctx.fillStyle = night ? '#2a0000' : '#23283a';
   ctx.beginPath();
