@@ -36,7 +36,7 @@ test('one function decides where the view may point', () => {
     'clampAim must be imported rather than re-implemented here');
   assert.ok(!/function clampAim\(/.test(appJs),
     'a second copy of the clamp is how the two floors drift apart');
-  assert.match(appJs, /const handFloor = \(\) => Math\.min\(AIM_MIN_ALT, skyAim\.alt\);/,
+  assert.match(appJs, /const handFloor = \(\) => \(skyAim\.alt < AIM_MIN_ALT \? TARGET_MIN_ALT : AIM_MIN_ALT\);/,
     'hand steering keeps a floor of its own');
 });
 

@@ -1836,15 +1836,24 @@ const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;
 const TARGET_MIN_ALT = -89;
 
 /**
- * How far down HAND steering may go from where the view is now.
+ * How far down HAND steering may go.
  *
- * The floor follows the view DOWN but not further: once a target has taken
- * you to -62 the buttons may look around from there and climb back out, and
- * still cannot wander past -30 on their own. Without that, the first press of
- * an arrow after arriving would snap the sky thirty degrees upward, which is
- * the sort of jump that loses people.
+ * -30 stops the hand WANDERING into the ground, and the only way under it is
+ * for a target to take you there. So: while the view is ALREADY below -30,
+ * the hand is free all the way to the real limit; the moment it climbs back
+ * out, -30 applies again and nothing but another target can go under it.
+ *
+ * IT USED TO BE min(AIM_MIN_ALT, skyAim.alt), AND THAT RATCHETED. Computed
+ * from wherever the view happened to BE, every upward move raised the floor
+ * to the new altitude and the way back down was gone -- at -59 the floor was
+ * -59, so down did nothing; a nudge up to -44 made the floor -44, so down did
+ * nothing again. Targeting the Sun at night lands at about -59, and the first
+ * thing anyone does there is drag downward, which moved nothing at all. A
+ * purely vertical finger does not change azimuth either, so the whole view
+ * appeared frozen until another target re-aimed it above -30. Reported as
+ * "the manual buttons and drag do not work, they do nothing".
  */
-const handFloor = () => Math.min(AIM_MIN_ALT, skyAim.alt);
+const handFloor = () => (skyAim.alt < AIM_MIN_ALT ? TARGET_MIN_ALT : AIM_MIN_ALT);
 
 function setAim(az, alt) {
   // Any hand steering drops out of follow mode: the alternative is fighting

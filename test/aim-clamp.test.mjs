@@ -51,23 +51,35 @@ test('a target reaches what the app said was there', () => {
     'straight down is still the end of the sky');
 });
 
-test('the floor follows the view down, and never further', () => {
-  // Once a target has taken you below the hand floor, the arrows have to work
-  // FROM there. Re-applying a fixed -30 would snap the sky thirty degrees
-  // upward on the first press, which is the sort of jump that loses people --
-  // and would undo the journey the user just asked for.
-  const arrived = -62;
-  const floorNow = Math.min(HAND, arrived);
-  assert.equal(clampAim(0, -70, floorNow).alt, arrived,
-    'no further down by hand than the target already took it');
-  assert.equal(clampAim(0, -55, floorNow).alt, -55, 'but it can look around');
-  assert.equal(clampAim(0, 10, floorNow).alt, 10, 'and can always climb out');
+test('a target can take the view below the floor, and the way back is not closed', () => {
+  // THE RATCHET THIS REPLACED. The floor used to be min(-30, current alt),
+  // computed from wherever the view happened to BE -- so every upward move
+  // raised it and downward movement died for good. At the Sun (-59 at night)
+  // down did nothing; a nudge up to -44 made the floor -44 and down did
+  // nothing again. "The manual buttons and drag do not work, they do
+  // nothing."
+  //
+  // The rule now: while the view is ALREADY below -30 the hand is free to
+  // the real limit; once it climbs out, -30 applies again.
+  const floorFor = (alt) => (alt < HAND ? TARGET : HAND);
+  const move = (alt, d) => Math.max(floorFor(alt), Math.min(89, alt + d));
+
+  let alt = -59;                       // where targeting the Sun lands
+  assert.equal(move(alt, -15), -74, 'down from the Sun must work at all');
+  alt = move(alt, 15);                 // up
+  assert.equal(alt, -44);
+  assert.equal(move(alt, -15), -59, 'and the way back down must still be open');
+
+  // Climbing out restores the wandering floor.
+  alt = -29;
+  assert.equal(move(alt, -15), HAND, 'above -30 the hand cannot wander below it');
+  assert.equal(move(HAND, -15), HAND, 'and is held there');
 });
 
 test('the app asks the right question at each call site', () => {
   // Four calls, two meanings. Getting one wrong is exactly how this bug
   // happened, so which is which is pinned here rather than left to reading.
-  assert.match(appJs, /const handFloor = \(\) => Math\.min\(AIM_MIN_ALT, skyAim\.alt\);/,
+  assert.match(appJs, /const handFloor = \(\) => \(skyAim\.alt < AIM_MIN_ALT \? TARGET_MIN_ALT : AIM_MIN_ALT\);/,
     'hand steering must use the following floor');
   assert.match(appJs, /const AIM_MIN_ALT = -30, AIM_MAX_ALT = 89;/);
   assert.match(appJs, /const TARGET_MIN_ALT = -89;/);
