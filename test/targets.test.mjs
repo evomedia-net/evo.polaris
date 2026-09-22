@@ -120,30 +120,20 @@ test('the pickers say which one is chosen, not what pressing does', () => {
     'and it has to be kept in step with the target');
 });
 
-test('the name is shown, and is blank when nothing is targeted', () => {
-  assert.match(html, /id="fullTargetName"/, 'the name readout is gone');
-  // To the end of the function, not a fixed 700 characters: a comment added
-  // above the line under test pushed it out of the window, and the assertion
-  // then failed against code that was correct.
-  const fn = appJs.slice(appJs.indexOf('function updateTargetName()'),
-    appJs.indexOf('const onPlanet = PLANET_NAMES.includes(guideTarget);'));
-  assert.match(fn, /el\.textContent = t \? t\.name : '';/,
-    'no target must mean no name, not the word "none"');
-  // THE NAME ONLY, AND ON PURPOSE. The longer wording belongs beside the ring,
-  // where there is room for it: in this column it wrapped to two and a half
-  // lines and pushed down over the pan pad on a 375x812 phone. A caption that
-  // covers the controls is a worse bug than the one it was fixing.
-  assert.ok(!/el\.textContent = targetLabel/.test(fn),
-    'the long label must not go back into the column above the pan pad');
+test('the map label names the target, and says when it has set', () => {
+  // THE ROW UNDER THE BUTTONS IS GONE. The lit button says which target is
+  // live, so a caption repeating it spent a row of screen twice -- and it
+  // looked exactly like the buttons above it. What it alone carried, that a
+  // target has SET, is on the map beside the ring, where anyone staring at
+  // an empty circle is already looking, and in #skyTarget for a reader.
+  assert.ok(!html.includes('fullTargetName'), 'the caption row must be gone');
   const label = appJs.slice(appJs.indexOf('function targetLabel('),
     appJs.indexOf('function targetIsPainted('));
-  assert.match(label, /if \(!t\) return '';/,
-    'no target must mean no name, not the word "none"');
-  assert.match(label, /targetIsPainted\(t\) \? t\.name :/,
-    'the label must distinguish a target that is drawn from one that is not');
-  assert.match(label, /has set/, 'and say which, in words, not by going blank');
+  assert.match(label, /if \(!t\) return '';/, 'no target means no label');
+  assert.match(label, /targetIsPainted\(t\) \? t\.name :/);
+  assert.match(label, /has set/);
   assert.match(appJs, /targetName: targetLabel\(target\),/,
-    'the label on the picture must be the same words as the caption');
+    'and the map label is where that wording goes');
 });
 
 test('picking a target travels to it', () => {

@@ -5,22 +5,21 @@ import { fileURLToPath } from 'node:url';
 import { drawSkyView, groundCells } from '../site/src/skydraw.js';
 import { altAzToVector, basisFromAim, focalLength, projectToScreen } from '../site/src/skyview.js';
 
-// THE GROUND HIDES THE SKY BELOW IT, THE WAY THE REAL ONE DOES.
+// THE GROUND IS A WIREFRAME, AND YOU CAN SEE THROUGH IT.
 //
-// "a wireframe earth or something that really shows the horizon and blocks
-// everything below it, but have the ability to turn the earth on and off in
-// the viewport full screen".
+// It began as "a wireframe earth or something that really shows the horizon
+// and blocks everything below it", and was built as a solid fill that hid
+// the sky beneath -- the way the real ground does. Seen on a phone, that
+// cost more than the honesty was worth: half the picture goes black, and a
+// set planet you are pointing at vanishes into it. So: "I would like the
+// wireframe to be see-through. Just the wireframe is all you can see. I
+// don't want the sphere to be opaque."
 //
-// Until this, everything below the horizon was drawn through the ground --
-// stars, the Milky Way photograph, the planets' paths -- with a comb of short
-// ticks to say which way was down. The one thing you cannot see from the
-// ground is through it, so a view that shows stars under the horizon is a
-// view lying about what you can see.
-//
-// The ground is drawn after every sky layer and before the ring, the pointer
-// and the ISS marker: the sky it covers is hidden, the markers on it are not.
-// These tests drive the real renderer and read back the ORDER of what it
-// painted, because order is the entire mechanism.
+// What the wire still does is say exactly where the horizon is and which way
+// is down, which was the point. What it no longer does is hide what is
+// behind it -- so these tests pin the ABSENCE of a fill as deliberately as
+// they once pinned its presence. The draw order stays: the ring, the pointer
+// and the ISS marker come after the ground, so the wire never crosses them.
 
 const appJs = readFileSync(
   fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
@@ -29,7 +28,7 @@ const html = readFileSync(
 const skydraw = readFileSync(
   fileURLToPath(new URL('../site/src/skydraw.js', import.meta.url)), 'utf8');
 
-const GROUND_FILL = '#0b0f19';
+const GROUND_WIRE = '#42597f';
 const ACCENT = '#7CFFB2';
 
 /** A context that records every fill, stroke and arc, in order, with its style. */
@@ -75,7 +74,19 @@ function frame({ ground, targetAlt = 30 } = {}) {
   return ctx.ops;
 }
 
-const groundFills = (ops) => ops.filter((o) => o.op === 'fill' && o.style === GROUND_FILL);
+const groundWires = (ops) => ops.filter((o) => o.op === 'stroke' && o.style === GROUND_WIRE);
+/**
+ * Fills made WHILE the ground was being drawn -- between its first wire and
+ * its last. Scoped that way because the frame legitimately contains other
+ * filled shapes (the off-screen pointer is a four-cornered arrow); what must
+ * be empty is the ground's own span.
+ */
+const fillsWithinGround = (ops) => {
+  const wires = ops.filter((o) => o.op === 'stroke' && o.style === GROUND_WIRE);
+  if (!wires.length) return [];
+  const first = ops.indexOf(wires[0]), last = ops.lastIndexOf(wires.at(-1));
+  return ops.slice(first, last + 1).filter((o) => o.op === 'fill' || o.op === 'fillRect');
+};
 const starText = (ops, name) => ops.findIndex((o) => o.op === 'text' && o.text === name);
 const ringIndex = (ops) => ops.findIndex((o) => o.op === 'arc' && o.style.toLowerCase() === ACCENT.toLowerCase());
 
@@ -94,23 +105,19 @@ test('every ground cell is below the horizon, and the hemisphere is whole', () =
 
 // --- the mechanism: paint order --------------------------------------------------
 
-test('with the ground on, a star under the horizon is painted over', () => {
+test('the ground is wire, and nothing behind it is painted over', () => {
   const ops = frame({ ground: true });
-  const fills = groundFills(ops);
-  assert.ok(fills.length > 50, `expected a painted hemisphere, got ${fills.length} ground fills`);
-  // Dubhe was placed 20 degrees below the horizon, straight ahead. Its label
-  // is drawn -- the renderer does not know about the ground when it draws
-  // stars -- but the ground is painted AFTER it, so on a real canvas it is
-  // covered. Order is the guarantee.
-  const dubhe = starText(ops, 'Dubhe');
-  assert.ok(dubhe >= 0, 'the test star under the ground was not drawn at all');
-  const lastGround = ops.lastIndexOf(fills.at(-1));
-  assert.ok(lastGround > dubhe, 'the ground must be painted after the stars, or it hides nothing');
-  // ...and the star above the horizon is drawn too, before the ground, which
-  // does not reach it: no ground fill has a corner above the horizon line.
+  const wires = groundWires(ops);
+  assert.ok(wires.length > 50, `expected a wireframe hemisphere, got ${wires.length} strokes`);
+  // THE POINT OF THE CHANGE. A star 20 degrees below the horizon is drawn --
+  // and stays visible, because the ground fills nothing over it.
+  assert.ok(starText(ops, 'Dubhe') >= 0, 'the star under the ground must still be drawn');
+  assert.equal(fillsWithinGround(ops).length, 0,
+    'the ground must fill nothing -- the sky shows through');
+  // The wire stays below the horizon, where the ground is.
   const basis = basisFromAim(0, 0), focal = focalLength(W, 65);
   const horizonY = H / 2 + projectToScreen(altAzToVector(0, 0), basis, focal).y;
-  for (const f of fills) for (const [, y] of f.pts) {
+  for (const wire of wires) for (const [, y] of wire.pts) {
     assert.ok(y >= horizonY - 1, `a ground cell reached ${(horizonY - y).toFixed(0)}px above the horizon`);
   }
 });
@@ -119,24 +126,24 @@ test('the ring and the pointer stay on top of the ground', () => {
   // A target that has set keeps its marker: the sky it is in is hidden, the
   // ring saying "it is here, under the ground" is not.
   const ops = frame({ ground: true, targetAlt: -30 });
-  const fills = groundFills(ops);
-  const lastGround = ops.lastIndexOf(fills.at(-1));
+  const wires = groundWires(ops);
+  const lastGround = ops.lastIndexOf(wires.at(-1));
   const ring = ringIndex(ops);
-  assert.ok(ring > lastGround, 'the ring must be painted after the ground');
+  assert.ok(ring > lastGround, 'the ring must be drawn after the ground, so the wire never crosses it');
 });
 
-test('with the ground off, nothing is painted over and the old marks return', () => {
+test('with the ground off, the wire goes and the old marks return', () => {
   const ops = frame({ ground: false });
-  assert.equal(groundFills(ops).length, 0, 'no solid ground when it is off');
-  assert.ok(starText(ops, 'Dubhe') >= 0, 'the set star is still drawn, for anyone who wants to see it');
+  assert.equal(groundWires(ops).length, 0, 'no wireframe when it is off');
+  assert.ok(starText(ops, 'Dubhe') >= 0, 'the set star is drawn either way');
 });
 
 test('the cardinal points sit on the ground, not under it', () => {
   const ops = frame({ ground: true });
-  const fills = groundFills(ops);
-  const lastGround = ops.lastIndexOf(fills.at(-1));
+  const wires = groundWires(ops);
+  const lastGround = ops.lastIndexOf(wires.at(-1));
   const north = ops.findIndex((o) => o.op === 'text' && o.text === 'N');
-  assert.ok(north > lastGround, 'N must be painted after the ground, or the ground covers it');
+  assert.ok(north > lastGround, 'N must be drawn after the ground, so the wire does not cross it');
 });
 
 test('the projection edge is not painted across the canvas', () => {
@@ -151,7 +158,7 @@ test('the projection edge is not painted across the canvas', () => {
     targetAlt: 30, targetAz: 0, targetName: 'Target', reticleR: 28,
     w: W, h: H, fov: 170, night: false, ground: true,
   });
-  for (const f of groundFills(ctx.ops)) for (const [x, y] of f.pts) {
+  for (const f of groundWires(ctx.ops)) for (const [x, y] of f.pts) {
     assert.ok(Math.abs(x) < W * 8 && Math.abs(y) < H * 8, `a ground corner at (${x.toFixed(0)}, ${y.toFixed(0)})`);
   }
 });
@@ -161,12 +168,17 @@ test('the projection edge is not painted across the canvas', () => {
 test('one switch, two places, and the words say what pressing does', () => {
   assert.match(html, /id="skyGround" class="big-btn">Hide the ground</,
     'the Visual Settings button must follow the button rule');
-  assert.match(html, /id="fullGround"[^>]*aria-label="Hide the ground"/,
-    'the full-screen glyph must carry the same words for a screen reader');
+  // IN FULL SCREEN IT IS "HORIZON" -- the word is written under the glyph,
+  // and WCAG 2.5.3 wants the accessible name to contain what is written, or
+  // "tap Horizon" by voice misses the button.
+  assert.match(html, /id="fullGround"[^>]*aria-label="Hide the horizon"/,
+    'the name must contain the word printed on the button');
+  assert.match(html, /id="fullGround"[\s\S]{0,200}?Horizon</,
+    'and the word must be there to read');
   assert.match(appJs, /\$\('fullGround'\)\.onclick = \(\) => \$\('skyGround'\)\.click\(\);/,
     'the full-screen button must press the real one, not keep its own state');
-  const h = appJs.slice(appJs.indexOf("$('skyGround').onclick"), appJs.indexOf("$('skyGround').onclick") + 600);
-  assert.match(h, /'Hide the ground' : 'Show the ground'/);
+  const h = appJs.slice(appJs.indexOf("$('skyGround').onclick"), appJs.indexOf("$('skyGround').onclick") + 800);
+  assert.match(h, /'Hide the horizon' : 'Show the horizon'/);
   assert.match(h, /full\.setAttribute\('aria-label', label\)/,
     'the glyph must be relabelled with the state, or a screen reader hears the wrong action');
 });

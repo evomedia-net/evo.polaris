@@ -66,7 +66,8 @@ test('full screen carries the pad, in the pad arrangement, delegating to it', ()
     ['fullDown', 'skyDown', 'Look down', 'pad-down'],
     ['fullLeft', 'skyLeft', 'Look left', 'pad-left'],
     ['fullRight', 'skyRight', 'Look right', 'pad-right'],
-    ['fullPole', 'skyPole', 'Find the pole', 'pad-mid'],
+    // "Center" is written under this one, so its name contains that word.
+    ['fullPole', 'skyPole', 'Center on the pole', 'pad-mid'],
   ];
   const wrap = html.slice(html.indexOf('id="liveSkyWrap"'), html.indexOf('</figure>'));
   for (const [full, pad, label, area] of twins) {

@@ -64,6 +64,9 @@ const GLYPH_BUTTONS = new Set([
 const VERBS = new Set([
   'use', 'turn', 'show', 'hide', 'enter', 'look', 'find', 'read', 'follow',
   'stop', 'make', 'switch', 'change', 'move', 'plan', 'fill', 'leave', 'set',
+  // Added with the full-screen icon buttons, which say what they do in one
+  // word under the glyph: Zoom in, Zoom out, Exit, Center, Horizon.
+  'zoom', 'exit', 'center',
 ]);
 
 /** Every <button> in the page: id, visible text, aria-label if it has one. */
@@ -176,7 +179,8 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['skyPlanets', 'Show the planets', 'Hide the planets'],
     ['skyMoon', 'Show the Moon', 'Hide the Moon'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],
-    ['fullBtn', 'Fill the screen', 'Leave full screen'],
+    // "Exit" is the word written under the glyph, so the name contains it.
+    ['fullBtn', 'Fill the screen', 'Exit full screen'],
     // Auto Mode is the phone steering, Manual Mode is the arrows. One
     // control, action-labelled -- it replaced two buttons whose names were
     // near-identical and meant entirely different things.

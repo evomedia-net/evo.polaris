@@ -198,7 +198,15 @@
              the target is off the edge there is only an arrow -- the ring
              carries the name, and the ring is the part that is missing. -->
         <div class="full-targets" id="fullTargets">
-          <div class="target-grid" role="group" aria-label="What to point at">
+          <!-- A HEADING, AND IT MUST NOT READ AS A BUTTON. The row under
+               these was removed for looking exactly like one; a heading that
+               made the same mistake would be the same bug with a different
+               word in it. So: no plate, no border, small, spaced out, dimmer
+               than the buttons -- the shape of a label and nothing else. It
+               names the group for a screen reader too, which is what the
+               aria-label on the grid used to do alone. -->
+          <p class="track-head" id="trackHead">Track:</p>
+          <div class="target-grid" role="group" aria-labelledby="trackHead">
             <button id="tgtPole" class="map-btn tgt-btn" aria-pressed="true">Polaris</button>
             <button id="tgtIss" class="map-btn tgt-btn" aria-pressed="false">ISS</button>
             <button id="tgtMoon" class="map-btn tgt-btn" aria-pressed="false">Moon</button>
@@ -214,17 +222,24 @@
                drawn across all three. Delegates to the one under the map so
                there is still only one of it. -->
           <button id="fullMode" class="map-btn tgt-btn tgt-mode">Use Manual Mode</button>
-          <!-- THE NAME GOES LAST, and that is the whole reason it is here.
-               Above the buttons it appeared and vanished with the target and
-               shifted every button under it each time. A control that moves
-               is a control you have to find again, which is a real cost for
-               anyone aiming at it with an unsteady hand or a mouthstick. -->
-          <p class="target-name" id="fullTargetName" role="status"></p>
+          <!-- THE NAME USED TO GO LAST, and it is gone. The button that is
+               pressed says which target is live, in green, so a separate
+               label repeating it was a row of screen spent on nothing -- and
+               it looked exactly like the buttons above it, which invited a
+               press that did nothing. What it alone used to carry, that a
+               target has SET, is on the map beside the ring and in the
+               #skyTarget live region, which is the one a screen reader
+               reads anyway.
+          It also took a row that appeared and vanished with the target,
+               shifting every button under it each time -- and a control that
+               moves is a control you have to find again, which is a real
+               cost for anyone aiming with an unsteady hand or a
+               mouthstick. -->
         </div>
 
         <!-- Bottom right: fill the screen, and leave it again. -->
-        <button id="fullBtn" class="map-btn map-full"
-                aria-label="Fill the screen"><span id="fullGlyph" aria-hidden="true">&#9974;</span></button>
+        <button id="fullBtn" class="map-btn map-full tagged"
+                aria-label="Fill the screen"><span id="fullGlyph" class="btn-glyph" aria-hidden="true">&#9974;</span><span class="btn-tag" id="fullBtnTag" aria-hidden="true">Full screen</span></button>
 
         <!-- Right edge, full screen only: the field of view. -->
         <div class="full-zoom" aria-label="Zoom">
@@ -232,18 +247,18 @@
                a horizon with solid ground under it looks like. The words are
                on the aria-label and the title, and follow the button rule:
                they say what pressing does. -->
-          <button id="fullGround" class="map-btn map-zoom-btn" aria-label="Hide the ground" title="Hide the ground">&#9682;</button>
-          <button id="fullIn" class="map-btn map-zoom-btn" aria-label="Show less sky">+</button>
-          <button id="fullOut" class="map-btn map-zoom-btn" aria-label="Show more sky">&minus;</button>
+          <button id="fullGround" class="map-btn map-zoom-btn tagged" aria-label="Hide the horizon" title="Hide the horizon"><span class="btn-glyph" aria-hidden="true">&#9682;</span><span class="btn-tag" aria-hidden="true">Horizon</span></button>
+          <button id="fullIn" class="map-btn map-zoom-btn tagged" aria-label="Zoom in"><span class="btn-glyph" aria-hidden="true">+</span><span class="btn-tag" aria-hidden="true">Zoom in</span></button>
+          <button id="fullOut" class="map-btn map-zoom-btn tagged" aria-label="Zoom out"><span class="btn-glyph" aria-hidden="true">&minus;</span><span class="btn-tag" aria-hidden="true">Zoom out</span></button>
         </div>
 
         <!-- Bottom left, full screen and Manual Mode: where to look. -->
         <div class="full-pan" id="fullPan" aria-label="Move the view">
-          <button id="fullUp" class="map-btn map-pan-btn pad-up" aria-label="Look up">&#9650;</button>
-          <button id="fullLeft" class="map-btn map-pan-btn pad-left" aria-label="Look left">&#9664;</button>
-          <button id="fullPole" class="map-btn map-pan-btn pad-mid" aria-label="Find the pole">&#9678;</button>
-          <button id="fullRight" class="map-btn map-pan-btn pad-right" aria-label="Look right">&#9654;</button>
-          <button id="fullDown" class="map-btn map-pan-btn pad-down" aria-label="Look down">&#9660;</button>
+          <button id="fullUp" class="map-btn map-pan-btn pad-up tagged" aria-label="Look up"><span class="btn-glyph" aria-hidden="true">&#9650;</span><span class="btn-tag" aria-hidden="true">Up</span></button>
+          <button id="fullLeft" class="map-btn map-pan-btn pad-left tagged" aria-label="Look left"><span class="btn-glyph" aria-hidden="true">&#9664;</span><span class="btn-tag" aria-hidden="true">Left</span></button>
+          <button id="fullPole" class="map-btn map-pan-btn pad-mid tagged" aria-label="Center on the pole"><span class="btn-glyph" aria-hidden="true">&#9678;</span><span class="btn-tag" aria-hidden="true">Center</span></button>
+          <button id="fullRight" class="map-btn map-pan-btn pad-right tagged" aria-label="Look right"><span class="btn-glyph" aria-hidden="true">&#9654;</span><span class="btn-tag" aria-hidden="true">Right</span></button>
+          <button id="fullDown" class="map-btn map-pan-btn pad-down tagged" aria-label="Look down"><span class="btn-glyph" aria-hidden="true">&#9660;</span><span class="btn-tag" aria-hidden="true">Down</span></button>
         </div>
         </div>
         <figcaption class="caption" id="liveSkyDesc">

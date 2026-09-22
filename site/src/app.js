@@ -256,28 +256,16 @@ function setTarget(what, { keepCycle = false } = {}) {
 }
 
 /**
- * The name of whatever is being pointed at, above the map.
+ * Which target button is lit, and nothing else.
  *
- * On screen because when the target is off the edge there is only an arrow --
- * the ring carries the name, and the ring is the thing that is not there.
- * Empty when nothing is targeted, so the line does not sit there announcing
- * "none" as though that were a place.
+ * There used to be a caption under the buttons naming the target. It is
+ * gone: the button that is pressed says which one is live, in green, so the
+ * label repeated what was already on screen -- and being a bordered plate
+ * the same shape as the buttons above it, it invited a press that did
+ * nothing. What it alone carried, that a target has SET, is beside the ring
+ * on the map and in the #skyTarget live region.
  */
 function updateTargetName() {
-  const el = $('fullTargetName');
-  if (!el) return;
-  const t = solution ? aimTarget(issNow()) : null;
-  // THE NAME ONLY, HERE. Each surface says as much as it has room for: this
-  // caption is the name, the label beside the ring adds "has set", and the
-  // status line explains it in full.
-  //
-  // MEASURED, NOT ASSUMED. Putting the longer wording here wrapped it to two
-  // and a half lines inside the column's 34% and pushed it down OVER the pan
-  // pad on a 375x812 phone -- a caption covering the controls, which is a
-  // worse bug than the one being fixed and lands on exactly the people who
-  // can least afford it. The non-visual path loses nothing: #skyTarget is a
-  // live region and carries the whole sentence.
-  el.textContent = t ? t.name : '';
   const pole = $('tgtPole');
   if (pole && solution) {
     pole.textContent = solution.hemisphere === 'south' ? 'South pole' : 'Polaris';
@@ -1467,7 +1455,10 @@ function applyFullScreen() {
   // the symbols every video player uses.
   $('fullGlyph').textContent = fullOn ? '✕' : '⛶';
   $('fullBtn').setAttribute('aria-label',
-    fullOn ? 'Leave full screen' : 'Fill the screen');
+    fullOn ? 'Exit full screen' : 'Fill the screen');
+  // The word under the glyph says the same thing the name does.
+  const tag = $('fullBtnTag');
+  if (tag) tag.textContent = fullOn ? 'Exit' : 'Full screen';
   sizeSkyCanvas();
   drawLiveSky();
 }
@@ -2421,7 +2412,9 @@ $('skyMilky').onclick = () => {
 };
 $('skyGround').onclick = () => {
   skyGround = !skyGround;
-  const label = skyGround ? 'Hide the ground' : 'Show the ground';
+  // "Horizon" is the word on the button in full screen, so it is the word
+  // in the accessible name too -- one control, one name.
+  const label = skyGround ? 'Hide the horizon' : 'Show the horizon';
   $('skyGround').textContent = label;
   // The full-screen glyph carries the same words for a screen reader, and
   // the same state, so the two can never disagree about what pressing does.

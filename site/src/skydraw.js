@@ -502,13 +502,21 @@ export function groundCells(stepAz = 10, stepAlt = 10) {
  * a comb of short ticks to say which way was down. The real sky never does
  * that: the one thing you cannot see from the ground is through it.
  *
- * ON: the hemisphere below the horizon is painted solid, cell by cell, with
- * its lines of altitude and azimuth drawn as a wireframe so the surface
- * reads as a globe you are standing on rather than as a black hole. OFF: the
- * horizon line and the ticks, exactly as before, for anyone who wants to see
- * where a set body is sitting under the ground. Either way this runs AFTER
- * the sky layers and BEFORE the ring and the pointer, so a target that has
- * set keeps its marker while the sky it is in is honestly hidden.
+ * ON: the hemisphere below the horizon is drawn as a WIREFRAME -- its lines
+ * of altitude and azimuth, and nothing else. "I would like the wireframe to
+ * be see-through. Just the wireframe is all you can see. I don't want the
+ * sphere to be opaque."
+ *
+ * IT WAS A SOLID FILL FIRST, and that was a deliberate choice this reverses:
+ * an opaque ground hides the sky beneath it, the way the real one does. Seen
+ * on a phone, the cost turned out to be higher than the honesty was worth --
+ * half the picture goes black, and a set planet you are pointing at vanishes
+ * into it. The wire alone still says exactly where the horizon is and which
+ * way is down, which was the point; what it no longer does is hide what is
+ * behind it. The target ring, the pointer and the ISS marker are still drawn
+ * after it, so they stay on top.
+ *
+ * OFF: the horizon line and the ticks, exactly as before.
  *
  * Cells whose corners come too close to the edge of the projection are
  * skipped: a gnomonic projection sends a point at 90 degrees from the centre
@@ -521,14 +529,14 @@ export function drawGround(ctx, on, basis, focal, cx, cy, w, h, ref, night, ink,
 
   if (on) {
     ctx.save();
-    // Solid, then wire. The fill is fully opaque -- a translucent ground is a
-    // ground you can see the Milky Way through, which is the thing being
-    // fixed -- and a shade above the sky's black so the surface reads as a
-    // surface. Night Mode keeps to red on black, as everything does.
-    ctx.fillStyle = night ? '#0c0000' : '#0b0f19';
-    ctx.strokeStyle = night ? '#5a0000' : '#33405a';
+    // WIRE ONLY: no fill, so the sky behind shows through. Each cell is
+    // stroked rather than filled, which draws every line twice where cells
+    // meet -- cheap at 324 quads, and it keeps the code the shape of the
+    // grid it is drawing.
+    ctx.strokeStyle = night ? '#7a0000' : '#42597f';
     ctx.lineWidth = 1;
     ctx.lineJoin = 'round';
+    ctx.globalAlpha = 0.85;
     for (const cell of groundCells()) {
       const pts = cell.map(([alt, az]) => proj(alt, az));
       if (!pts.every(sane)) continue;
@@ -536,7 +544,6 @@ export function drawGround(ctx, on, basis, focal, cx, cy, w, h, ref, night, ink,
       ctx.moveTo(cx + pts[0].x, cy + pts[0].y);
       for (let i = 1; i < 4; i++) ctx.lineTo(cx + pts[i].x, cy + pts[i].y);
       ctx.closePath();
-      ctx.fill();
       ctx.stroke();
     }
     ctx.restore();

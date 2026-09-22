@@ -19,6 +19,8 @@ import { fileURLToPath } from 'node:url';
 
 const appJs = readFileSync(
   fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
+const html = readFileSync(
+  fileURLToPath(new URL('../site/index.html', import.meta.url)), 'utf8');
 const css = readFileSync(
   fileURLToPath(new URL('../site/src/style.css', import.meta.url)), 'utf8');
 
@@ -58,15 +60,15 @@ test('the Planets button keeps walking the list; letting go is its last stop', (
 
 // --- the active button looks active ------------------------------------------------
 
-test('a pressed target button is filled with the accent by day', () => {
-  // On the STATE, not on a class: the first version matched .big-btn, which
-  // these buttons do not carry (they are .map-btn .tgt-btn), so the rule was
-  // written, the state was set, and nothing changed. Found by pressing the
-  // Moon in a browser and reading the computed background: still the plate.
+test('a pressed target button goes green -- text and border, not a fill', () => {
+  // "If you click ISS, the button text should turn green and so should the
+  // border." A solid accent fill was the first attempt; green on the plate
+  // reads at a glance against the other buttons, keeps the plate's contrast
+  // with the sky behind it, and matches the ring and arrow it describes.
   const b = block(".target-grid button[aria-pressed='true'] {");
-  assert.match(b, /background: var\(--accent\)/, 'a different colour');
-  assert.match(b, /border-color: var\(--accent\)/, 'the border changes');
-  assert.match(b, /color: var\(--accent-ink\)/, 'and the text stays readable on it');
+  assert.match(b, /color: var\(--accent\)/, 'the text turns green');
+  assert.match(b, /border-color: var\(--accent\)/, 'and so does the border');
+  assert.ok(!/background: var\(--accent\)/.test(b), 'and it is not filled');
 });
 
 test('and in Night Mode says so with a heavier border, filling nothing', () => {
@@ -80,33 +82,46 @@ test('the pressed look outranks the full-screen plate', () => {
   // The full-screen buttons wear a translucent plate from a three-class
   // rule. A pressed rule of lower weight is silently beaten by it -- the
   // state set, the rule written, the button unchanged. Found by pressing the
-  // Moon in a browser and reading the computed background: still the plate.
+  // Moon in a browser and reading the computed style: still the plate.
   const b = block(".live-sky.full .full-targets button[aria-pressed='true'] {");
-  assert.match(b, /background: var\(--accent\)/);
+  assert.match(b, /color: var\(--accent\)/);
   assert.match(b, /border-color: var\(--accent\)/);
-  const n = block("html[data-night='on'] .live-sky.full .full-targets button[aria-pressed='true'] {");
-  assert.match(n, /border-width: 3px/);
 });
 
-test('it is the same treatment the hemisphere picker gives its chosen side', () => {
-  // One convention for "this is the selected one", not two.
-  const hemi = block(".hemi-btn[aria-pressed='true'] {");
-  const tgt = block(".target-grid button[aria-pressed='true'] {");
-  for (const prop of ['background: var(--accent)', 'border-color: var(--accent)', 'color: var(--accent-ink)']) {
-    assert.ok(hemi.includes(prop) && tgt.includes(prop), `${prop} must be shared`);
-  }
+test('the accent is what both pickers use to mean "this one"', () => {
+  // The hemisphere picker fills with the accent; the targets colour their
+  // text and border with it. Different surfaces -- one in a card, one over
+  // the sky -- but one colour meaning one thing, and on the map it is the
+  // colour of the ring and the arrow the button is about.
+  assert.match(block(".hemi-btn[aria-pressed='true'] {"), /var\(--accent\)/);
+  assert.match(block(".target-grid button[aria-pressed='true'] {"), /var\(--accent\)/);
 });
 
 // --- the caption is a caption ----------------------------------------------------------
 
-test('the target name under the buttons is not shaped like a button', () => {
-  const day = block('.target-name {');
-  assert.match(day, /border: none/, 'no border');
-  assert.match(day, /background: transparent/, 'no plate');
-  assert.ok(!/border-radius/.test(day), 'no rounded plate');
-  assert.match(day, /color: var\(--accent\)/, 'the ring\'s own colour: it is the ring\'s caption');
-  assert.match(day, /text-shadow/, 'legible over the sky without a plate');
-  const night = block("html[data-night='on'] .target-name {");
-  assert.match(night, /background: transparent/);
-  assert.match(night, /border: none/);
+test('there is no target name row at all any more', () => {
+  // It named what the lit button already says, and looked exactly like the
+  // buttons above it -- "literally identical to the button you press" --
+  // which invited a press that did nothing. The green button carries which
+  // target is live; "has set" lives beside the ring on the map and in the
+  // #skyTarget live region, which is the one a screen reader reads.
+  assert.ok(!css.includes('.target-name'), "the caption's styles must go with it");
+  assert.ok(!appJs.includes('fullTargetName'), 'and nothing may still write to it');
+});
+
+test('the Track: heading is a label, not another button', () => {
+  // The row that used to sit UNDER these buttons was removed for looking
+  // exactly like one. A heading above them that made the same mistake would
+  // be the same bug with a different word in it, so this pins the ways it
+  // differs: no plate, no border, no rounded corner, and it cannot be
+  // pressed.
+  assert.match(html, /<p class="track-head" id="trackHead">Track:<\/p>/);
+  const h = block('.track-head {');
+  assert.ok(!/background:/.test(h), 'no plate');
+  assert.ok(!/border(?!-)/.test(h) && !/border-radius/.test(h), 'no border, no rounded corner');
+  assert.match(h, /pointer-events: none/, 'it must not take a press');
+  assert.match(h, /text-transform: uppercase/, 'and must not read as a button label');
+  // It names the group, so a screen reader gets the same grouping the
+  // aria-label used to give.
+  assert.match(html, /<div class="target-grid" role="group" aria-labelledby="trackHead">/);
 });

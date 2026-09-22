@@ -931,18 +931,40 @@ html[data-night='on'] .sky-legend {
   display: grid;
   gap: 0.4rem;
 }
-/* THE ACTIVE TARGET LOOKS ACTIVE. "The one that's active should look
-   different. It should be a different color. The border should change."
-   Same treatment the hemisphere picker gives its chosen side: filled with
-   the accent by day; in Night Mode, where nothing is filled brightly, a
-   heavier border in ink. aria-pressed carries the state for a screen
-   reader; this carries it for eyes. */
+/* The word over the target buttons. Deliberately unlike them: no plate, no
+   border, no rounded corner, smaller and dimmer, with letter-spacing that
+   no button here uses. The caption that used to sit UNDER the buttons was
+   removed for being indistinguishable from one, and this is the same
+   mistake waiting to be made again. */
+.track-head {
+  margin: 0 0 0.1rem;
+  padding: 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c3ccdb;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+}
+html[data-night='on'] .track-head { color: var(--ink-dim); }
+/* THE ACTIVE TARGET IS GREEN -- TEXT AND BORDER, NOT A FILL.
+   "If you click ISS, the button text should turn green and so should the
+   border. Click it again, the border and text highlight turns off and it's
+   no longer tracking."
+   It was a solid accent fill first. Green on the plate reads at a glance
+   against the other buttons, keeps the plate's contrast with the sky behind
+   it, and matches the ring and the arrow it is describing -- the same green
+   means the same thing everywhere on the map. aria-pressed carries the
+   state for a screen reader; this carries it for eyes. */
 .target-grid button[aria-pressed='true'] {
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: var(--accent);
   border-color: var(--accent);
+  border-width: 2px;
 }
 html[data-night='on'] .target-grid button[aria-pressed='true'] {
+  /* Night Mode has one colour, so "green" becomes a heavier border in ink.
+     The state still has to be visible without it. */
   color: var(--ink);
   background: transparent;
   border-color: var(--ink);
@@ -953,45 +975,15 @@ html[data-night='on'] .target-grid button[aria-pressed='true'] {
    or it never shows -- which is exactly what happened the first time: the
    state was set, the rule was written, and the button looked the same. */
 .live-sky.full .full-targets button[aria-pressed='true'] {
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: var(--accent);
   border-color: var(--accent);
+  border-width: 2px;
 }
 html[data-night='on'] .live-sky.full .full-targets button[aria-pressed='true'] {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.72);
   border-color: var(--ink);
   border-width: 3px;
-}
-
-/* Empty means nothing is targeted, and an empty plate announcing nothing is
-   worse than no plate. */
-.target-name:empty { display: none; }
-.target-name {
-  /* A LABEL MUST NEVER EAT A TAP. On a 375x812 phone the target column
-     reaches down far enough that this caption's box overlaps the top 12px of
-     the "Look up" button, and with pointer-events it was swallowing presses
-     aimed at a control -- on the one surface where the controls are the whole
-     interface, for the people least able to spare the second attempt. The key
-     in the opposite corner has always done this; the caption should have too.
-     The geometry itself is filed separately: this stops it doing harm. */
-  pointer-events: none;
-  /* A CAPTION, NOT A BUTTON. This was a bordered plate the same shape as
-     the target buttons stacked above it -- "literally identical to the
-     button you press". A label that looks like a control invites a press
-     that does nothing. So: no border, no plate, the accent ink the ring
-     itself uses, and a shadow for legibility over the sky. It reads as the
-     ring's caption, which is what it is. */
-  margin: 0.15rem 0 0;
-  padding: 0.1rem 0.3rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-align: center;
-  color: var(--accent);
-  background: transparent;
-  border: none;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.95);
 }
 /* Who is steering, in the column with everything else that aims the view.
    Full width of the column and wrapping freely: "Use Manual Mode" is three
@@ -1009,13 +1001,6 @@ html[data-night='on'] .live-sky.full .full-targets button[aria-pressed='true'] {
   font-size: 0.9rem;
   line-height: 1.1;
 }
-html[data-night='on'] .target-name {
-  /* Still a caption, still not a plate: red ink over black, same shadow. */
-  color: var(--ink);
-  background: transparent;
-  border: none;
-}
-
 .map-full {
   right: max(0.6rem, env(safe-area-inset-right));
   bottom: max(0.6rem, env(safe-area-inset-bottom));
@@ -1079,6 +1064,39 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
   line-height: 1;
   border-radius: 1rem;
 }
+/* A WORD UNDER THE ICON, ON THE BUTTONS WHOSE ICON IS NOT OBVIOUS.
+   A half-filled circle, a plus, a minus and a cross are only obvious once
+   somebody has told you, and in full screen there is nothing else to read.
+   The word goes INSIDE the button, so the target does not change size and
+   the whole thing stays one press. The arrows carry one too -- "this is a
+   disability low vision screen reader thing": a triangle is only an arrow
+   if you can resolve it, and at arm's length in the dark the word is what
+   reads.
+   aria-hidden on both spans because the button already has an accessible
+   name, and that name CONTAINS the visible word (WCAG 2.5.3) so speech
+   control can say what is written. */
+.map-btn.tagged {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  line-height: 1;
+}
+.map-btn.tagged .btn-glyph { font-size: 1.5rem; line-height: 1; }
+.live-sky.full .map-zoom-btn.tagged .btn-glyph { font-size: 1.7rem; }
+/* The pad buttons are 3.4rem, smaller than the 4rem zoom column, so their
+   glyph gives up a little room to the word rather than the button growing. */
+.live-sky.full .map-pan-btn.tagged .btn-glyph { font-size: 1.15rem; }
+.live-sky.full .map-pan-btn.tagged .btn-tag { font-size: 0.52rem; }
+.btn-tag {
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
 /* Bottom left, opposite the zoom, so each thumb has its own corner. Same grid
    areas as the pad below the canvas, so the arrangement cannot drift from it. */
 .live-sky.full .full-pan:not([hidden]) {
