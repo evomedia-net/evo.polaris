@@ -17,7 +17,7 @@
 //
 // This is a CACHE KEY, not the release stamp. build-version.json stays where
 // it is; the build advances once per release on the default branch.
-const VERSION = '0.0.0.1.5';
+const VERSION = '0.0.0.1.20';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [
@@ -31,6 +31,8 @@ const ASSETS = [
   './src/data/constellations.js', './src/data/stars.json', './src/data/wmm2025.js', './src/data/icon.svg',
   './src/milkyway.js', './src/data/milkyway.webp', './src/motion.js',
   './src/quat.js',
+  './src/planet-art.js', './src/data/planets.webp',
+  './src/constellation-art.js', './src/data/figures.webp', './src/data/figures.js',
 ];
 
 /** Big, immutable, and expensive to re-fetch. */
@@ -64,8 +66,16 @@ self.addEventListener('fetch', (e) => {
   if (isData(url)) {
     e.respondWith(
       caches.match(request).then((hit) => hit || fetch(request).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+        // ONLY CACHE A RESPONSE THAT WORKED. Bundled data is served
+        // cache-FIRST, so a 404 stored here is replayed for ever: the file
+        // arrives in a later deploy and the app keeps being told it does not
+        // exist, with no error anywhere to say why. Found the hard way --
+        // a stale worker answered 404 for a newly added atlas and the layer
+        // that reads it simply stayed switched off.
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+        }
         return res;
       })),
     );
@@ -77,8 +87,12 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+        // Same rule for the shell: a cached 404 becomes the offline
+        // fallback, which is worse than having nothing cached at all.
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(request)

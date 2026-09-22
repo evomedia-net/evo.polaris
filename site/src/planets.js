@@ -289,3 +289,27 @@ export function describePlanets(visible) {
   }
   return parts.join(' ');
 }
+
+/**
+ * How far Saturn's rings are opened toward us, in radians.
+ *
+ * Zero is edge-on -- the rings become a line across the planet, as they did
+ * in March 2025 -- and the extreme is about 27 degrees either way. It is the
+ * angle of Earth above Saturn's ring plane: that plane's north pole is a
+ * fixed direction in space, so the opening is how far the line of sight
+ * departs from lying IN the plane.
+ *
+ *     sin(B) = -(pole . toSaturn)
+ *
+ * with both as unit vectors, negative because a pole tipped away from us is
+ * the rings' south face showing. It lives here rather than in the drawing
+ * code for the reason the aim clamp does: it is real astronomy, it is easy
+ * to get subtly wrong, and in a canvas nothing can test it.
+ */
+const RING_POLE = { ra: 40.589, dec: 83.537 };      // J2000, degrees
+export function ringOpening(p) {
+  const dot = Math.sin(RING_POLE.dec * DEG) * Math.sin(p.dec * DEG)
+    + Math.cos(RING_POLE.dec * DEG) * Math.cos(p.dec * DEG)
+      * Math.cos((RING_POLE.ra - p.ra) * DEG);
+  return Math.asin(Math.max(-1, Math.min(1, -dot)));
+}

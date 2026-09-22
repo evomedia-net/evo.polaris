@@ -55,6 +55,36 @@ export const SUN_MIN_ALT = -0.8;
  * @param {boolean} [o.night]
  * @returns {{aimedAlt:number, aimedAz:number, targetOnScreen:boolean}}
  */
+/**
+ * Which way the lit side points, ON SCREEN, in radians.
+ *
+ * The bright limb is at position angle PA from celestial north through east.
+ * North and east are MEASURED here -- projected from the body's own
+ * quarter-degree neighbours -- rather than reasoned about, because working
+ * out which way east runs in a sky seen from inside is a handedness argument
+ * that is very easy to get backwards, and a mirrored crescent is wrong in a
+ * way people notice instantly without being able to say why.
+ *
+ * ONE implementation, used by the Moon and by the planets. Two would be two
+ * chances to get that handedness wrong, and only one of them would be caught.
+ */
+export function limbAngleOnScreen(body, q, basis, focal) {
+  const pn = projectToScreen(body.vNorth, basis, focal);
+  const pe = projectToScreen(body.vEast, basis, focal);
+  if (!pn || !pe) return 0;
+  const norm = (dx, dy) => {
+    const m = Math.hypot(dx, dy) || 1;
+    return [dx / m, dy / m];
+  };
+  const [nx, ny] = norm(pn.x - q.x, pn.y - q.y);
+  const [ex, ey] = norm(pe.x - q.x, pe.y - q.y);
+  const pa = (body.brightLimb || 0) * Math.PI / 180;
+  return Math.atan2(
+    ny * Math.cos(pa) + ey * Math.sin(pa),
+    nx * Math.cos(pa) + ex * Math.sin(pa),
+  );
+}
+
 export function drawSkyView(ctx, o) {
   const { sky, alpha, beta, gamma, declination, targetAlt, targetAz,
           targetName, reticleR, w, h, fov = 65, night = false } = o;
@@ -138,6 +168,15 @@ export function drawSkyView(ctx, o) {
 
   // THE HORIZON AND THE GROUND ARE DRAWN LATER NOW -- after the stars, the
   // paths and the bodies, so the ground can COVER them. See drawGround().
+
+  // THE ARTWORK, UNDER EVERYTHING. Hedberg's figures go on after the Milky
+  // Way and before the lines and the stars, so a star is never drawn behind
+  // the shoulder of the figure it belongs to. It is additive and very faint
+  // -- see constellation-art.js -- so it lightens the sky rather than
+  // covering it.
+  if (o.figureArt) {
+    o.figureArt.draw(ctx, { basis, focal, cx, cy, w, h, night });
+  }
 
   // Constellation figures. Drawn before the stars so the lines pass behind
   // them rather than across their faces.
@@ -241,11 +280,37 @@ export function drawSkyView(ctx, o) {
       if (!q) continue;
       const x = cx + q.x, y = cy + q.y;
       if (x < -40 || x > w + 40 || y < -40 || y > h + 40) continue;
-      const r = Math.max(2.2, starRadius(p.magnitude) * 1.4);
-      ctx.fillStyle = night ? '#ff0000' : p.colour;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
+      // A LITTLE WORLD WHERE THERE IS A TEXTURE FOR ONE, a dot where there
+      // is not -- Pluto, or anything drawn before its row exists. Larger
+      // than life on exactly the terms the Moon already is: a planet is
+      // arcseconds across and would otherwise be a fraction of a pixel, so
+      // the disc is a symbol exaggerated to be recognisable, and the caption
+      // under the map says so.
+      const dot = Math.max(2.2, starRadius(p.magnitude) * 1.4);
+      const r = o.planetArt ? Math.max(dot, ref / 55) : dot;
+      // Saturn's pole sits at declination +83.5, so its ring plane is very
+      // nearly perpendicular to celestial north -- which puts the rings'
+      // long axis along celestial EAST on screen, to within a couple of
+      // degrees. East is already projected for the phase, so this costs
+      // nothing and stays right however the view is turned.
+      let ringAngle = 0;
+      if (p.ringTilt !== null && p.ringTilt !== undefined) {
+        const pe = projectToScreen(p.vEast, basis, focal);
+        if (pe) ringAngle = Math.atan2(pe.y - q.y, pe.x - q.x);
+      }
+      const painted = o.planetArt && o.planetArt.draw(ctx, p, x, y, r, {
+        night,
+        illuminated: p.illuminated === undefined ? 1 : p.illuminated,
+        limbAngle: limbAngleOnScreen(p, q, basis, focal),
+        ringTilt: p.ringTilt === undefined ? null : p.ringTilt,
+        ringAngle,
+      });
+      if (!painted) {
+        ctx.fillStyle = night ? '#ff0000' : p.colour;
+        ctx.beginPath();
+        ctx.arc(x, y, dot, 0, Math.PI * 2);
+        ctx.fill();
+      }
       // ONE NAME PER OBJECT. If the ring is on this planet it is already
       // captioned, in bigger type, right where you are looking.
       if (p.name !== ringName) {
@@ -310,26 +375,7 @@ export function drawSkyView(ctx, o) {
       const trueR = Math.tan(0.26 * Math.PI / 180) * focal;
       const r = Math.max(ref / 20, trueR);
 
-      // North and east as they run on screen at this point, measured from the
-      // projection rather than assumed. The bright limb is at position angle
-      // PA from north through east, which in this frame is exactly
-      // cos(PA) * north + sin(PA) * east.
-      const pn = projectToScreen(o.moon.vNorth, basis, focal);
-      const pe = projectToScreen(o.moon.vEast, basis, focal);
-      let angle = 0;
-      if (pn && pe) {
-        const norm = (dx, dy) => {
-          const m = Math.hypot(dx, dy) || 1;
-          return [dx / m, dy / m];
-        };
-        const [nx, ny] = norm(pn.x - q.x, pn.y - q.y);
-        const [ex, ey] = norm(pe.x - q.x, pe.y - q.y);
-        const pa = (o.moon.brightLimb || 0) * Math.PI / 180;
-        angle = Math.atan2(
-          ny * Math.cos(pa) + ey * Math.sin(pa),
-          nx * Math.cos(pa) + ex * Math.sin(pa),
-        );
-      }
+      const angle = limbAngleOnScreen(o.moon, q, basis, focal);
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);

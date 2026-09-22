@@ -29,13 +29,15 @@ import {
 } from './skydraw.js';
 import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
+import { createPlanetArt, CREDIT as PLANET_CREDIT } from './planet-art.js';
+import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation-art.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
   moonRiseSet, describeMoonTimes,
 } from './moon.js';
-import { planetPositions, describePlanets, PLANET_NAMES } from './planets.js';
+import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
 import { VERSION } from './version.js';
@@ -117,6 +119,10 @@ function setQuat(q) {
 // Both on by default: the figures are how people recognise what they are
 // looking at, and the band is what most of them are pointing a camera at.
 let skyConstellations = true;
+// The artwork behind the lines. Remembered, and on to begin with: it is what
+// turns a join-the-dots into the figure it is named after, and anyone who
+// finds it busy can turn it off in one press.
+let skyFigures = store.get('figures', true);
 let skyMilkyWay = true;
 // The planets and the Moon are why half of this pane exists now, so both are
 // on. They are also the two things that can hide something you were looking
@@ -139,6 +145,18 @@ let milkyWay = null;
 const milkyLayer = createMilkyWay({
   forceFallback: new URLSearchParams(location.search).get('nogl') === '1',
 });
+// The planets as textured discs. ?notex=1 forces the old dots, which is how
+// that path gets looked at without deleting the file.
+const planetArt = createPlanetArt({
+  forceOff: new URLSearchParams(location.search).get('notex') === '1',
+});
+planetArt.ready.then(() => { updateLegend(); if (skyOn) drawLiveSky(); });
+// The constellation figures, ghosted behind the stars. ?nofig=1 forces them
+// off without touching the saved setting.
+const figureArt = createConstellationArt({
+  forceOff: new URLSearchParams(location.search).get('nofig') === '1',
+});
+figureArt.ready.then(() => { updateLegend(); if (skyOn) drawLiveSky(); });
 let galactic = null;
 milkyLayer.ready.then(() => {
   // Which renderer took the picture, on the root element -- so a test in a
@@ -240,6 +258,24 @@ function updateLegend() {
   const credit = $('milkyCredit');
   if (credit) credit.hidden = !photo;
   if (photo) any = true;
+  // The planet textures carry their own credit, on the same terms: shown
+  // while they are what is being drawn, hidden while the planets are off or
+  // the atlas never arrived.
+  const textured = skyShowPlanets && planetArt.mode === 'texture';
+  const planetCredit = $('legPlanetArt');
+  if (planetCredit) {
+    planetCredit.textContent = PLANET_CREDIT.replace('Solar System Scope', 'Solar System Scope');
+    planetCredit.hidden = !textured;
+  }
+  if (textured) any = true;
+  // And the figures, on the same terms: credited while they are on screen.
+  const figures = skyFigures && figureArt.mode === 'figures';
+  const figureCredit = $('legFigures');
+  if (figureCredit) {
+    figureCredit.textContent = FIGURE_CREDIT.replace('James Hedberg', 'James Hedberg');
+    figureCredit.hidden = !figures;
+  }
+  if (figures) any = true;
   $('skyLegend').hidden = !any;
 }
 
@@ -1399,8 +1435,19 @@ function refreshSkyVectors() {
   // the same tick rather than cached alongside them. Both go through the same
   // rotation the stars do -- one implementation, so they cannot disagree.
   const ph = moonPhase(when);
+  const sunNow = sunEquatorial(when);
   const bodies = buildBodies([
-    ...planetPositions(when),
+    // THE PHASE IS REAL, even though the face is not. Mercury and Venus show
+    // crescents from inside Earth's orbit, and the phase angle is already
+    // computed for the magnitude -- illuminated fraction is (1 + cos a) / 2.
+    // The lit side is measured against the projection exactly as the Moon's
+    // is, through the same function.
+    ...planetPositions(when).map((p) => ({
+      ...p,
+      illuminated: (1 + Math.cos(p.phaseAngle * Math.PI / 180)) / 2,
+      brightLimb: brightLimbAngle(p, sunNow),
+      ringTilt: p.name === 'Saturn' ? ringOpening(p) : null,
+    })),
     {
       name: 'Moon', ra: ph.ra, dec: ph.dec,
       illuminated: ph.illuminated,
@@ -1667,12 +1714,14 @@ function drawLiveSky() {
                * Math.min(window.devicePixelRatio || 1, 2)) / 28,
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
+    figureArt: skyFigures && figureArt.mode === 'figures' ? figureArt : null,
     milkyWay: skyMilkyWay ? milkyWay : null,
     milkyLayer: skyMilkyWay ? milkyLayer : null,
     galactic,
     ground: skyGround,
     tracks: skyTracks,
     planets: skyShowPlanets ? skyPlanetList : null,
+    planetArt: skyShowPlanets && planetArt.mode === 'texture' ? planetArt : null,
     moon: skyShowMoon ? skyMoonBody : null,
     sun: skySunBody,
     // The marker is only drawn when the station is actually up there --
@@ -2541,6 +2590,14 @@ $('skyConst').onclick = () => {
   skyConstellations = !skyConstellations;
   $('skyConst').textContent = skyConstellations
     ? 'Hide the constellations' : 'Show the constellations';
+  drawLiveSky();
+};
+$('skyFigures').onclick = () => {
+  skyFigures = !skyFigures;
+  store.set('figures', skyFigures);
+  $('skyFigures').textContent = skyFigures
+    ? 'Hide the constellation art' : 'Show the constellation art';
+  updateLegend();
   drawLiveSky();
 };
 $('skyMilky').onclick = () => {
