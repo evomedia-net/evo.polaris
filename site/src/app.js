@@ -2580,6 +2580,23 @@ $('fullPole').onclick = () => $('skyPole').click();
 // looks right.
 $('fullMode').onclick = () => $('modeBtn').click();
 
+// THE TRACK LIST ROLLS UP AND DOWN. One press on the heading opens the six
+// target buttons, the next closes them. Closed by default, because the
+// screen was "getting really crowded", and remembered, because someone who
+// keeps it open wants it open. The mode switch is NOT in the list: it is how
+// you hand the sky back to the phone, and it stays where a thumb can find it
+// whether the list is open or not.
+function applyTrackOpen(open) {
+  $('trackHead').setAttribute('aria-expanded', String(open));
+  $('targetGrid').hidden = !open;
+}
+$('trackHead').onclick = () => {
+  const open = $('trackHead').getAttribute('aria-expanded') !== 'true';
+  applyTrackOpen(open);
+  store.set('trackOpen', open);
+};
+applyTrackOpen(store.get('trackOpen', false) === true);
+
 // --- what to point at -------------------------------------------------------
 //
 // Choosing a target also TRAVELS to it. "Point at the Moon" and "show me the

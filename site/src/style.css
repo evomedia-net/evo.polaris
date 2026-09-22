@@ -936,18 +936,28 @@ html[data-night='on'] .sky-legend {
    no button here uses. The caption that used to sit UNDER the buttons was
    removed for being indistinguishable from one, and this is the same
    mistake waiting to be made again. */
+/* THE ROLL-UP. The same plate as the buttons under it -- it IS a button now
+   -- with the section name in small capitals and a chevron that turns when
+   the list is open, so the state is visible without a word changing. The
+   list itself is hidden with the attribute, and the attribute has to win
+   over the grid's own display rule or the roll-up would roll nothing. */
 .track-head {
-  margin: 0 0 0.1rem;
-  padding: 0 0.2rem;
-  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c3ccdb;
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95);
-  pointer-events: none;
 }
-html[data-night='on'] .track-head { color: var(--ink-dim); }
+.track-chev {
+  display: inline-block;
+  transition: transform 160ms ease;
+}
+.track-head[aria-expanded='true'] .track-chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .track-chev { transition: none; } }
+.target-grid[hidden] { display: none; }
 /* THE ACTIVE TARGET IS GREEN -- TEXT AND BORDER, NOT A FILL.
    "If you click ISS, the button text should turn green and so should the
    border. Click it again, the border and text highlight turns off and it's

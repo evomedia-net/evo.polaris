@@ -198,15 +198,19 @@
              the target is off the edge there is only an arrow -- the ring
              carries the name, and the ring is the part that is missing. -->
         <div class="full-targets" id="fullTargets">
-          <!-- A HEADING, AND IT MUST NOT READ AS A BUTTON. The row under
-               these was removed for looking exactly like one; a heading that
-               made the same mistake would be the same bug with a different
-               word in it. So: no plate, no border, small, spaced out, dimmer
-               than the buttons -- the shape of a label and nothing else. It
-               names the group for a screen reader too, which is what the
-               aria-label on the grid used to do alone. -->
-          <p class="track-head" id="trackHead">Track:</p>
-          <div class="target-grid" role="group" aria-labelledby="trackHead">
+          <!-- THE HEADING IS THE ROLL-UP. "Click it, the buttons appear.
+               Click it again, they disappear." It was a label that must not
+               read as a button, because a press on it did nothing; now a
+               press on it does the one thing a heading over a list can do.
+               A disclosure: the name is the section, the state is on
+               aria-expanded and in the chevron, and the list is hidden
+               outright when rolled up so a screen reader is not walked
+               through six buttons that are not on the screen. Rolled up by
+               default -- the whole point is a quieter screen: "this screen
+               is getting really crowded now" -- and remembered. It still
+               names the group. -->
+          <button id="trackHead" class="map-btn tgt-btn track-head" aria-expanded="false" aria-controls="targetGrid">Track <span class="track-chev" aria-hidden="true">&#9662;</span></button>
+          <div class="target-grid" id="targetGrid" role="group" aria-labelledby="trackHead" hidden>
             <button id="tgtPole" class="map-btn tgt-btn" aria-pressed="true">Polaris</button>
             <button id="tgtIss" class="map-btn tgt-btn" aria-pressed="false">ISS</button>
             <button id="tgtMoon" class="map-btn tgt-btn" aria-pressed="false">Moon</button>

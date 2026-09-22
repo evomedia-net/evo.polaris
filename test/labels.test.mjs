@@ -67,6 +67,8 @@ const VERBS = new Set([
   // Added with the full-screen icon buttons, which say what they do in one
   // word under the glyph: Zoom in, Zoom out, Exit, Center, Horizon.
   'zoom', 'exit', 'center',
+  // The roll-up over the target list: press it and you can track something.
+  'track',
 ]);
 
 /** Every <button> in the page: id, visible text, aria-label if it has one. */

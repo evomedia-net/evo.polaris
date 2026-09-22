@@ -109,19 +109,15 @@ test('there is no target name row at all any more', () => {
   assert.ok(!appJs.includes('fullTargetName'), 'and nothing may still write to it');
 });
 
-test('the Track: heading is a label, not another button', () => {
-  // The row that used to sit UNDER these buttons was removed for looking
-  // exactly like one. A heading above them that made the same mistake would
-  // be the same bug with a different word in it, so this pins the ways it
-  // differs: no plate, no border, no rounded corner, and it cannot be
-  // pressed.
-  assert.match(html, /<p class="track-head" id="trackHead">Track:<\/p>/);
-  const h = block('.track-head {');
-  assert.ok(!/background:/.test(h), 'no plate');
-  assert.ok(!/border(?!-)/.test(h) && !/border-radius/.test(h), 'no border, no rounded corner');
-  assert.match(h, /pointer-events: none/, 'it must not take a press');
-  assert.match(h, /text-transform: uppercase/, 'and must not read as a button label');
-  // It names the group, so a screen reader gets the same grouping the
-  // aria-label used to give.
-  assert.match(html, /<div class="target-grid" role="group" aria-labelledby="trackHead">/);
+test('the Track heading is a button now, because pressing it does something', () => {
+  // It was pinned as a label that must NOT read as a button, because the
+  // row under the list had been removed for looking exactly like one and
+  // inviting a press that did nothing. The rule was never "no buttons": it
+  // was "nothing that looks pressable and is not". Now a press on the
+  // heading rolls the list up and down, so it looks like what it is -- the
+  // same plate as its neighbours -- and it still names the group.
+  assert.match(html, /<button id="trackHead" class="map-btn tgt-btn track-head" aria-expanded="false" aria-controls="targetGrid">/);
+  assert.match(block('.track-head {'), /text-transform: uppercase/, 'the section name, in small capitals');
+  assert.ok(!/pointer-events: none/.test(block('.track-head {')), 'it takes a press now');
+  assert.match(html, /<div class="target-grid" id="targetGrid" role="group" aria-labelledby="trackHead" hidden>/);
 });
