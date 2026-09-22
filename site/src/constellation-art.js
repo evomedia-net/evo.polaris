@@ -39,6 +39,20 @@ export const CREDIT = 'Figures: James Hedberg';
 // visible figures stay well inside one frame.
 const CELLS = 4;
 
+// HOW STRONGLY THE GHOST SHOWS.
+//
+// It shipped at 0.16 and read as "very dim" -- barely there at a wide field,
+// where the lines are thinnest and there is the most sky to compete with.
+// 0.30 was chosen from three rendered side by side: it is plainly readable
+// while the stars stay the subject, where 0.45 started to make the artwork
+// the main thing on screen.
+const DAY_ALPHA = 0.30;
+// LOWER AT NIGHT, AND NOT FOR TASTE. Dark adaptation is spent by TOTAL light
+// reaching the eye, not by hue, so a red field that is merely bright is
+// still a red field that costs twenty minutes to get back. Two thirds of the
+// day value keeps the figures readable and the screen cheap to look at.
+const NIGHT_ALPHA = 0.20;
+
 /** Spherical-ish bilinear: mix the four corners, then put it back on the sphere. */
 function corner(c, u, v) {
   const [tl, tr, br, bl] = c;
@@ -121,7 +135,7 @@ export function createConstellationArt({ forceOff = false } = {}) {
     return red;
   }
 
-  layer.draw = function draw(ctx, { basis, focal, cx, cy, w, h, night, opacity = 0.16 }) {
+  layer.draw = function draw(ctx, { basis, focal, cx, cy, w, h, night, opacity = null }) {
     if (!img) return 0;
     let drawn = 0;
 
@@ -129,7 +143,7 @@ export function createConstellationArt({ forceOff = false } = {}) {
     if (!sheet) return 0;
 
     ctx.save();
-    ctx.globalAlpha = opacity;
+    ctx.globalAlpha = opacity === null ? (night ? NIGHT_ALPHA : DAY_ALPHA) : opacity;
     // Additive, so the art only ever LIGHTENS the sky: a ghost that could
     // darken would punch holes in the Milky Way behind it.
     ctx.globalCompositeOperation = 'lighter';
