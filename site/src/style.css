@@ -770,12 +770,19 @@ html[data-night='on'] .live-sky canvas { background: #000; }
   margin: 0;
   background: var(--bg);
 }
-.live-sky.full canvas {
-  /* The gesture only exists here, so the browser only hands over the pointer
-     here. Windowed, the map sits in a scrolling page and a finger dragged
-     across it must still scroll that page -- taking it over would rebuild the
-     "it will not scroll" bug this app has already had once. */
+/* THE BROWSER HANDS THE MAP THE POINTER WHILE A HAND IS STEERING, in either
+   size. It was full screen only, so that a finger across the windowed map
+   still scrolled the page; to the person this is for, a map that steers in
+   one size and scrolls in the other was a broken map. The page still scrolls
+   from anywhere that is not the map, and in Auto Mode -- no .steering class,
+   nothing steers -- the map scrolls it too. This is the only touch-action in
+   the stylesheet, and the "it will not scroll" bug this app has already had
+   once is why. */
+.live-sky.full canvas,
+.live-sky.steering canvas {
   touch-action: none;
+}
+.live-sky.full canvas {
   display: block;
   width: 100%;
   height: 100%;

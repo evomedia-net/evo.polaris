@@ -93,23 +93,30 @@ test('a tap survives a shaky hand', () => {
     `${m[1]}px is too tight a definition of "did not move"`);
 });
 
-test('dragging never takes the page\'s scroll away', () => {
-  // The app has already shipped one "the page will not scroll" bug. Windowed,
-  // the map is inside a scrolling page and a finger dragged across it is how
-  // that page is scrolled, so the pan is full-screen only and the browser is
-  // only handed the pointer there.
+test('the map steers in both sizes, and takes the pointer only while steering', () => {
+  // It was full-screen only from the day it was added, so that a finger
+  // across the windowed map still scrolled the page. "Manual mode no longer
+  // works unless I'm full screen." The rule now: the pointer is the map's
+  // while a hand is steering -- that is when a finger on it means "move the
+  // sky" -- and the page's otherwise, so Auto Mode still scrolls from the
+  // map and every mode scrolls from everywhere else.
   const move = appJs.slice(appJs.indexOf("window.addEventListener('pointermove'"),
     appJs.indexOf("window.addEventListener('pointerup'"));
-  assert.match(move, /if \(!fullOn\) return;/,
-    'the drag must do nothing outside full screen');
-  const full = css.slice(css.indexOf('.live-sky.full canvas {'),
-    css.indexOf('}', css.indexOf('.live-sky.full canvas {')));
-  assert.match(full, /touch-action:\s*none/,
-    'the full-screen canvas must take the pointer');
-  // ...and nothing else may, or windowed scrolling dies.
-  const others = css.split('touch-action').length - 1;
-  assert.equal(others, 1,
-    'touch-action appears more than once; only the full-screen canvas may set it');
+  assert.ok(!/if \(!fullOn\) return;/.test(move), 'the drag must not be gated to full screen');
+  assert.match(appJs, /\$\('liveSkyWrap'\)\.classList\.toggle\('steering', !following\);/,
+    'the steering class must follow the same test the pad is shown by');
+  const rule = css.slice(css.indexOf('.live-sky.full canvas,'),
+    css.indexOf('}', css.indexOf('.live-sky.full canvas,')));
+  assert.match(rule, /\.live-sky\.steering canvas \{/, 'the steering map takes the pointer');
+  assert.match(rule, /touch-action:\s*none/);
+  // The app has already shipped one "the page will not scroll" bug: this is
+  // the only touch-action in the stylesheet, and it is conditional.
+  const others = css.split('touch-action:').length - 1;
+  assert.equal(others, 1, 'touch-action is set more than once');
+  // And the coast after a release is no longer full-screen only either.
+  const up = appJs.slice(appJs.indexOf("window.addEventListener('pointerup'"),
+    appJs.indexOf("window.addEventListener('pointercancel'"));
+  assert.match(up, /if \(handSteering\(\) && d\.v && fresh\) flingFrom/);
 });
 
 test('a swipe is not a tap, even where dragging is switched off', () => {

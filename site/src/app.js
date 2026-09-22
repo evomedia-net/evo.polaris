@@ -1627,8 +1627,14 @@ function drawLiveSky() {
     beta: sBeta ?? tilt ?? 90,
     gamma: sGamma ?? roll ?? 0,
     declination: solution.declination,
-    targetAlt: target.alt,
-    targetAz: target.az,
+    // NO TARGET IS A REAL ANSWER, and aimTarget says so by returning null --
+    // which this line then dereferenced, so pressing the active target to
+    // let it go threw on every frame from then on. The readout kept
+    // changing, the picture never repainted: "the screen freezes". The
+    // draw already knows how to have no ring and no pointer; it just had to
+    // be told with a null instead of an exception.
+    targetAlt: target ? target.alt : null,
+    targetAz: target ? target.az : null,
     // The same words as the caption under the buttons, from the same call:
     // the label on the picture is the one actually being read while looking
     // at an empty ring, and a bare "Moon" there is the app naming something
@@ -1862,6 +1868,9 @@ function updateSkyMode() {
     if (card) card.open = !skyFollow;
   }
   $('fullPan').hidden = following;
+  // The browser hands the map the pointer only while a hand is steering:
+  // that is when a finger on it means "move the sky" and not "scroll".
+  $('liveSkyWrap').classList.toggle('steering', !following);
   // THE PAD IS NEVER DISABLED. It used to be greyed out while the phone was
   // steering, and on a dark screen at arm's length greyed reads as gone --
   // "the controls to move the screen are not visible". Worse, it contradicted
@@ -2237,7 +2246,13 @@ $('liveSky').addEventListener('pointerdown', (e) => {
 
 window.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
-  if (!fullOn) return;                       // windowed: leave the page alone
+  // WINDOWED TOO. The drag was full-screen only from the day it was added,
+  // so a finger across the small map would still scroll the page. "Manual
+  // mode no longer works unless I'm full screen" -- to the person it is for,
+  // a map that steers in one size and scrolls in the other is a broken map.
+  // The page still scrolls from anywhere that is not the map, and in Auto
+  // Mode the map still scrolls it, because nothing steers there: the
+  // pointer is only taken (touch-action) while the hand is steering.
   const moved = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
   if (moved < TAP_SLOP) return;              // still a tap, as far as anyone knows
   const at = mapOffset(e);
@@ -2292,11 +2307,10 @@ window.addEventListener('pointerup', (e) => {
   // A swipe is not a tap even where dragging is switched off, or scrolling the
   // page windowed would fling the view somewhere on release.
   if (far >= TAP_SLOP || !handSteering()) {
-    // It was a swipe: keep going, and slow down. Only where the drag actually
-    // moved the sky -- windowed, the finger was scrolling the page and the
-    // view never moved, so there is nothing to carry on.
+    // It was a swipe: keep going, and slow down -- in either size, now that
+    // the drag steers in either.
     const fresh = d.prev && (performance.now() - d.prev.t) < FLING_STALE_MS;
-    if (fullOn && handSteering() && d.v && fresh) flingFrom(d.v.az, d.v.alt);
+    if (handSteering() && d.v && fresh) flingFrom(d.v.az, d.v.alt);
     return;
   }
   const at = mapOffset(e);

@@ -94,20 +94,24 @@ test('a finger that stopped before lifting threw nothing', () => {
     appJs.indexOf("window.addEventListener('pointercancel'"));
   assert.match(up, /performance\.now\(\) - d\.prev\.t\) < FLING_STALE_MS/,
     'a release must check how recently the sky actually moved');
-  assert.match(up, /fullOn && handSteering\(\) && d\.v && fresh/,
+  assert.match(up, /handSteering\(\) && d\.v && fresh/,
     'all four conditions must hold before anything coasts');
 });
 
-test('it never fires where the drag never moved the sky', () => {
-  // Windowed, a finger on the map is scrolling the PAGE -- the view does not
-  // move at all, and this app has already shipped a "it will not scroll" bug
-  // once. A fling there would throw the sky for a gesture aimed at the page.
+test('it fires wherever the drag moved the sky -- which is both sizes now', () => {
+  // Windowed, a finger on the map used to scroll the PAGE, so a coast there
+  // would have thrown the sky for a gesture aimed at the page. The map
+  // steers in both sizes now (#106), and the coast follows the drag: the two
+  // must agree, or a release windowed would stop dead.
   const up = appJs.slice(appJs.indexOf("window.addEventListener('pointerup'"),
     appJs.indexOf("window.addEventListener('pointercancel'"));
-  assert.match(up, /if \(fullOn &&/, 'the coast must be full screen only');
+  // It WAS full screen only, because the drag was. The drag steers in both
+  // sizes now (#106), and a coast that stopped dead in one of them would be
+  // the "it just stops when released" report all over again, windowed.
+  assert.ok(!/if \(fullOn &&/.test(up), 'the coast must not be gated to full screen');
   const move = appJs.slice(appJs.indexOf("window.addEventListener('pointermove'"),
     appJs.indexOf("window.addEventListener('pointerup'"));
-  assert.match(move, /if \(!fullOn\) return;/,
+  assert.ok(!/if \(!fullOn\) return;/.test(move),
     'the drag that feeds it is full screen only, and they must agree');
 });
 
