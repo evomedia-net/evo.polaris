@@ -931,6 +931,39 @@ html[data-night='on'] .sky-legend {
   display: grid;
   gap: 0.4rem;
 }
+/* THE ACTIVE TARGET LOOKS ACTIVE. "The one that's active should look
+   different. It should be a different color. The border should change."
+   Same treatment the hemisphere picker gives its chosen side: filled with
+   the accent by day; in Night Mode, where nothing is filled brightly, a
+   heavier border in ink. aria-pressed carries the state for a screen
+   reader; this carries it for eyes. */
+.target-grid button[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+html[data-night='on'] .target-grid button[aria-pressed='true'] {
+  color: var(--ink);
+  background: transparent;
+  border-color: var(--ink);
+  border-width: 3px;
+}
+/* In full screen the target buttons wear a translucent plate, set by a rule
+   with three classes of weight. The pressed look has to outrank that plate
+   or it never shows -- which is exactly what happened the first time: the
+   state was set, the rule was written, and the button looked the same. */
+.live-sky.full .full-targets button[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+html[data-night='on'] .live-sky.full .full-targets button[aria-pressed='true'] {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.72);
+  border-color: var(--ink);
+  border-width: 3px;
+}
+
 /* Empty means nothing is targeted, and an empty plate announcing nothing is
    worse than no plate. */
 .target-name:empty { display: none; }
@@ -943,15 +976,22 @@ html[data-night='on'] .sky-legend {
      in the opposite corner has always done this; the caption should have too.
      The geometry itself is filed separately: this stops it doing harm. */
   pointer-events: none;
-  margin: 0;
-  padding: 0.3rem 0.6rem;
+  /* A CAPTION, NOT A BUTTON. This was a bordered plate the same shape as
+     the target buttons stacked above it -- "literally identical to the
+     button you press". A label that looks like a control invites a press
+     that does nothing. So: no border, no plate, the accent ink the ring
+     itself uses, and a shadow for legibility over the sky. It reads as the
+     ring's caption, which is what it is. */
+  margin: 0.15rem 0 0;
+  padding: 0.1rem 0.3rem;
   font-size: 0.95rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
   text-align: center;
-  color: #f2f5fa;
-  background: rgba(10, 14, 24, 0.72);
-  border: 1px solid rgba(232, 236, 244, 0.45);
-  border-radius: 0.9rem;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.95);
 }
 /* Who is steering, in the column with everything else that aims the view.
    Full width of the column and wrapping freely: "Use Manual Mode" is three
@@ -970,9 +1010,10 @@ html[data-night='on'] .sky-legend {
   line-height: 1.1;
 }
 html[data-night='on'] .target-name {
+  /* Still a caption, still not a plate: red ink over black, same shadow. */
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.72);
-  border-color: var(--ink);
+  background: transparent;
+  border: none;
 }
 
 .map-full {

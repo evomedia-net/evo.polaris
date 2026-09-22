@@ -2459,10 +2459,19 @@ function goToTarget(what, opts) {
   if (t) glideTo(t.az, t.alt);
 }
 
-$('tgtPole').onclick = () => $('skyPole').click();
-$('tgtMoon').onclick = () => goToTarget('moon');
+// PRESS THE ACTIVE TARGET AGAIN AND IT LETS GO. "When you select a target,
+// if you press again it should deselect it." A pressed button that does
+// nothing on a second press is a switch with no off; the ring comes off and
+// the view stays where it is. The Planets button is the one exception --
+// it walks the list, and letting go is the last stop on the walk.
+$('tgtPole').onclick = () => {
+  if (guideTarget === 'pole') { setTarget('none'); return; }
+  $('skyPole').click();
+};
+$('tgtMoon').onclick = () => goToTarget(guideTarget === 'moon' ? 'none' : 'moon');
 
 $('tgtIss').onclick = async () => {
+  if (guideTarget === 'iss') { setTarget('none'); return; }
   // Normally already loaded -- the sky fetches it on opening -- but if that
   // failed (no signal then, maybe signal now) this is a request, so it asks.
   if (!issOn) { try { await loadIss({ announce: false }); } catch { /* still none */ } }
