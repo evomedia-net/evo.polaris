@@ -209,7 +209,12 @@ export function drawSkyView(ctx, o) {
 
     // Name only the bright, well-known ones, and only a few: a sky full of
     // labels is unreadable exactly when you are trying to find one thing.
-    if (labelled < 7 && s.mag < 2.6 && NAMED.has(s.hr)) {
+    //
+    // NOT THE ONE THE RING IS ON. The ring already names its target, in
+    // bigger type, right above it; a second "Polaris" beside the dot is the
+    // same duplicate the planets and paths were cured of. The slot goes to
+    // the next star instead.
+    if (labelled < 7 && s.mag < 2.6 && NAMED.has(s.hr) && NAMED.get(s.hr) !== ringName) {
       labelled += 1;
       ctx.fillStyle = dim;
       ctx.font = `500 ${Math.round(ref / 34)}px system-ui, sans-serif`;

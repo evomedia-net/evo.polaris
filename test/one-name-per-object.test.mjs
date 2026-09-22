@@ -211,3 +211,32 @@ test('the Moon checks its bounds before claiming, like the planets do', () => {
   assert.ok(ctx.texts.includes('Moon'),
     'a Moon off the edge must not silence the Moon track');
 });
+
+// --- named stars, the case the first pass missed --------------------------------
+
+/** A frame with Polaris drawn as a catalogue star, the ring on the given target. */
+function frameWithPolaris(targetName) {
+  const ctx = stubCtx();
+  drawSkyView(ctx, {
+    sky: [{ v: altAzToVector(20, 0), mag: 2.0, hr: 424, bv: 0.6 }],   // HR 424 = Polaris
+    constellations: null, milkyWay: null, tracks: null, planets: null, moon: null, iss: null,
+    aim: { az: 0, alt: 20 }, alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: 20, targetAz: 0, targetName, reticleR: 28,
+    w: 900, h: 600, fov: 65, night: false, ground: false,
+  });
+  return ctx.texts;
+}
+
+test('a named star under the ring is named once, by the ring', () => {
+  // Seen in a screenshot after the planets and paths were fixed: "Polaris"
+  // as the ring's caption and "Polaris" again beside the dot, a finger apart.
+  // The rule covered bodies and paths and not the catalogue stars, which
+  // have their own label code.
+  assert.equal(count(frameWithPolaris('Polaris'), 'Polaris'), 1);
+});
+
+test('and names itself when the ring is on something else', () => {
+  const texts = frameWithPolaris('Target');
+  assert.equal(count(texts, 'Polaris'), 1, 'the star must still get its own label');
+  assert.ok(texts.includes('Target'), 'and the ring its own');
+});
