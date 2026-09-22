@@ -406,6 +406,14 @@ function applyAppearance() {
   updateLegend();
   pinHeader();
   render();
+  // THE PICTURE CHANGES THEME WITH THE CHROME. data-night restyles every
+  // control and plate through CSS the instant it is set; the canvases are
+  // painted by script with `night` in hand and stay as they were until
+  // something else happens to redraw them. render() above repaints the
+  // alignment pane; the sky view had nothing -- a red star field under day
+  // chrome until the next tap. Sized as well as drawn, because a text-size
+  // change moves the canvas's box without a resize event.
+  if (skyOn) { sizeSkyCanvas(); drawLiveSky(); }
 }
 
 /**
