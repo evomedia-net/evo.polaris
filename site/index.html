@@ -193,6 +193,18 @@
           <li class="leg-row leg-credit" id="legMilky" hidden>Milky Way: ESO/S.&nbsp;Brunier</li>
         </ul>
 
+        <!-- WHERE THE VIEW IS POINTING, AS NUMBERS. Bottom centre, the one
+             free edge: the pad has the left corner, the zoom and the exit the
+             right. Both modes -- in Auto Mode this is the phone's own heading
+             and tilt, which is the pair of numbers a polar-alignment app is
+             for. NOT a live region: it changes every frame, and the mode hint
+             under the map already announces where the view is when a hand
+             moves it. It reads as ordinary text for anyone who asks. -->
+        <div class="sky-readout" id="skyReadout" hidden>
+          <span class="rd-row"><span class="rd-key">Az</span> <span id="rdAz">&mdash;</span></span>
+          <span class="rd-row"><span class="rd-key">Alt</span> <span id="rdAlt">&mdash;</span></span>
+        </div>
+
         <!-- TOP LEFT, FULL SCREEN ONLY: what the ring is on, and what to
              put it on. The name is here rather than on the map because when
              the target is off the edge there is only an arrow -- the ring

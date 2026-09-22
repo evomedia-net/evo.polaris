@@ -898,6 +898,64 @@ html[data-night='on'] .sky-legend {
   box-shadow: none;
 }
 
+/* WHERE THE VIEW IS POINTING, AS NUMBERS. Windowed it sits bottom centre,
+   where nothing else is. The same plate as the key, so the two read as one
+   family. Tabular digits, because a 9 turning into a 10 must not shift the
+   plate every frame, and no pointer events, because a drag that starts on
+   the numbers is a drag on the sky. */
+.sky-readout {
+  position: absolute;
+  left: 50%;
+  bottom: max(0.6rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 2;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  color: #f2f5fa;
+  background: rgba(10, 14, 24, 0.72);
+  border: 1px solid rgba(232, 236, 244, 0.45);
+  border-radius: 0.9rem;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.sky-readout .rd-key {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+/* FULL SCREEN: ABOVE THE ARROWS, NOT BETWEEN THEM AND THE ZOOM. Bottom
+   centre was tried first and on a 375px phone the plate touched the Down
+   button: the pad is 10.9rem wide, the zoom column 4rem, and the gap left is
+   narrower than the numbers. Above the pad, left-aligned with it, the plate
+   is a readout for the arrows being pressed -- press Up and watch Alt climb
+   -- and clear of everything. 10.9rem is the pad's three rows (3 x 3.4rem +
+   2 x 0.35rem), the same numbers as .full-pan; the 0.6rem is the gap every
+   plate keeps. In Auto Mode the pad is hidden and the plate drops into the
+   corner it leaves. */
+.live-sky.full .sky-readout {
+  left: max(0.6rem, env(safe-area-inset-left));
+  transform: none;
+  bottom: calc(max(0.6rem, env(safe-area-inset-bottom)) + 10.9rem + 0.6rem);
+}
+.live-sky.full:has(#fullPan[hidden]) .sky-readout {
+  bottom: max(0.6rem, env(safe-area-inset-bottom));
+}
+/* Still a plate, still red, still nothing filled brightly. */
+html[data-night='on'] .sky-readout {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.72);
+  border-color: var(--ink);
+  box-shadow: none;
+}
+
 /* WHAT TO POINT AT, TOP LEFT, FULL SCREEN ONLY.
  *
  * Top left is the remaining free corner: the key is top right, the pad bottom

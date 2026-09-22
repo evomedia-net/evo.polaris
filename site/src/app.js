@@ -6,7 +6,7 @@ import {
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
-import { spellAngle } from './words.js';
+import { spellAngle, compassPoint } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
@@ -1619,7 +1619,10 @@ function drawLiveSky() {
   const issLook = issNow();
   const target = aimTarget(issLook);
   updateTargetName();
-  drawSkyView(c.getContext('2d'), {
+  // The draw reports where it actually pointed, in either mode, and the
+  // numbers on the plate come from that -- not from skyAim, which the phone
+  // never writes.
+  const painted = drawSkyView(c.getContext('2d'), {
     basis: useDevice ? null : aimBasis(),
     screenAngle: sensorInfo.screen,
     sky: skyVectors,
@@ -1670,6 +1673,29 @@ function drawLiveSky() {
     iss: issLook && issLook.aboveHorizon
       ? { alt: issLook.alt, az: issLook.az, sunlit: issLook.sunlit } : null,
   });
+  showReadout(painted.aimedAz, painted.aimedAlt);
+}
+
+/**
+ * The numbers on the picture: where the view is pointing, right now.
+ *
+ * In Manual Mode this is where the hand has put the view; in Auto Mode it is
+ * the phone's own heading and tilt, corrected for declination -- the pair of
+ * numbers a polar-alignment app is actually for, and until now the one thing
+ * the picture did not say. It is also the instrument: every rotation bug so
+ * far was diagnosed by scraping this pair out of a hidden hint with synthetic
+ * pointer events, and now it is on the screen where a thumb can find it.
+ *
+ * Whole degrees. The compass is honest to about two on a good day and the
+ * hand to about one, and a decimal that flickers is worse than none.
+ */
+function showReadout(az, alt) {
+  const el = $('skyReadout');
+  if (!el) return;
+  const round = ((Math.round(az) % 360) + 360) % 360;
+  $('rdAz').textContent = `${round}° ${compassPoint(round)}`;
+  $('rdAlt').textContent = `${Math.round(alt)}°`;
+  el.hidden = false;
 }
 
 /**

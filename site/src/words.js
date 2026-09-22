@@ -57,3 +57,17 @@ export function spellAngle(dm) {
   }
   return `${parts.join(', ')}${hemi ? ` ${hemi}` : ''}`;
 }
+
+/**
+ * The compass point for a bearing, sixteen of them: "ESE" for 112.
+ *
+ * Sixteen rather than eight because the readout is for pointing a tracker,
+ * and "SE" covers forty-five degrees of sky. Each point owns 22.5 degrees
+ * centred on itself, so 348.75 is already N again.
+ */
+const POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+export function compassPoint(deg) {
+  const d = ((deg % 360) + 360) % 360;
+  return POINTS[Math.round(d / 22.5) % 16];
+}
