@@ -144,8 +144,8 @@ HAND-MATCHED, WHERE THE DRAWING'S PROPORTIONS ARE NOT THE SKY'S
     that grew to reach its stars keeps its resolution.
 
     Every match prints how far it stretched any part of the drawing, and
-    MAX_STRETCH refuses one that asks too much. Eight of the twenty-five
-    are matched; the other seventeen already sit on their stars -- checked
+    MAX_STRETCH refuses one that asks too much. Nine of the twenty-five
+    are matched; the other sixteen already sit on their stars -- checked
     one by one against the stars the app draws lines between, by anatomy
     as well as by number, because a star correctly inside an outlined body
     counts as far from ink and would fool the number alone.
