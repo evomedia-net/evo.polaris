@@ -47,17 +47,20 @@ test('the Polaris star-hop ships: the Big Dipper, the Little Dipper and Cassiope
     'rows are matched by image name, not by the abbreviation column');
 });
 
-test('twenty-five figures, each once, in a five-by-five atlas', () => {
+test('twenty-six figures, each once, in an atlas five across and six down', () => {
   // "it's a bit crowded" -- the zodiac and the figures a beginner's chart
-  // names first, and no more. Twenty-five because Night Mode tints a copy
-  // of the atlas on a canvas the same size, 4096 x 4096 is the largest
-  // canvas every phone will make, and 768 px tiles fit that five by five.
-  assert.equal(FIGURES.length, 25);
-  assert.equal(new Set(abbrs).size, 25, 'no figure twice');
+  // names first, and no more; then Draco, "the art work is really cool",
+  // which coils round the Little Dipper and is up whenever Polaris is.
+  // Night Mode tints a copy of the atlas on a canvas the same size, 4096 x
+  // 4096 is the largest canvas every phone will make, and twenty-six do not
+  // fit five by five at 768 px. At 680 px, five by six is 3400 x 4080.
+  assert.equal(FIGURES.length, 26);
+  assert.equal(new Set(abbrs).size, 26, 'no figure twice');
+  assert.ok(abbrs.includes('Dra'), 'Draco ships');
   assert.equal(FIGURE_COLS, 5);
-  assert.equal(FIGURE_TILE, 768);
-  assert.equal(new Set(FIGURES.map((f) => f.i)).size, 25, 'no two figures share a tile');
-  for (const f of FIGURES) assert.ok(f.i >= 0 && f.i < 25, `${f.a} tile ${f.i} is off the atlas`);
+  assert.equal(FIGURE_TILE, 680);
+  assert.equal(new Set(FIGURES.map((f) => f.i)).size, 26, 'no two figures share a tile');
+  for (const f of FIGURES) assert.ok(f.i >= 0 && f.i < 30, `${f.a} tile ${f.i} is off the atlas`);
 });
 
 // --- the atlas and the code that indexes it -------------------------------------------
@@ -94,7 +97,7 @@ test('the atlas ships, is precached, and is small enough to be', () => {
   const f = fileURLToPath(new URL('src/data/figures.webp', root));
   const kb = statSync(f).size / 1024;
   assert.ok(kb > 100, 'the atlas is missing or empty');
-  assert.ok(kb < 700, `${kb.toFixed(0)} KB is too much to precache for twenty-five drawings`);
+  assert.ok(kb < 700, `${kb.toFixed(0)} KB is too much to precache for twenty-six drawings`);
   assert.match(sw, /'\.\/src\/data\/figures\.webp'/, 'the atlas must be in the precache list');
   assert.match(sw, /'\.\/src\/data\/figures\.js'/, 'and the placements');
   assert.match(sw, /'\.\/src\/constellation-art\.js'/, 'and the module that draws them');

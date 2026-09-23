@@ -33,15 +33,21 @@ WHICH FIGURES, AND WHY NOT ALL OF THEM
     Hedberg drew all 88. Shipping 84 of them read as "a bit crowded": at a
     wide field a dozen figures lie over the stars a person is trying to
     recognise, and most of those figures are ones nobody recognises. So the
-    app ships the ones people know -- the twelve of the zodiac, and thirteen
-    more that a beginner's chart names first, the three of the Polaris
-    star-hop above all, since finding Polaris is what this app is for. The
-    two lists are just below; a figure joins or leaves by editing them.
+    app ships the ones people know -- the twelve of the zodiac, and
+    fourteen more that a beginner's chart names first, the three of the
+    Polaris star-hop above all, since finding Polaris is what this app is
+    for. Draco joined them on its own merits: it coils round the Little
+    Dipper, so it is on screen whenever Polaris is, and "the art work is
+    really cool". The two lists are just below; a figure joins or leaves by
+    editing them.
 
-    Twenty-five is not a round number by accident. Night Mode tints a copy
-    of the atlas on a canvas the same size, and 4096 x 4096 is the largest
-    canvas every phone this app runs on will make. At 768 px a tile that is
-    five tiles by five, and five by five is twenty-five.
+    THE ATLAS HAS A CEILING. Night Mode tints a copy of the atlas on a
+    canvas the same size, and 4096 x 4096 is the largest canvas every phone
+    this app runs on will make. Twenty-five figures fitted five by five at
+    768 px a tile; a twenty-sixth does not. At 680 px a tile, five across
+    and six down is 3400 x 4080 -- inside the ceiling, with room for four
+    more -- for a tile 11% smaller along each side, which the crop to the
+    ink more than pays for.
 
 URSA MAJOR, WHICH NEVER SHIPPED
 
@@ -144,8 +150,8 @@ HAND-MATCHED, WHERE THE DRAWING'S PROPORTIONS ARE NOT THE SKY'S
     that grew to reach its stars keeps its resolution.
 
     Every match prints how far it stretched any part of the drawing, and
-    MAX_STRETCH refuses one that asks too much. Fourteen of the twenty-five
-    are matched; the other eleven already sit on their stars -- checked
+    MAX_STRETCH refuses one that asks too much. Seventeen of the twenty-six
+    are matched; the other nine already sit on their stars -- checked
     one by one against the stars the app draws lines between, by anatomy
     as well as by number, because a star correctly inside an outlined body
     counts as far from ink and would fool the number alone.
@@ -186,24 +192,26 @@ MANIFEST = ("http://data.openspaceproject.com/request"
 
 # The twelve of the zodiac, in their traditional order.
 ZODIAC = ["Ari", "Tau", "Gem", "Cnc", "Leo", "Vir", "Lib", "Sco", "Sgr", "Cap", "Aqr", "Psc"]
-# Thirteen a beginner's chart names first. The first three are the Polaris
+# Fourteen a beginner's chart names first. The first three are the Polaris
 # star-hop and are not negotiable. Cygnus, Lyra and Aquila are the Summer
 # Triangle and travel together, as do Perseus, Andromeda and Pegasus in the
-# autumn; Crux is the figure the southern half of the world knows best.
+# autumn; Crux is the figure the southern half of the world knows best, and
+# Draco coils round the Little Dipper, so it is up whenever Polaris is.
 KNOWN = ["UMa", "UMi", "Cas", "Ori", "CMa", "Boo",
-         "Cyg", "Lyr", "Aql", "Per", "And", "Peg", "Cru"]
+         "Cyg", "Lyr", "Aql", "Per", "And", "Peg", "Cru", "Dra"]
 SELECTED = ZODIAC + KNOWN
 
-# 768 px tiles, cropped to the ink, in a 5 x 5 atlas of 3840 x 3840: the
-# largest that stays inside the 4096 x 4096 canvas every phone will make.
-# Measured for this set, stored as brightness on black at quality 85:
-# 512 px 312 KB, 640 px 423 KB, 768 px 534 KB, 1024 px 784 KB. Against the
-# old 256 px tiles of whole images that is three times the pixels per
-# degree before the crop, and the crop adds between a tenth and four times
-# more on top, figure by figure: Orion went from 4 px per degree of sky to
-# 23, Lyra from 8 to 103.
-TILE = 768
+# 680 px tiles, cropped to the ink, five across and six down: 3400 x 4080,
+# inside the 4096 x 4096 canvas every phone will make, with room for thirty.
+# It was 768 in a 5 x 5 atlas until a twenty-sixth figure came; measured
+# for twenty-five, stored as brightness on black at quality 85, 512 px cost
+# 312 KB, 640 px 423 KB, 768 px 534 KB and 1024 px 784 KB. Against the old
+# 256 px tiles of whole images, cropping to the ink bought between a tenth
+# and four times the pixels per degree, figure by figure: Orion went from 4
+# px per degree of sky to about 21, Lyra from 8 to about 91.
+TILE = 680
 COLS = 5
+MAX_CANVAS = 4096   # the largest canvas every phone will make; see above
 MARGIN = 0.04       # of the ink's span, added on each side of the crop
 QUALITY = 85
 # How far a hand-match may stretch any part of a drawing before the build
@@ -479,8 +487,11 @@ def main() -> int:
     if len(SELECTED) != len(set(SELECTED)):
         print("a figure is listed twice", file=sys.stderr)
         return 1
-    if len(SELECTED) > COLS * COLS:
-        print(f"{len(SELECTED)} figures do not fit a {COLS} x {COLS} atlas", file=sys.stderr)
+    rows_needed = math.ceil(len(SELECTED) / COLS)
+    if COLS * TILE > MAX_CANVAS or rows_needed * TILE > MAX_CANVAS:
+        print(f"{len(SELECTED)} figures need a {COLS * TILE} x {rows_needed * TILE} atlas, "
+              f"larger than the {MAX_CANVAS} x {MAX_CANVAS} canvas every phone will make; "
+              "shrink TILE or drop a figure", file=sys.stderr)
         return 1
 
     # --- the stars this app already ships, to check the placement against ---

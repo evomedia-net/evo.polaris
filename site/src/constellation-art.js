@@ -1,7 +1,7 @@
 // The constellation figures, ghosted onto the sky.
 //
 // James Hedberg drew all 88 of them and placed them where they belong; the
-// app ships twenty-five -- the zodiac, and the figures a beginner's chart
+// app ships twenty-six -- the zodiac, and the figures a beginner's chart
 // names first, chosen in scripts/build-constellation-art.py -- and draws
 // them behind the stars, so the lines the app already draws stop being an
 // abstract join-the-dots and become the figure they are named for. The
@@ -221,8 +221,8 @@ export function createConstellationArt({ forceOff = false } = {}) {
   let red = null;
   // THE ATLAS AT HALF SIZE, WHICH IS WHAT MOST FRAMES ACTUALLY WANT.
   //
-  // A tile is 768 px and is usually drawn two or three hundred pixels
-  // across, so every draw asks the browser to sample a 3840 x 3840 texture
+  // A tile is 680 px and is usually drawn two or three hundred pixels
+  // across, so every draw asks the browser to sample a 3400 x 4080 texture
   // down to a fraction of itself. Measured at 1905 x 1080 with sixteen
   // figures on a wide field: 77 ms from the full atlas against 55 from a
   // half-size one, for pixels nobody can see at that scale. The full atlas
@@ -267,9 +267,10 @@ export function createConstellationArt({ forceOff = false } = {}) {
    * Tinted by a multiply with pure red, which keeps the red channel and
    * zeroes the other two exactly, in place. The earlier way -- getImageData,
    * a loop over every pixel, putImageData -- copied the whole atlas through
-   * JavaScript, and at 3840 x 3840 that copy is nearly sixty megabytes on a
-   * phone. This canvas is the same size as the atlas, which is why the atlas
-   * stays inside 4096 x 4096: the largest canvas every phone will make.
+   * JavaScript, and at an atlas this size that copy is nearly sixty
+   * megabytes on a phone. This canvas is the same size as the atlas, which
+   * is why the atlas stays inside 4096 x 4096: the largest canvas every
+   * phone will make.
    */
   function redAtlas() {
     if (red || !img) return red;
