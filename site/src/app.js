@@ -1410,6 +1410,21 @@ async function boot() {
   setInterval(render, 30000);        // Polaris moves ~0.125 dial-minutes in 30 s
 
   if ('serviceWorker' in navigator) {
+    // A DEPLOY MUST LAND ON THE FIRST RELOAD, NOT THE SECOND. The page is
+    // drawn from the old worker's cache before the browser notices a new
+    // sw.js; the new worker then installs, evicts the old cache and takes
+    // over -- and the page keeps showing what it already loaded. Reported as
+    // "perseus didn't land in 1.25": it had, and one more reload would have
+    // shown it. So when a new worker takes control of a page that already
+    // had one, the page reloads itself, once. A first visit has no previous
+    // controller and is left alone.
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let reloadedForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloadedForUpdate) return;
+      reloadedForUpdate = true;
+      window.location.reload();
+    });
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
