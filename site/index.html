@@ -209,6 +209,11 @@
         <div class="sky-readout" id="skyReadout" hidden>
           <span class="rd-row"><span class="rd-key">Az</span> <span id="rdAz">&mdash;</span></span>
           <span class="rd-row"><span class="rd-key">Alt</span> <span id="rdAlt">&mdash;</span></span>
+          <!-- HOW LONG THE PICTURE TAKES TO DRAW. Off by default and
+               remembered: it is a number for judging a change, not for
+               finding the pole. "Is it possible for us to have an FPS so we
+               know if there's a dramatic slowdown or speed up?" -->
+          <span class="rd-row" id="rdCostRow" hidden><span class="rd-key">Draw</span> <span id="rdCost">&mdash;</span></span>
         </div>
 
         <!-- TOP LEFT, FULL SCREEN ONLY: what the ring is on, and what to
@@ -332,6 +337,7 @@
           <button id="skyPlanets" class="big-btn">Hide the planets</button>
           <button id="skyMoon" class="big-btn">Hide the Moon</button>
           <button id="skyGround" class="big-btn">Hide the ground</button>
+          <button id="skyCost" class="big-btn">Show the drawing speed</button>
         </div>
       </details>
 

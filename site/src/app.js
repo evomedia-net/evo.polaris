@@ -132,6 +132,9 @@ let skyFigures = store.get('figures', true);
 // a tick and none at all per frame.
 let skyFigureCorners = [];
 let skyMilkyWay = true;
+// The drawing speed, off by default: a number for judging a change rather
+// than for finding the pole. Remembered like every other visual switch.
+let skyCost = store.get('drawcost', false);
 // The planets and the Moon are why half of this pane exists now, so both are
 // on. They are also the two things that can hide something you were looking
 // for -- the Moon is drawn larger than life -- hence the switches.
@@ -1706,8 +1709,27 @@ document.addEventListener('fullscreenchange', () => {
   }
 });
 
+// HOW LONG A FRAME TAKES, IN MILLISECONDS.
+//
+// A median of the last dozen draws, not a mean: one slow frame where the
+// browser decoded an image should not be what the number reports, and a
+// median throws it away without an average's memory of it. The frame rate
+// shown beside it is what this cost SUSTAINS -- 1000 / ms -- which is the
+// honest reading, because the app only redraws when something moved. A
+// frames-counted-per-second would read zero on a still picture.
+const drawCosts = [];
+let drawCostMs = 0;
+
+function recordDrawCost(ms) {
+  drawCosts.push(ms);
+  if (drawCosts.length > 12) drawCosts.shift();
+  const sorted = [...drawCosts].sort((a, b) => a - b);
+  drawCostMs = sorted[sorted.length >> 1];
+}
+
 function drawLiveSky() {
   if (!skyOn || !solution) return;
+  const startedAt = skyCost ? performance.now() : 0;
   if (!skyVectors) refreshSkyVectors();
   if (!skyVectors) return;
   const c = $('liveSky');
@@ -1773,6 +1795,7 @@ function drawLiveSky() {
     iss: issLook && issLook.aboveHorizon
       ? { alt: issLook.alt, az: issLook.az, sunlit: issLook.sunlit } : null,
   });
+  if (skyCost) recordDrawCost(performance.now() - startedAt);
   showReadout(painted.aimedAz, painted.aimedAlt);
 }
 
@@ -1795,6 +1818,14 @@ function showReadout(az, alt) {
   const round = ((Math.round(az) % 360) + 360) % 360;
   $('rdAz').textContent = `${round}° ${compassPoint(round)}`;
   $('rdAlt').textContent = `${Math.round(alt)}°`;
+  const costRow = $('rdCostRow');
+  if (costRow) {
+    costRow.hidden = !skyCost;
+    if (skyCost && drawCostMs > 0) {
+      $('rdCost').textContent =
+        `${drawCostMs.toFixed(1)} ms · ${Math.round(1000 / drawCostMs)} fps`;
+    }
+  }
   el.hidden = false;
 }
 
@@ -2716,6 +2747,22 @@ $('skyGround').onclick = () => {
 $('fullGround').onclick = () => $('skyGround').click();
 // Same arrangement for the artwork: one control, pressed from either place.
 $('fullFigures').onclick = () => $('skyFigures').click();
+
+function applyCostLabel() {
+  $('skyCost').textContent = skyCost
+    ? 'Hide the drawing speed' : 'Show the drawing speed';
+}
+applyCostLabel();
+$('skyCost').onclick = () => {
+  skyCost = !skyCost;
+  store.set('drawcost', skyCost);
+  applyCostLabel();
+  drawCosts.length = 0;
+  drawCostMs = 0;
+  const row = $('rdCostRow');
+  if (row) row.hidden = !skyCost;
+  drawLiveSky();
+};
 
 // The one crossing between the two panes. Finding the pole is an alignment
 // step, but the live view is the best tool for it, so the alignment side can

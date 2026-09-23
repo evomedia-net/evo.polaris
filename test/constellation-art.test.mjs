@@ -179,7 +179,8 @@ test('bright by day, dimmer by night, and both in one place', () => {
   assert.ok(n < d, 'night is dimmer than day');
   assert.ok(n / d > 0.55 && n / d < 0.75, `night is ${(n / d).toFixed(2)} of day; two thirds is the ratio`);
   assert.match(art, /globalCompositeOperation = 'lighter'/, 'additive: the art only ever lightens the sky');
-  assert.match(art, /imageSmoothingQuality = 'high'/, 'and a 768 px tile is downscaled with a real filter');
+  assert.match(art, /imageSmoothingQuality = small \? 'high' : 'low'/,
+    'a downscaled tile gets a real filter; one drawn near its own size does not need one');
 });
 
 test('the night tint keeps only red, and never copies the atlas through JavaScript', () => {
@@ -242,4 +243,86 @@ test('the build refuses a match that stretches a drawing too far', () => {
 test('the credit rides with the picture, like the Milky Way’s', () => {
   assert.equal(CREDIT, 'Figures: James Hedberg');
   assert.match(appJs, /figureCredit\.hidden = !figures;/);
+});
+
+// --- how finely a figure is subdivided --------------------------------------------------
+
+test('the subdivision follows the figure’s size on screen, not a fixed number', () => {
+  // "it suddenly seems much slower with the artwork on." A flat 4x4 is wrong
+  // in both directions: sixteen cells for a figure two hundred pixels across
+  // is fifteen wasted draws, and sixteen cells for one filling the screen
+  // leaves the art tens of pixels off the geometry it is drawn around.
+  assert.match(art, /^const CELL_TOLERANCE_PX = 4;$/m);
+  assert.match(art, /^const MIN_CELLS = 1;$/m);
+  assert.match(art, /^const MAX_CELLS = 6;$/m);
+  assert.match(art, /Math\.ceil\(span \* Math\.sqrt\(0\.031 \/ \(focal \* CELL_TOLERANCE_PX\)\)\)/,
+    'the count comes from the measured error law, not a guess');
+  assert.doesNotMatch(art, /^const CELLS = \d+;$/m, 'the fixed count is gone');
+  const draw = art.slice(art.indexOf('layer.draw = function draw'));
+  assert.match(draw, /const \{ cells, scale \} = cellsFor\(/, 'decided per figure, per frame');
+});
+
+test('a corner behind the viewer does not mean the finest subdivision', () => {
+  // THE REGRESSION THIS PREVENTS WAS MEASURED, NOT IMAGINED. The first
+  // version returned MAX_CELLS whenever a corner failed to project -- and
+  // zoomed in, most figures have one, so nearly all of them took the finest
+  // subdivision at once and the layer cost 19.5 ms where it had cost 9.2.
+  const fn = art.slice(art.indexOf('function cellsFor('), art.indexOf('function triangle('));
+  assert.doesNotMatch(fn, /if \(!q\) return \{ cells: MAX_CELLS/, 'that fallback is gone');
+  assert.match(fn, /p\.push\(q \? \[cx \+ q\.x, cy \+ q\.y\] : null\);/,
+    'a corner that will not project is simply missing');
+  assert.match(fn, /const fromSky = 2 \* focal \* Math\.tan\(Math\.min\(theta, Math\.PI \/ 3\) \/ 2\);/,
+    'the figure’s own angular span stands in, which never fails');
+  assert.match(fn, /const span = Math\.max\(across\(0, 2\), across\(1, 3\), fromSky\);/);
+});
+
+test('a cell off the edge of the screen is not drawn at all', () => {
+  // The figure as a whole was already culled, but a figure can be several
+  // times the width of the screen: zoomed in, most of its cells are outside
+  // it and each one was still a clip, a transform and a draw of the atlas.
+  const draw = art.slice(art.indexOf('layer.draw = function draw'));
+  assert.match(draw, /if \(maxX < -1 \|\| minX > w \+ 1 \|\| maxY < -1 \|\| minY > h \+ 1\) continue;/);
+});
+
+// --- the half-size atlas ----------------------------------------------------------------
+
+test('a figure drawn small takes the half-size atlas, and a large one does not', () => {
+  // Measured at 1905 x 1080 with sixteen figures on a wide field: 77 ms
+  // from the full 3840 px atlas, 55 from a half-size copy, for pixels no
+  // one can see at that scale.
+  assert.match(art, /^const SMALL_SCALE = 0\.5;$/m);
+  const draw = art.slice(art.indexOf('layer.draw = function draw'));
+  assert.match(draw, /const small = scale < SMALL_SCALE;/);
+  assert.match(draw, /const sheetNow = small && !night && mip \? mip : sheet;/,
+    'Night Mode keeps the full tinted atlas');
+  assert.match(draw, /const shrink = sheetNow === mip \? 0\.5 : 1;/,
+    'and the source coordinates follow the atlas that is actually being read');
+  assert.match(draw, /\(sx \+ \(ix \/ cells\) \* FIGURE_TILE\) \* shrink/);
+});
+
+test('the half-size atlas is built once, and never at the cost of drawing at all', () => {
+  // An optimisation that throws is worse than no optimisation.
+  const load = art.slice(art.indexOf('el.onload'), art.indexOf('el.onerror'));
+  assert.match(load, /c\.width = Math\.max\(1, img\.width >> 1\);/);
+  assert.match(load, /catch \{ mip = null; \}/);
+  assert.match(art, /^  let mip = null;$/m);
+});
+
+// --- levels of detail -------------------------------------------------------------------
+
+test('wide fields paint the layer smaller and scale it up once, in two steps', () => {
+  // "The wider the field of view, the lower the resolution, and you
+  // wouldn't notice near as much." Measured at 1905 x 1080 on a 90-degree
+  // field: 31 ms at full size, 21 at four fifths, 21 at half -- so four
+  // fifths first, and half only past a hundred degrees.
+  assert.match(art, /^const LOD_STEPS = \[$/m);
+  assert.match(art, /\{ focal: 0\.40, scale: 0\.6 \}/, 'past about 100 degrees');
+  assert.match(art, /\{ focal: 0\.65, scale: 0\.8 \}/, 'past about 75');
+  const draw = art.slice(art.indexOf('layer.draw = function draw'), art.indexOf('function paint('));
+  assert.match(draw, /LOD_STEPS\.find\(\(l\) => focal < l\.focal \* w\)/, 'chosen from the focal length');
+  assert.match(draw, /noScale: true, focal: focal \* s, cx: opts\.cx \* s, cy: opts\.cy \* s, w: bw, h: bh/,
+    'the buffer is the same view at a smaller size');
+  assert.match(draw, /target\.drawImage\(buffer, 0, 0, bw, bh, 0, 0, w, h\);/, 'scaled up in one draw');
+  assert.match(draw, /if \(step\) \{/);
+  assert.doesNotMatch(draw, /if \(focal < HALF_RES/, 'the single half-size step is gone');
 });
