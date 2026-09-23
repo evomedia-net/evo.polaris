@@ -76,7 +76,32 @@ let roll = null;             // gamma
 let rawAlpha = null;         // alpha as reported, for the sky view's own basis
 let skyVectors = null;       // star directions, recomputed on a slow timer
 let skyOn = false;
-let skyFov = 65;
+// HOW FAR THE VIEW ZOOMS, COUNTED THE WAY IT WAS TESTED: from full zoom-in,
+// one press at a time. "+2 = pressing + button twice from full zoom in."
+//
+// The field is the canvas WIDTH, so on a phone held upright the height shows
+// far more: at 45 degrees across, about 80 degrees top to bottom.
+//
+//   * Opens at +2 (20 degrees): Polaris and its neighbourhood, not the sky.
+//   * Never wider than +7 (45 degrees). It went to 170, and past about 100 a
+//     gnomonic projection stretches the edge of the view by more than twice
+//     its middle -- "it distorts so much there should be a limit with or
+//     without art."
+//   * With the constellation art on, on a phone, never wider than +4 (30
+//     degrees). The art costs about 20 ms a frame with a dozen figures in
+//     view, and a phone feels it; a desktop draws the same frame at hundreds
+//     of frames a second, so the tighter limit is for phones only.
+//
+// Phone means a coarse primary pointer: a finger rather than a mouse. That
+// takes in tablets, which have a phone's graphics, and leaves out a laptop
+// with a touch screen, whose primary pointer is still the trackpad.
+const FOV_MIN = 10, FOV_STEP = 5;
+const FOV_START = FOV_MIN + 2 * FOV_STEP;            // +2
+const FOV_MAX = FOV_MIN + 7 * FOV_STEP;              // +7
+const FOV_MAX_ART_PHONE = FOV_MIN + 4 * FOV_STEP;    // +4
+const COARSE_POINTER = typeof matchMedia === 'function'
+  && matchMedia('(pointer: coarse)').matches;
+let skyFov = FOV_START;
 // Following the phone is the DEFAULT, because that is what anyone expects of a
 // sky view and it is the thing that makes it feel like a window rather than a
 // picture. It falls back to manual on its own when the device reports no
@@ -2718,6 +2743,10 @@ $('skyFigures').onclick = () => {
   store.set('figures', skyFigures);
   applyFiguresLabel();
   updateLegend();
+  // Turning the art on can lower the widest the view may go; a view already
+  // wider than that comes in to meet it rather than staying past the limit.
+  skyFov = Math.min(skyFov, maxFov());
+  updateZoomButtons();
   drawLiveSky();
 };
 $('skyMilky').onclick = () => {
@@ -2795,16 +2824,47 @@ $('skyMoon').onclick = () => {
   drawLiveSky();
 };
 
-// Twenty-six steps between a 10-degree field and a 140-degree one. It was six
-// steps of 15 degrees over 25-110: a jump big enough that the sky leaps rather
-// than zooms, with no way to frame one constellation.
-const FOV_MIN = 10, FOV_MAX = 170, FOV_STEP = 5;
+// Five degrees a press. It was six steps of 15 degrees over 25-110: a jump
+// big enough that the sky leaps rather than zooms, with no way to frame one
+// constellation. The limits are at the top of the file, beside skyFov.
+/** The widest the view may go right now: tighter with the art on a phone. */
+function maxFov() {
+  return skyFigures && COARSE_POINTER ? FOV_MAX_ART_PHONE : FOV_MAX;
+}
+
+/**
+ * A zoom button that has nowhere to go says so.
+ *
+ * "At zoom 1 disable the one button, at +7 the other" -- at the tightest
+ * field the buttons that zoom in look spent, and at the widest the ones that
+ * zoom out do, in full screen and in Visual Settings alike.
+ *
+ * aria-disabled, NOT disabled, and on purpose. A disabled button drops out of
+ * the tab order the moment it is disabled, so someone pressing Zoom out from
+ * the keyboard reaches the limit and finds their focus thrown back to the top
+ * of the page. aria-disabled keeps the focus where it is, still tells a screen
+ * reader the button is unavailable, and a press at the limit simply does
+ * nothing -- the handlers clamp regardless.
+ */
+function updateZoomButtons() {
+  const atMin = skyFov <= FOV_MIN;
+  const atMax = skyFov >= maxFov();
+  for (const id of ['fullIn', 'skyNarrower']) {
+    const b = $(id);
+    if (b) b.setAttribute('aria-disabled', atMin ? 'true' : 'false');
+  }
+  for (const id of ['fullOut', 'skyWider']) {
+    const b = $(id);
+    if (b) b.setAttribute('aria-disabled', atMax ? 'true' : 'false');
+  }
+}
 $('skyWider').onclick = () => {
-  skyFov = Math.min(FOV_MAX, skyFov + FOV_STEP); drawLiveSky();
+  skyFov = Math.min(maxFov(), skyFov + FOV_STEP); updateZoomButtons(); drawLiveSky();
 };
 $('skyNarrower').onclick = () => {
-  skyFov = Math.max(FOV_MIN, skyFov - FOV_STEP); drawLiveSky();
+  skyFov = Math.max(FOV_MIN, skyFov - FOV_STEP); updateZoomButtons(); drawLiveSky();
 };
+updateZoomButtons();
 // The full-screen corner buttons are the same two actions under a glyph. One
 // handler each, delegated, so the limits live in exactly one place.
 $('fullIn').onclick = () => $('skyNarrower').click();

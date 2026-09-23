@@ -619,7 +619,8 @@ details.sub-card[open] > .card-head {
 /* A control that cannot answer right now says so by looking spent, rather than
    by answering wrongly. The pan pad uses this while the phone is steering, and
    the ISS button while a future night is being planned for. */
-.big-btn:disabled, .place-btn:disabled {
+.big-btn:disabled, .place-btn:disabled,
+.big-btn[aria-disabled='true'] {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -831,7 +832,8 @@ html[data-night='on'] .live-sky canvas { background: #000; }
 @supports (backdrop-filter: blur(3px)) {
   .map-btn { backdrop-filter: blur(3px); }
 }
-.map-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.map-btn:disabled,
+.map-btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
 /* Night mode: still a plate, still red, still nothing filled brightly. */
 html[data-night='on'] .map-btn {
   color: var(--ink);

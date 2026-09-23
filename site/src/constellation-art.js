@@ -88,6 +88,12 @@ const SMALL_SCALE = 0.5;
 //
 // Zoomed in, none of this applies: a figure fills the screen, every line is
 // worth its pixels, and the layer is cheap anyway.
+//
+// IDLE AT THE CURRENT ZOOM LIMIT, AND KEPT. The app now stops at a 45-degree
+// field (app.js, FOV_MAX), well short of the 75 where the first step begins,
+// so neither step fires. They stay because they cost nothing when idle and
+// the limit is a number that may be raised again after testing in the field;
+// a limit raised without them would bring the slowdown straight back.
 const LOD_STEPS = [
   { focal: 0.40, scale: 0.6 },       // wider than about 100 degrees
   { focal: 0.65, scale: 0.8 },       // wider than about 75
