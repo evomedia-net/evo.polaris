@@ -17,18 +17,20 @@ const NAMED = new Map([
 const CARDINALS = [[0, 'N'], [45, 'NE'], [90, 'E'], [135, 'SE'],
                    [180, 'S'], [225, 'SW'], [270, 'W'], [315, 'NW']];
 
-// HOW FAR DOWN A BODY CAN BE AND STILL BE PAINTED.
+// WHERE THE MOON'S CAPTION STARTS SAYING IT IS BELOW THE HORIZON.
 //
-// Exported because the app has to say the same thing in words that this file
-// says in pixels. Reported as "moon is gone": the Moon was 57 degrees under
-// the ground, so it was correctly not drawn -- but the app still let you
-// target it, travelled the view to it, ringed it and captioned it "Moon",
-// with nothing inside the ring and not a word about why. A ring around
-// nothing is the app looking broken while it is in fact being accurate.
+// It was the height the Moon had to be to be painted at all, from the days
+// of the solid ground. Reported first as "moon is gone": 57 degrees under the
+// ground, correctly not drawn, and ringed and captioned "Moon" over an empty
+// circle -- which was fixed by saying why. Then the ground became see-through
+// and the planets came back through it, and the Moon did not: "The moon is
+// not showing", 30 degrees under the eastern horizon, two hours before it
+// rose. The Moon is now painted wherever it is, like the planets.
 //
-// The Moon gets a degree of slack because refraction genuinely lifts it into
-// view when it is geometrically just below.
-export const MOON_MIN_ALT = -1;
+// Exported because the app has to say the same thing in words. The degree of
+// slack is refraction, which genuinely lifts the Moon into view when it is
+// geometrically just below.
+export const MOON_SET_ALT = -1;
 // A PLANET IS PAINTED WHEREVER IT IS. It was gated at the horizon like the
 // Moon, back when the ground was a solid fill. Then the ground became a
 // see-through wireframe whose whole point was to show where a set planet
@@ -375,7 +377,10 @@ export function drawSkyView(ctx, o) {
   // phase from at all. It gets a floor of h/20 instead, the way a chart
   // exaggerates a symbol it needs you to recognise. Its POSITION is exact; its
   // size is not, and the caption says so rather than leaving it to be noticed.
-  if (o.moon && o.moon.alt > MOON_MIN_ALT) {
+  //
+  // No altitude gate, the same as the planets: a Moon below the horizon is
+  // drawn under the wireframe ground. See MOON_SET_ALT.
+  if (o.moon) {
     const q = projectToScreen(o.moon.v, basis, focal);
     if (q) {
       const x = cx + q.x, y = cy + q.y;
@@ -762,10 +767,10 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed,
     const q = projectToScreen(o.sun.v, basis, focal);
     if (q) claim('Sun', cx + q.x + Math.max(ref / 22, 8) + 5, cy + q.y, Math.round(ref / 32));
   }
-  // THE SAME GATE THE MOON IS DRAWN BY. This had none, so with the Moon under
-  // the ground the layout still shoved other labels aside to keep room for a
-  // word that was never painted.
-  if (o.moon && o.moon.alt > MOON_MIN_ALT) {
+  // THE SAME RULE THE MOON IS DRAWN BY, which is now no altitude gate at all.
+  // This once reserved room for a word the painter never drew; the two have
+  // to change together, or they drift apart again.
+  if (o.moon) {
     const q = projectToScreen(o.moon.v, basis, focal);
     if (q) {
       const x = cx + q.x, y = cy + q.y;

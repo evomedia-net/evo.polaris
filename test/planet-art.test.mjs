@@ -111,7 +111,7 @@ test('the phase and the lit side come from one implementation, not two', () => {
   // the same function -- two copies would be two chances to get the
   // handedness backwards, and only one of them would ever be caught.
   assert.match(skydraw, /export function limbAngleOnScreen\(body, q, basis, focal\)/);
-  const moon = skydraw.slice(skydraw.indexOf('if (o.moon && o.moon.alt'), skydraw.indexOf('moonFace(ctx'));
+  const moon = skydraw.slice(skydraw.indexOf('if (o.moon) {'), skydraw.indexOf('moonFace(ctx'));
   assert.match(moon, /limbAngleOnScreen\(o\.moon, q, basis, focal\)/, 'the Moon uses it');
   const loop = skydraw.slice(skydraw.indexOf('if (o.planets) {'), skydraw.indexOf('if (o.moon'));
   assert.match(loop, /limbAngleOnScreen\(p, q, basis, focal\)/, 'and so do the planets');

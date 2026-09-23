@@ -79,6 +79,39 @@ export function vectorToAltAz(v) {
   };
 }
 
+/**
+ * Which way a body below the horizon is going: 'rising', 'set' or 'never'.
+ *
+ * "Moon -- has set" was the caption on a Moon 30 degrees under the EASTERN
+ * horizon, two hours before it rose. Below the horizon there are two opposite
+ * pieces of news, and the app only had words for one of them.
+ *
+ * EVERYTHING TURNS WESTWARD, so the side of the sky says which. Altitude
+ * changes as -sin(hour angle), and azimuth is east of the meridian exactly
+ * when the hour angle is past twelve hours -- so a body under the east half
+ * of the horizon (azimuth 0 to 180) is climbing towards its rise, and one
+ * under the west half has set. That holds at every latitude, south included.
+ * A body's own motion is too slow to change the answer: the Moon, the
+ * fastest, moves half a degree an hour against the sky's fifteen.
+ *
+ * 'never' is the third answer, and the one "not risen yet" would make a lie
+ * of: a body whose highest point is itself below the horizon, like the
+ * Southern Cross from most of the north. Its declination comes back out of
+ * the altitude and azimuth, and it never rises if it is more than 90 degrees
+ * from the observer's zenith even when crossing the meridian.
+ *
+ * Only meaningful for something below the horizon; the caller decides that.
+ */
+export function belowHorizonWay(altDeg, azDeg, latDeg) {
+  const lat = latDeg * DEG, alt = altDeg * DEG, az = azDeg * DEG;
+  const sinDec = Math.sin(lat) * Math.sin(alt)
+    + Math.cos(lat) * Math.cos(alt) * Math.cos(az);
+  const dec = Math.asin(Math.max(-1, Math.min(1, sinDec))) / DEG;
+  if (Math.abs(latDeg - dec) > 90) return 'never';
+  const a = ((azDeg % 360) + 360) % 360;
+  return a > 0 && a < 180 ? 'rising' : 'set';
+}
+
 /** Focal length in pixels for a horizontal field of view across `width`. */
 export function focalLength(width, fovDeg) {
   return (width / 2) / Math.tan((fovDeg / 2) * DEG);

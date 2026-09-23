@@ -12,7 +12,7 @@ import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
   equatorialToVector,
   screenToVector, focalLength, vectorToAltAz,
-  clampAim, figureCentre,
+  clampAim, figureCentre, belowHorizonWay,
 } from './skyview.js';
 // Site chrome, not app: mounts only on evomedia.net and no-ops anywhere else.
 // Delete this import and evomedia-chrome.js to strip the branding entirely.
@@ -26,7 +26,7 @@ import {
 } from './iss.js';
 import { moonTrack, allPlanetTracks, placeTrack } from './tracks.js';
 import {
-  drawSkyView, drawMoonDisc, MOON_MIN_ALT, PLANET_SET_ALT, SUN_MIN_ALT,
+  drawSkyView, drawMoonDisc, MOON_SET_ALT, PLANET_SET_ALT, SUN_MIN_ALT,
 } from './skydraw.js';
 import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
@@ -1919,33 +1919,49 @@ function aimTarget(issLook) {
  */
 function targetLabel(t) {
   if (!t) return '';
-  return targetHasSet(t) ? `${t.name} — has set` : t.name;
+  return targetIsBelow(t) ? `${t.name} — ${belowHorizonWords(t)}` : t.name;
 }
 
 function targetIsPainted(t) {
   if (!t) return false;
-  if (guideTarget === 'moon') return t.alt > MOON_MIN_ALT;
   if (guideTarget === 'sun') return t.alt > SUN_MIN_ALT;
   // A figure is a place in the sky rather than a body, but a figure whose
   // middle is under the ground is one you cannot see either.
   if (guideTarget.startsWith('const:')) return t.alt > 0;
-  return true;                     // a planet is painted wherever it is; the
-}                                  // pole is a place, not a body; the ISS has
-                                   // said this for itself all along
+  return true;                     // a planet and the Moon are painted
+}                                  // wherever they are; the pole is a place,
+                                   // not a body; the ISS has said this for
+                                   // itself all along
 
 /**
- * Has the thing the ring is on gone below the horizon -- painted or not?
+ * Is the thing the ring is on below the horizon -- painted or not?
  *
- * "has set" is a fact about the sky, and it stayed true when the planets
- * started being drawn under the wireframe ground. What changed is that a set
- * planet is no longer an empty ring, so the two questions had to come apart:
- * the caption asks this one, the status line asks targetIsPainted() before
- * it says the ring is empty.
+ * Being below is a fact about the sky, and it stayed true when the planets
+ * and then the Moon started being drawn under the wireframe ground. What
+ * changed is that they are no longer an empty ring, so the two questions had
+ * to come apart: the caption asks this one, the status line asks
+ * targetIsPainted() before it says the ring is empty.
  */
-function targetHasSet(t) {
+function targetIsBelow(t) {
   if (!t) return false;
   if (PLANET_NAMES.includes(guideTarget)) return t.alt <= PLANET_SET_ALT;
+  if (guideTarget === 'moon') return t.alt <= MOON_SET_ALT;
   return !targetIsPainted(t);
+}
+
+/**
+ * What to say about a target below the horizon, as the end of "it ...".
+ *
+ * "has set" was the only answer, and it was said of a Moon two hours before
+ * it rose. Rising or set is which side of the sky it is under; see
+ * belowHorizonWay. The same words go on the map beside the ring and in the
+ * status line, so the app says one thing.
+ */
+function belowHorizonWords(t) {
+  const way = site ? belowHorizonWay(t.alt, t.az, site.lat) : 'set';
+  if (way === 'rising') return 'has not risen yet';
+  if (way === 'never') return 'never rises from here';
+  return 'has set';
 }
 
 function aimAtPole() {
@@ -1984,15 +2000,16 @@ function updateSkyMode() {
     $('skyTarget').textContent =
       `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, so the ring is empty and '
-      + 'the arrow points down at it. It is not missing; it has set.';
-  } else if (ringOn && targetHasSet(ringOn)) {
-    // A set planet IS painted -- that is what the see-through ground is for
-    // -- so the ring is not empty, and these words must not say it is.
+      + `the arrow points down at it. It is not missing; it ${belowHorizonWords(ringOn)}.`;
+  } else if (ringOn && targetIsBelow(ringOn)) {
+    // A planet or the Moon below the horizon IS painted -- that is what the
+    // see-through ground is for -- so the ring is not empty, and these words
+    // must not say it is.
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
     $('skyTarget').textContent =
       `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, drawn through the '
-      + 'wireframe, and the arrow points down at it. It has set.';
+      + `wireframe, and the arrow points down at it. It ${belowHorizonWords(ringOn)}.`;
   } else {
     $('skyTarget').textContent = '';
   }

@@ -130,8 +130,9 @@ test('the map label names the target, and says when it has set', () => {
   const label = appJs.slice(appJs.indexOf('function targetLabel('),
     appJs.indexOf('function targetIsPainted('));
   assert.match(label, /if \(!t\) return '';/, 'no target means no label');
-  assert.match(label, /targetHasSet\(t\) \? `\$\{t\.name\} — has set` : t\.name/);
-  assert.match(label, /has set/);
+  assert.match(label, /targetIsBelow\(t\) \? `\$\{t\.name\} — \$\{belowHorizonWords\(t\)\}` : t\.name/);
+  // "has set", or "has not risen yet" on the east side -- see below-horizon.
+  assert.match(appJs, /return 'has set';/);
   assert.match(appJs, /targetName: targetLabel\(target\),/,
     'and the map label is where that wording goes');
 });
