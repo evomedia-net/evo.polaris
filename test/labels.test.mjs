@@ -181,6 +181,7 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['compassBtn', 'Turn on the compass', 'Turn off the compass'],
     ['skyConst', 'Show the constellations', 'Hide the constellations'],
     ['skyMilky', 'Show the Milky Way', 'Hide the Milky Way'],
+    ['skyStarGlow', 'Show the star glow', 'Hide the star glow'],
     ['skyPlanets', 'Show the planets', 'Hide the planets'],
     ['skyMoon', 'Show the Moon', 'Hide the Moon'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],

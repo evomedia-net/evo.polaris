@@ -32,6 +32,7 @@ import { CONSTELLATIONS } from './data/constellations.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
 import { createPlanetArt, CREDIT as PLANET_CREDIT } from './planet-art.js';
 import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation-art.js';
+import { createStarGlow } from './starglow.js';
 import { FIGURES } from './data/figures.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import { nextStop } from './walk.js';
@@ -195,6 +196,11 @@ const figureArt = createConstellationArt({
   forceOff: new URLSearchParams(location.search).get('nofig') === '1',
 });
 figureArt.ready.then(() => { updateLegend(); if (skyOn) drawLiveSky(); });
+// The bright stars as a glow with crossed spikes rather than a flat disc.
+// Nothing to load -- the sprites are drawn on a canvas the first time a star
+// of that colour is on screen -- so there is no ready() to wait on.
+const starGlow = createStarGlow();
+let skyStarGlow = store.get('starglow', true);
 let galactic = null;
 milkyLayer.ready.then(() => {
   // Which renderer took the picture, on the root element -- so a test in a
@@ -1884,6 +1890,7 @@ function drawLiveSky() {
                * Math.min(window.devicePixelRatio || 1, 2)) / 28,
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
+    starGlow: skyStarGlow ? starGlow : null,
     figureArt: skyFigures && figureArt.mode === 'figures' ? figureArt : null,
     figures: skyFigureCorners,
     milkyWay: skyMilkyWay ? milkyWay : null,
@@ -2899,6 +2906,21 @@ $('skyFigures').onclick = () => {
   // wider than that comes in to meet it rather than staying past the limit.
   skyFov = Math.min(skyFov, maxFov());
   updateZoomButtons();
+  drawLiveSky();
+};
+// THE BRIGHT STARS, DRAWN AS LIGHT. On by default: it is what the sky looks
+// like, and the brightness ordering it carries is how you tell one star from
+// another. Off is for anyone who wants the plain chart.
+function applyStarGlowLabel() {
+  $('skyStarGlow').textContent = skyStarGlow
+    ? 'Hide the star glow' : 'Show the star glow';
+}
+applyStarGlowLabel();
+
+$('skyStarGlow').onclick = () => {
+  skyStarGlow = !skyStarGlow;
+  store.set('starglow', skyStarGlow);
+  applyStarGlowLabel();
   drawLiveSky();
 };
 $('skyMilky').onclick = () => {

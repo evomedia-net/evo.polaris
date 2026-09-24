@@ -4,6 +4,7 @@ import {
   deviceBasis, basisFromAim, applyScreenAngle, altAzToVector, vectorToAltAz,
   focalLength, projectToScreen, starRadius, starColour,
 } from './skyview.js';
+import { GLOW_MAX_MAG } from './starglow.js';
 import { CONSTELLATIONS } from './data/constellations.js';
 
 const NAMED = new Map([
@@ -211,34 +212,64 @@ export function drawSkyView(ctx, o) {
     ctx.restore();
   }
 
-  // Stars.
-  let labelled = 0;
+  // STARS, IN THREE PASSES.
+  //
+  // It was one: project, fill a disc, maybe write a name. The glow forced the
+  // split, and the reason is the composite. A glow is drawn with 'lighter' so
+  // two stars close together add up instead of one painting over the other --
+  // and 'lighter' would do the same to the labels, which must stay legible
+  // ink over whatever is behind them. Setting and clearing it per star is one
+  // save/restore per star for a flag that only two dozen of them need.
+  //
+  // So: gather what is on screen, glow the bright ones under one composite,
+  // dot the rest, then the names on top of both.
+  const shown = [];
   for (const s of sky) {
     const p = projectToScreen(s.v, basis, focal);
     if (!p) continue;
     const x = cx + p.x, y = cy + p.y;
     if (x < -8 || x > w + 8 || y < -8 || y > h + 8) continue;
-    const r = starRadius(s.mag);
-    ctx.fillStyle = starColour(s.bv, night);
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    shown.push({ s, x, y, r: starRadius(s.mag) });
+  }
 
-    // Name only the bright, well-known ones, and only a few: a sky full of
-    // labels is unreadable exactly when you are trying to find one thing.
-    //
-    // NOT THE ONE THE RING IS ON. The ring already names its target, in
-    // bigger type, right above it; a second "Polaris" beside the dot is the
-    // same duplicate the planets and paths were cured of. The slot goes to
-    // the next star instead.
-    if (labelled < 7 && s.mag < 2.6 && NAMED.has(s.hr) && NAMED.get(s.hr) !== ringName) {
-      labelled += 1;
-      ctx.fillStyle = dim;
-      ctx.font = `500 ${Math.round(ref / 34)}px system-ui, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(NAMED.get(s.hr), x + r + 5, y);
-      ctx.textAlign = 'center';
+  if (o.starGlow) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const t of shown) {
+      if (t.s.mag >= GLOW_MAX_MAG) continue;
+      o.starGlow.draw(ctx, t.x, t.y, t.r, starColour(t.s.bv, night), t.s.hr, night);
     }
+    ctx.restore();
+  }
+
+  for (const t of shown) {
+    // A star that got a glow already has its core drawn, and brighter than a
+    // disc could be. Painting the disc on top of it would flatten the middle.
+    if (o.starGlow && t.s.mag < GLOW_MAX_MAG) continue;
+    ctx.fillStyle = starColour(t.s.bv, night);
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Name only the bright, well-known ones, and only a few: a sky full of
+  // labels is unreadable exactly when you are trying to find one thing.
+  //
+  // NOT THE ONE THE RING IS ON. The ring already names its target, in
+  // bigger type, right above it; a second "Polaris" beside the dot is the
+  // same duplicate the planets and paths were cured of. The slot goes to
+  // the next star instead.
+  let labelled = 0;
+  for (const t of shown) {
+    const s = t.s;
+    if (labelled >= 7) break;
+    if (!(s.mag < 2.6 && NAMED.has(s.hr) && NAMED.get(s.hr) !== ringName)) continue;
+    labelled += 1;
+    ctx.fillStyle = dim;
+    ctx.font = `500 ${Math.round(ref / 34)}px system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(NAMED.get(s.hr), t.x + t.r + 5, t.y);
+    ctx.textAlign = 'center';
   }
 
   // Paths. Drawn after the constellation figures and before the stars, so a
