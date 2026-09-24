@@ -26,7 +26,11 @@
   --accent-ink: #062b18;
   --warn: #ffb454;
   --focus: #79b8ff;
+  --base: 17px;               /* the root size at the normal setting */
   --tap: 3.4rem;              /* minimum touch target */
+  /* --tap at the normal setting, and it stays there: the sizing pair is the
+     one thing on the page that must not grow with the setting it sets. */
+  --tap-lock: calc(3.4 * var(--base));
 }
 
 html[data-night='on'] {
@@ -73,7 +77,7 @@ html[data-night='on'] {
 [hidden] { display: none !important; }
 
 html {
-  font-size: calc(17px * var(--scale));
+  font-size: calc(var(--base) * var(--scale));
   -webkit-text-size-adjust: 100%;
 }
 
@@ -296,16 +300,36 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
  *
  * Wrapping costs a taller header and owes nothing sideways. See .bar.unpinned
  * for the other half: a tall header must not also be a stuck one. */
+/* TWO COLUMNS, AND THE RIGHT ONE NEVER MOVES.
+ *
+ * It was one wrapping flex row. The wordmark and the action buttons all grow
+ * with the setting, so as they grew they re-wrapped and everything in the row
+ * shifted -- including the two buttons doing the growing. A grid gives the
+ * sizing pair a column of its own whose width is fixed in px and whose right
+ * edge is the bar's own: the pair sits at the top-right corner at every
+ * setting, and the wordmark and the actions stack down the left column and
+ * wrap within it instead of around it.
+ *
+ * minmax(0, 1fr) rather than 1fr, or the left column takes its floor from the
+ * widest button in it and pushes the bar wider than the phone -- which is the
+ * overflow #48 was about, in a grid. */
 .bar {
   position: sticky;
   top: 0;
   z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand  sizing"
+    "actions sizing";
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
+  /* The inset is in px, not rem, for the same reason the sizing pair is: rem
+     here IS the setting, so a growing inset walked the pair's corner inwards
+     and downwards about 9px across the range. Fixed, the corner is the same
+     corner at every size -- and the bar keeps a little more of a small screen
+     for the app at the sizes where that matters most. */
+  padding: calc(0.6 * var(--base)) calc(0.9 * var(--base));
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
@@ -323,6 +347,7 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
 .bar.unpinned { position: static; }
 
 .bar h1 {
+  grid-area: brand;
   margin: 0;
   /* Let the wordmark give up width before the row does. */
   min-width: 0;
@@ -337,6 +362,7 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
    get to be smaller because the label got longer. Right-aligned so the ragged
    row sits under the ones above it instead of drifting left. */
 .bar-actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -372,6 +398,43 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
   border-color: var(--accent);
 }
 
+/* A− AND A+ ARE THE ONE PAIR THAT MUST NEVER MOVE OR CHANGE SIZE.
+ *
+ * "The buttons to change the button size jump all over the place when
+ * enlarging ... they should try to stay locked as well as they get bigger."
+ * Everything on this page is sized in rem, and rem here IS the setting -- the
+ * root font-size is 17px times it. So these two were sized by the number they
+ * change: a press made the button under the finger a different size, the bar
+ * re-wrapped around it, and the next press landed on empty space. For someone
+ * with limited mobility that is the worst target on the page, and it is the
+ * one you reach for when the screen is already hard to use.
+ *
+ * So they are sized from --base, which is px and does not move, and they live
+ * in the grid's right-hand column anchored to the top. Same size, same place,
+ * at every setting.
+ *
+ * evo.ablecamera reached the same rule from the same report (its #161) and
+ * states it the same way: "one base locked size". */
+.sizing {
+  grid-area: sizing;
+  align-self: start;
+  display: flex;
+  flex: 0 0 auto;
+  gap: calc(0.4 * var(--base));
+}
+.sizing .icon-btn {
+  min-width: var(--tap-lock);
+  min-height: var(--tap-lock);
+  padding: 0 calc(0.7 * var(--base));
+  font-size: var(--base);
+  border-radius: calc(0.7 * var(--base));
+}
+/* The end of the ladder, in the same ink as every other spent button. */
+.icon-btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
 
 /* Where you are, once it is known.
@@ -403,6 +466,15 @@ main { max-width: 34rem; margin: 0 auto; padding: 0 0.9rem; }
   color: var(--ink-dim);
 }
 .place-where { font-weight: 650; font-size: 1rem; white-space: nowrap; }
+/* Sunrise and sunset, under the coordinates. Quieter than the numbers above
+   it: it answers a different question and must not compete with the one the
+   line is named for. */
+.place-sun {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
 /* Planning a night that is not tonight. These are real mount numbers for a
    date that is not today, so the bar has to be unmistakable at a glance --
    not a subtle difference someone has to go looking for. */
@@ -854,28 +926,66 @@ html[data-night='on'] .map-btn {
  * and a plate that quietly ate a tap meant for the map would be a bug that
  * only ever showed up outdoors in the dark.
  */
+/* WINDOWED IT IS A KEY UNDER THE PICTURE; FULL SCREEN IT IS A PLATE ON IT.
+ *
+ * "When I make the buttons really large, the screen starts to overlap." It
+ * did -- and it had been overlapping at every size, including the default, so
+ * raising the text only made a standing bug obvious.
+ *
+ * The arithmetic is not close. The windowed canvas is 3:2, so on a 375px
+ * phone it is about 270x180. The key is six rows of text: 167x149 at the
+ * normal size and 268x238 at the largest, which is TALLER THAN THE CANVAS.
+ * Three plates -- the key, the Az/Alt readout and Fill the screen -- cannot
+ * share a box that size at any setting, and no cap on the text makes them.
+ *
+ * So windowed it leaves the picture and becomes what it always was: a key
+ * under a figure. It wraps to the width it has, it covers nothing, and it is
+ * easier to read for not being translucent over a star field. It also sits
+ * OUTSIDE the picture box in the markup, because that box is what the on-map
+ * controls are positioned against -- left in flow inside it, the key made the
+ * box taller and the controls followed the box down onto the key.
+ *
+ * THE LICENCE IS SATISFIED, and it is why this is a change of place rather
+ * than a removal. ESO's terms are that the credit "cannot be hidden or
+ * separated from the image"; directly beneath the picture, inside the same
+ * figure, beside the longer form that has always been there, is not separated
+ * from it. */
 .sky-legend {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  pointer-events: none;
+}
+
+/* Full screen the picture IS the screen, there is room in the corner, and the
+   plate goes back on it. Positioned against .live-sky.full, which is fixed to
+   the viewport -- the picture box fills that same box, so this is the corner
+   it always was. */
+.live-sky.full .sky-legend {
   position: absolute;
   top: max(0.6rem, env(safe-area-inset-top));
   right: max(0.6rem, env(safe-area-inset-right));
   z-index: 2;
-  display: grid;
-  gap: 0.2rem;
   margin: 0;
   padding: 0.4rem 0.6rem;
-  list-style: none;
-  font-size: 0.8rem;
-  font-weight: 600;
   color: #f2f5fa;
   background: rgba(10, 14, 24, 0.72);
   border: 1px solid rgba(232, 236, 244, 0.45);
   border-radius: 0.9rem;
   box-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
 }
 @supports (backdrop-filter: blur(3px)) {
-  .sky-legend { backdrop-filter: blur(3px); }
+  .live-sky.full .sky-legend { backdrop-filter: blur(3px); }
 }
+
+/* Windowed the rows may wrap; on the plate they never do. */
+.live-sky:not(.full) .leg-row { white-space: normal; }
 .leg-row {
   display: flex;
   align-items: center;
@@ -933,6 +1043,18 @@ html[data-night='on'] .sky-legend {
   letter-spacing: 0.04em;
   opacity: 0.8;
 }
+/* WINDOWED: THE BOTTOM-LEFT CORNER, NOT THE MIDDLE.
+ *
+ * Centred, it ran straight into "Fill the screen" in the bottom-right corner
+ * -- 53px of overlap at the largest size and 8px at three settings below it,
+ * on a 375px phone. The two corners are far enough apart that neither has to
+ * give anything up, and it is the same corner the plate uses in full screen,
+ * so the numbers do not move house between the two views. */
+.live-sky:not(.full) .sky-readout {
+  left: max(0.6rem, env(safe-area-inset-left));
+  transform: none;
+}
+
 /* FULL SCREEN: ABOVE THE ARROWS, NOT BETWEEN THEM AND THE ZOOM. Bottom
    centre was tried first and on a 375px phone the plate touched the Down
    button: the pad is 10.9rem wide, the zoom column 4rem, and the gap left is
@@ -1145,7 +1267,6 @@ html[data-night='on'] .live-sky.full .full-targets button[aria-pressed='true'] {
    the top-left column (#fullMode) and this one stays under the map, behind
    the overlay, where it has always been. */
 html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
-
 
 /* Zoom and pan are full-screen only: below the canvas there are already
    full-width buttons for both, and duplicating them on a phone-sized map

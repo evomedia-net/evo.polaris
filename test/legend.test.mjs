@@ -94,11 +94,41 @@ test('the key never eats a tap meant for the map', () => {
     css.indexOf('}', css.indexOf('\n.sky-legend {')));
   assert.match(rule, /pointer-events:\s*none/,
     'a key is not a control — it must not take presses');
-  assert.match(rule, /top:/, 'the key belongs in the top corner');
-  assert.match(rule, /right:/, 'the key belongs in the RIGHT corner');
+});
+
+test('windowed the key is under the picture, and out of the picture box', () => {
+  // It was a plate on the map in both views, and on a phone it did not fit:
+  // the windowed canvas is 3:2, about 270x180 at 375px wide, and the key is
+  // six rows of text -- taller than the canvas at the largest size. It
+  // overlapped the readout and Fill the screen at EVERY size, the default
+  // included; large text only made a standing bug obvious.
+  const rule = css.slice(css.indexOf('\n.sky-legend {'),
+    css.indexOf('}', css.indexOf('\n.sky-legend {')));
+  assert.ok(!/position:\s*absolute/.test(rule), 'windowed it is in flow, under the picture');
+  assert.match(rule, /margin: 0\.5rem 0 0/, 'a gap under the picture');
+  // And it must be outside the box the on-map controls are positioned
+  // against, or it makes that box taller and they follow it down onto the key.
+  const stage = html.indexOf('<div class="sky-stage">');
+  const caption = html.indexOf('<figcaption class="caption" id="liveSkyDesc">');
+  const key = html.indexOf('id="skyLegend"');
+  assert.ok(key > stage, 'still inside the figure');
+  assert.ok(key < caption, 'above the caption');
+  const stageEnd = html.lastIndexOf('</div>', key);
+  assert.ok(stageEnd > stage && stageEnd < key,
+    'the picture box must close before the key opens');
+});
+
+test('full screen puts the key back on the picture, in the free corner', () => {
+  // There the picture IS the screen and the corner has room for it.
+  const plate = css.slice(css.indexOf('.live-sky.full .sky-legend {'),
+    css.indexOf('}', css.indexOf('.live-sky.full .sky-legend {')));
+  assert.match(plate, /position: absolute/);
+  assert.match(plate, /top:/, 'the key belongs in the top corner');
+  assert.match(plate, /right:/, 'the key belongs in the RIGHT corner');
   // Bottom right is the fill-the-screen button and the zoom; bottom left is
   // the pad; bottom centre is the mode button. Top right is the free corner.
-  assert.ok(!/bottom:/.test(rule), 'the bottom corners are already taken');
+  assert.ok(!/bottom:/.test(plate), 'the bottom corners are already taken');
+  assert.match(plate, /background: rgba\(10, 14, 24, 0\.72\)/, 'a plate, so it reads over stars');
 });
 
 test('a row appears only when its path is actually drawn', () => {

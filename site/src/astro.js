@@ -386,13 +386,86 @@ export function solarNoon(date, lonDeg) {
   return t;
 }
 
+/**
+ * Rise and set for the LOCAL DAY containing `date`, for anything that moves
+ * slowly against the stars.
+ *
+ * Walk the day in coarse steps, bracket each crossing of `h0`, bisect it down
+ * to about a second. `altitudeAt` takes a Date and gives degrees, so the
+ * caller brings its own ephemeris and its own horizon.
+ *
+ * EITHER TIME CAN BE NULL, AND THAT IS NOT AN ERROR. Inside the polar circles
+ * the Sun can stay up or stay down for months, and the Moon -- which rises
+ * about fifty minutes later each day -- skips a calendar day roughly once a
+ * month anywhere. Reporting a time for those days means inventing one, so
+ * `alwaysUp` says which side it stayed on instead: up all day and down all day
+ * are opposite pieces of news.
+ *
+ * `h0` IS NOT ZERO FOR ANYTHING REAL, and it is not the same number twice.
+ * Refraction lifts a body into view before it is geometrically there; a disc
+ * rises when its upper limb clears, not its centre; and the Moon is close
+ * enough that parallax pushes it the other way and wins. Each caller passes
+ * its own, with its own arithmetic behind it.
+ */
+export function riseSetOnDay(altitudeAt, date, h0, stepMinutes = 10) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const steps = Math.round((24 * 60) / stepMinutes);
+  const above = (t) => altitudeAt(t) >= h0;
+
+  /** Bisect a bracketed crossing down to about a second. */
+  const refine = (t0, t1) => {
+    let a = t0.getTime(), b = t1.getTime();
+    const startAbove = above(new Date(a));
+    for (let i = 0; i < 24 && b - a > 1000; i++) {
+      const mid = (a + b) / 2;
+      if (above(new Date(mid)) === startAbove) a = mid; else b = mid;
+    }
+    return new Date(Math.round((a + b) / 2));
+  };
+
+  let rise = null, set = null;
+  let prevT = start;
+  let prevAbove = above(start);
+  for (let i = 1; i <= steps; i++) {
+    const t = new Date(start.getTime() + i * stepMinutes * 60000);
+    const nowAbove = above(t);
+    if (nowAbove !== prevAbove) {
+      const when = refine(prevT, t);
+      if (nowAbove && !rise) rise = when;
+      if (!nowAbove && !set) set = when;
+    }
+    prevT = t; prevAbove = nowAbove;
+  }
+  const middayAlt = altitudeAt(new Date(start.getTime() + 12 * 3600000));
+  return { rise, set, day: start, alwaysUp: !rise && !set && middayAlt >= h0 };
+}
+
+// SUNRISE AND SUNSET ARE NOT WHEN THE CENTRE CROSSES ZERO.
+//
+// Refraction lifts the Sun about 34 arcminutes, and the disc is about 32
+// across, so the upper limb touches the horizon with the centre 50 arcminutes
+// BELOW it: the conventional -0.8333 degrees. It is the same number sunNow()
+// already calls "up", and they must not drift apart -- a Sun the readout calls
+// up while the line under the coordinates says it set is worse than neither.
+export const SUNRISE_ALT = -0.833;
+
+/** Sunrise and sunset for the local day containing `date`. */
+export function sunRiseSet(date, latDeg, lonDeg, stepMinutes = 10) {
+  const altAt = (t) => {
+    const { ra, dec } = sunPosition(t);
+    return equatorialToHorizontal(ra, dec, lstHours(julianDay(t), lonDeg), latDeg).alt;
+  };
+  return riseSetOnDay(altAt, date, SUNRISE_ALT, stepMinutes);
+}
+
 /** Where the Sun is now, and where a vertical object's shadow falls. */
 export function sunNow(date, latDeg, lonDeg) {
   const { ra, dec } = sunPosition(date);
   const { alt, az } = equatorialToHorizontal(
     ra, dec, lstHours(julianDay(date), lonDeg), latDeg,
   );
-  return { alt, az, shadowAz: (az + 180) % 360, up: alt > -0.833 };
+  return { alt, az, shadowAz: (az + 180) % 360, up: alt > SUNRISE_ALT };
 }
 
 /**

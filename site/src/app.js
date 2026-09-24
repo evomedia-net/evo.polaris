@@ -1,7 +1,7 @@
 // evo.polaris -- app wiring.
 
 import {
-  alignmentSolution, julianDay, lstHours, solarNoon, sunNow,
+  alignmentSolution, julianDay, lstHours, solarNoon, sunNow, sunRiseSet,
   equatorialToHorizontal, precessionMatrix,
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
@@ -35,6 +35,7 @@ import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation
 import { FIGURES } from './data/figures.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import { nextStop } from './walk.js';
+import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
 import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
@@ -461,12 +462,27 @@ let compassByUser = false;
 
 // --- appearance -------------------------------------------------------------
 
-let scale = store.get('scale', 1);
+// Five sizes, the normal one and four bigger; the ladder is in textsize.js.
+// What comes out of storage goes through it too: an older build offered sizes
+// this one does not, and a size the buttons cannot reach is a trap.
+let scale = clampScale(store.get('scale', SCALE_MIN));
 let night = store.get('night', false);
 
 function applyAppearance() {
   document.documentElement.style.setProperty('--scale', scale);
   document.documentElement.dataset.night = night ? 'on' : 'off';
+
+  // A sizing button at the end of the ladder looks spent, the way the zoom
+  // buttons do at their limits -- and for the same reason it is aria-disabled
+  // rather than disabled: a disabled button leaves the tab order under the
+  // finger that just pressed it, and this is the pair that must not move.
+  for (const [id, spent] of [
+    ['textSmaller', scale <= SCALE_MIN],
+    ['textBigger', scale >= SCALE_MAX],
+  ]) {
+    const b = $(id);
+    if (b) b.setAttribute('aria-disabled', spent ? 'true' : 'false');
+  }
 
   // THE LABEL IS THE ACTION, as on every other button here -- it names the
   // theme you would switch TO, never the one you are in. It used to name the
@@ -537,14 +553,13 @@ function pinHeader() {
   bar.classList.toggle('unpinned', tall);
 }
 
-$('textBigger').onclick = () => {
-  scale = Math.min(1.8, +(scale + 0.15).toFixed(2));
-  store.set('scale', scale); applyAppearance();
-};
-$('textSmaller').onclick = () => {
-  scale = Math.max(0.8, +(scale - 0.15).toFixed(2));
-  store.set('scale', scale); applyAppearance();
-};
+function setScale(v) {
+  scale = clampScale(v);
+  store.set('scale', scale);
+  applyAppearance();
+}
+$('textBigger').onclick = () => setScale(scale + SCALE_STEP);
+$('textSmaller').onclick = () => setScale(scale - SCALE_STEP);
 $('nightToggle').onclick = () => {
   night = !night; store.set('night', night); applyAppearance();
 };
@@ -584,6 +599,39 @@ function placeSummary() {
   return `${la}, ${lo}`;
 }
 
+/**
+ * Sunrise and sunset for this place, on the day being shown.
+ *
+ * "Directly below the latitude longitude numbers add: Sunrise {HH:MM} /
+ * Sunset {HH:MM}."
+ *
+ * For the day the app is ANSWERING for, not today: plan a night three weeks
+ * out and these move with it, which is the point of planning.
+ *
+ * Either can be missing and that is not an error -- inside the polar circles
+ * the Sun can stay up or stay down for months -- so those days say which,
+ * rather than printing a time nobody could use.
+ */
+function sunLine() {
+  if (!site) return '';
+  const { rise, set, alwaysUp } = sunRiseSet(appTime(), site.lat, site.lon);
+  const clock = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (!rise && !set) return alwaysUp ? 'Sun up all day' : 'Sun down all day';
+  return [
+    rise ? `Sunrise ${clock(rise)}` : 'No sunrise today',
+    set ? `Sunset ${clock(set)}` : 'No sunset today',
+  ].join(' / ');
+}
+
+/** Put it on the place line, or take the line away if there is nothing to say. */
+function showSunLine() {
+  const el = $('placeSun');
+  if (!el) return;
+  const text = sunLine();
+  el.textContent = text;
+  el.hidden = !text;
+}
+
 function setSite(next, note) {
   site = next;
   store.set('site', site);
@@ -598,6 +646,7 @@ function setSite(next, note) {
   // rather than inside one of them -- and answering it collapses the card to a
   // single line and hands the screen back to the work.
   $('placeWhere').textContent = placeSummary();
+  showSunLine();
   $('placeBar').hidden = false;
   $('placeCard').hidden = true;
   setPlaceChangeLabel(false);
@@ -662,6 +711,8 @@ function setWhenChangeLabel(open) {
 function paintWhen() {
   const planning = plannedFor !== null;
   $('whenText').textContent = planning ? longWhen(appTime()) : 'Right now';
+  // Sunrise and sunset are for the night being shown, so they move with it.
+  showSunLine();
   // A planned night has to look different from a live one at a glance. These
   // are real mount numbers and they are for a date that is not today.
   $('whenBar').classList.toggle('planning', planning);

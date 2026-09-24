@@ -49,20 +49,32 @@ test('the numbers come from the draw, so they are right in Auto Mode too', () =>
   assert.match(show, /el\.hidden = false;/, 'shown on the first paint');
 });
 
-test('the plate sits bottom centre windowed, matches the key, and lets a drag through', () => {
+test('the plate is a plate, and lets a drag through', () => {
   const b = block('.sky-readout {');
   assert.match(b, /position: absolute/);
-  assert.match(b, /left: 50%/);
   assert.match(b, /bottom: max\(0\.6rem, env\(safe-area-inset-bottom\)\)/, 'clear of the home bar');
-  assert.match(b, /translateX\(-50%\)/);
   assert.match(b, /font-variant-numeric: tabular-nums/, 'a 9 becoming a 10 must not shift the plate');
   assert.match(b, /pointer-events: none/, 'a drag that starts on the numbers is a drag on the sky');
-  // The key's own plate, so the two read as one family.
-  const key = block('.sky-legend {');
+  // The key's own plate, so the two read as one family. That plate is the
+  // full-screen one now: windowed, the key is text under the picture.
+  const key = block('.live-sky.full .sky-legend {');
   for (const prop of ['background: rgba(10, 14, 24, 0.72)', 'border-radius: 0.9rem']) {
     assert.ok(key.includes(prop) && b.includes(prop), `${prop} must match the key`);
   }
   assert.match(block("html[data-night='on'] .sky-readout {"), /color: var\(--ink\)/, 'red at night');
+});
+
+test('windowed the plate takes the bottom-LEFT corner, not the middle', () => {
+  // Centred, it ran into "Fill the screen" in the bottom-right corner: 53px
+  // of overlap at the largest size and 8px at three settings below it, on a
+  // 375px phone. Measured in a browser, both before and after.
+  const b = block('.live-sky:not(.full) .sky-readout {');
+  assert.match(b, /left: max\(0\.6rem, env\(safe-area-inset-left\)\)/);
+  assert.match(b, /transform: none/, 'no centring transform to undo the corner');
+  // The same corner full screen uses, so the numbers do not move house
+  // between the two views.
+  assert.match(block('.live-sky.full .sky-readout {'),
+    /left: max\(0\.6rem, env\(safe-area-inset-left\)\)/);
 });
 
 test('in full screen the plate sits above the arrow pad, and drops into its corner when the pad is hidden', () => {

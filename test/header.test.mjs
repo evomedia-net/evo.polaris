@@ -46,11 +46,22 @@ test('the button row wraps instead of overflowing', () => {
     '.bar-actions must wrap — without it the buttons push the page sideways');
 });
 
-test('the bar itself wraps, so the actions can drop to their own row', () => {
+test('the actions have a row of their own, under the wordmark', () => {
   // Wrapping only the inner row is not enough: at large text the wordmark and
   // the actions together still exceed the width, and the actions need a line.
-  assert.match(rule('.bar'), /flex-wrap:\s*wrap/,
-    '.bar must wrap, or the actions have nowhere to go');
+  //
+  // It was a wrapping flex row and is now a grid, because the sizing pair
+  // needed a column that does not move (see below). The two rows are explicit
+  // now rather than something wrapping produces, which is the same promise
+  // made a stronger way: the actions have their line whatever the width.
+  const bar = rule('.bar');
+  assert.match(bar, /display:\s*grid/);
+  assert.match(bar, /"brand\s+sizing"/, 'the wordmark shares row one with the sizing pair');
+  assert.match(bar, /"actions\s+sizing"/, 'and the actions get row two');
+  // minmax(0, 1fr), never a bare 1fr: a bare 1fr takes its floor from the
+  // widest button in the column and pushes the bar past the phone again,
+  // which is this file's whole subject.
+  assert.match(bar, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
 });
 
 test('the touch targets are not shrunk to buy the space', () => {

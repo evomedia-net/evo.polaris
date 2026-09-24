@@ -18,7 +18,7 @@
 // position, because it depends on the Sun-Moon angle rather than on either
 // body's exact place.
 
-import { julianDay, lstHours, equatorialToHorizontal } from './astro.js';
+import { julianDay, lstHours, equatorialToHorizontal, riseSetOnDay } from './astro.js';
 
 const DEG = Math.PI / 180;
 
@@ -217,18 +217,6 @@ function altitudeAt(t, latDeg, lonDeg) {
   return equatorialToHorizontal(m.ra, m.dec, lstHours(julianDay(t), lonDeg), latDeg).alt;
 }
 
-/** Bisect a bracketed crossing down to about a second. */
-function refine(t0, t1, latDeg, lonDeg) {
-  let a = t0.getTime(), b = t1.getTime();
-  const above = (t) => altitudeAt(new Date(t), latDeg, lonDeg) >= MOONRISE_ALT;
-  const startAbove = above(a);
-  for (let i = 0; i < 24 && b - a > 1000; i++) {
-    const mid = (a + b) / 2;
-    if (above(mid) === startAbove) a = mid; else b = mid;
-  }
-  return new Date(Math.round((a + b) / 2));
-}
-
 /**
  * Moonrise and moonset for the LOCAL DAY containing `date`.
  *
@@ -244,29 +232,13 @@ function refine(t0, t1, latDeg, lonDeg) {
  * plan a night around, not good enough to time an occultation.
  */
 export function moonRiseSet(date, latDeg, lonDeg, stepMinutes = 10) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const steps = Math.round((24 * 60) / stepMinutes);
-
-  let rise = null, set = null;
-  let prevT = start;
-  let prevAbove = altitudeAt(start, latDeg, lonDeg) >= MOONRISE_ALT;
-  for (let i = 1; i <= steps; i++) {
-    const t = new Date(start.getTime() + i * stepMinutes * 60000);
-    const nowAbove = altitudeAt(t, latDeg, lonDeg) >= MOONRISE_ALT;
-    if (nowAbove !== prevAbove) {
-      const when = refine(prevT, t, latDeg, lonDeg);
-      if (nowAbove && !rise) rise = when;
-      if (!nowAbove && !set) set = when;
-    }
-    prevT = t; prevAbove = nowAbove;
-  }
-  // Which side it stayed on, for the days when it does neither. "It does not
-  // rise today" is only half an answer: up all day and down all day are
+  // The walk and the bisection are riseSetOnDay's, shared with the Sun; what
+  // is the Moon's own is the ephemeris and MOONRISE_ALT, and those are the two
+  // things it hands over. Which side it stayed on comes back too: "it does not
+  // rise today" is only half an answer, and up all day and down all day are
   // opposite pieces of news for anyone planning a photograph.
-  const middayAlt = altitudeAt(new Date(start.getTime() + 12 * 3600000),
-    latDeg, lonDeg);
-  return { rise, set, day: start, alwaysUp: !rise && !set && middayAlt >= MOONRISE_ALT };
+  return riseSetOnDay((t) => altitudeAt(t, latDeg, lonDeg), date,
+    MOONRISE_ALT, stepMinutes);
 }
 
 /**
