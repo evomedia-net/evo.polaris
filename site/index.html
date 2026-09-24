@@ -242,6 +242,16 @@
                     aria-label="Point at the next planet out from the Sun">Planets</button>
             <button id="tgtConst" class="map-btn tgt-btn" aria-pressed="false"
                     aria-label="Point at the next constellation">Constellations</button>
+            <!-- ONLY WHAT IS UP. "it would be really nice if we had the
+                 ability to only show things that are visible in the night
+                 sky with a toggle." An action rather than a target, so it
+                 is labelled with what pressing does; the short words fit the
+                 column and the whole phrase is the accessible name. In the
+                 list, so it rolls up with the targets it changes. Only the
+                 Planets and Constellations walks: "This is only for planets
+                 and constellations." -->
+            <button id="tgtUpOnly" class="map-btn tgt-btn tgt-filter"
+                    aria-label="Skip planets and constellations below the horizon">Skip what is down</button>
           </div>
           <!-- Who is steering. It belongs up here because the bottom of a
                phone in full screen is already the pad, the zoom and the way

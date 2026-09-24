@@ -74,5 +74,7 @@ test('drawLiveSky passes null for no target, instead of reading .alt of null', (
   assert.ok(!/targetAlt: target\.alt/.test(draw), 'the dereference that froze the picture is gone');
   // And aimTarget really does answer null for none -- the case this guards.
   const at = appJs.slice(appJs.indexOf('function aimTarget('), appJs.indexOf('\n}', appJs.indexOf('function aimTarget(')));
-  assert.match(at, /if \(guideTarget === 'none'\) return null;/);
+  assert.match(at, /^function aimTarget\(issLook, what = guideTarget\) \{/,
+    'the ring\'s own target unless asked about another');
+  assert.match(at, /if \(what === 'none'\) return null;/);
 });

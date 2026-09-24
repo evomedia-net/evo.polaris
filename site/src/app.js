@@ -34,6 +34,7 @@ import { createPlanetArt, CREDIT as PLANET_CREDIT } from './planet-art.js';
 import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation-art.js';
 import { FIGURES } from './data/figures.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
+import { nextStop } from './walk.js';
 import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
@@ -342,13 +343,40 @@ let planetStep = -1;
 // button walking the list of shipped figures, in the order they are
 // shipped, then nothing, then round again. -1 is "not in the cycle".
 const CONST_KEYS = Object.keys(CONSTELLATIONS);
+const CONST_TARGETS = CONST_KEYS.map((k) => 'const:' + k);
 let constStep = -1;
+
+// ONLY WHAT IS UP.
+//
+// "When jumping through the constellations and the planets and anything like
+// that feature, it would be really nice if we had the ability to only show
+// things that are visible in the night sky with a toggle." Found out in the
+// field, where every press that lands under the ground is a press wasted.
+//
+// Off by default and remembered. When it is on, the Planets and
+// Constellations walks step over anything below the horizon. "Down" is
+// decided by the same rule the ring's caption uses, so the walk never skips
+// something the map calls up.
+//
+// ONLY THE WALKS. "They can all be shown below the horizon, but they
+// shouldn't be selected if cycling through them. And that doesn't apply to
+// the moon or the sun." -- "This should not apply to ISS." -- "This is only
+// for planets and constellations." Nothing is hidden from the map, and the
+// Moon, Sun, ISS and pole buttons go where they always went: a press on one
+// of those is a choice of that one thing, not a walk past it.
+let skyUpOnly = store.get('uponly', false);
+
+// A sentence for the status line when a press had nowhere to go. Cleared
+// whenever the ring moves or the toggle changes.
+let targetNote = '';
 
 /** Put the ring on something, and take the planet cycle off unless asked. */
 function setTarget(what, { keepCycle = false } = {}) {
   guideTarget = what;
   if (!keepCycle) { planetStep = -1; constStep = -1; }
+  targetNote = '';
   updateTargetName();
+  updateSkipButtons();
   updateSkyMode();
   drawLiveSky();
 }
@@ -1536,6 +1564,8 @@ function refreshSkyVectors() {
   skySunBody = buildBodies([{ ra: sunEq.ra, dec: sunEq.dec, frame: 'date', isSun: true }],
                            lst, site.lat, precess)[0] || null;
   $('planetsOut').textContent = describePlanets(skyPlanetList);
+  // What is up has just moved, so which target buttons are spent may have.
+  updateSkipButtons();
 
   // --- the paths they move along ------------------------------------------
   //
@@ -1873,28 +1903,31 @@ function poleTarget() {
   };
 }
 
-function aimTarget(issLook) {
+function aimTarget(issLook, what = guideTarget) {
   // NOTHING IS A REAL ANSWER. Cycling past the last planet clears the target,
   // and the ring and the arrow both simply go.
-  if (guideTarget === 'none') return null;
-  if (guideTarget === 'iss') {
+  //
+  // `what` is the ring's own target unless asked about another: the walks
+  // ask where each stop is before landing on it.
+  if (what === 'none') return null;
+  if (what === 'iss') {
     // Asked for but not answered yet -- fall back rather than aim at nothing.
     return issLook ? { alt: issLook.alt, az: issLook.az, name: 'ISS' } : poleTarget();
   }
-  if (guideTarget === 'moon') {
+  if (what === 'moon') {
     return skyMoonBody
       ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon' }
       : poleTarget();
   }
-  if (guideTarget === 'sun') {
+  if (what === 'sun') {
     return skySunBody
       ? { alt: skySunBody.alt, az: skySunBody.az, name: 'Sun' }
       : poleTarget();
   }
-  if (guideTarget.startsWith('const:')) {
+  if (what.startsWith('const:')) {
     // The middle of the figure, from the same star vectors the lines are
     // drawn from, so the ring lands inside what is on screen.
-    const key = guideTarget.slice(6);
+    const key = what.slice(6);
     const fig = CONSTELLATIONS[key];
     if (fig && skyVectors) {
       const byHr = new Map(skyVectors.map((s) => [s.hr, s.v]));
@@ -1903,7 +1936,7 @@ function aimTarget(issLook) {
     }
     return poleTarget();
   }
-  const planet = (skyPlanetList || []).find((b) => b.name === guideTarget);
+  const planet = (skyPlanetList || []).find((b) => b.name === what);
   if (planet) return { alt: planet.alt, az: planet.az, name: planet.name };
   return poleTarget();
 }
@@ -1922,12 +1955,12 @@ function targetLabel(t) {
   return targetIsBelow(t) ? `${t.name} — ${belowHorizonWords(t)}` : t.name;
 }
 
-function targetIsPainted(t) {
+function targetIsPainted(t, what = guideTarget) {
   if (!t) return false;
-  if (guideTarget === 'sun') return t.alt > SUN_MIN_ALT;
+  if (what === 'sun') return t.alt > SUN_MIN_ALT;
   // A figure is a place in the sky rather than a body, but a figure whose
   // middle is under the ground is one you cannot see either.
-  if (guideTarget.startsWith('const:')) return t.alt > 0;
+  if (what.startsWith('const:')) return t.alt > 0;
   return true;                     // a planet and the Moon are painted
 }                                  // wherever they are; the pole is a place,
                                    // not a body; the ISS has said this for
@@ -1942,11 +1975,11 @@ function targetIsPainted(t) {
  * to come apart: the caption asks this one, the status line asks
  * targetIsPainted() before it says the ring is empty.
  */
-function targetIsBelow(t) {
+function targetIsBelow(t, what = guideTarget) {
   if (!t) return false;
-  if (PLANET_NAMES.includes(guideTarget)) return t.alt <= PLANET_SET_ALT;
-  if (guideTarget === 'moon') return t.alt <= MOON_SET_ALT;
-  return !targetIsPainted(t);
+  if (PLANET_NAMES.includes(what)) return t.alt <= PLANET_SET_ALT;
+  if (what === 'moon') return t.alt <= MOON_SET_ALT;
+  return !targetIsPainted(t, what);
 }
 
 /**
@@ -1962,6 +1995,53 @@ function belowHorizonWords(t) {
   if (way === 'rising') return 'has not risen yet';
   if (way === 'never') return 'never rises from here';
   return 'has set';
+}
+
+/**
+ * Is this target above the horizon right now?
+ *
+ * By the caption's own rule, through the same position the ring would use:
+ * a stop the walk skips is exactly one the ring would have called "has set"
+ * or "has not risen yet" had it landed there.
+ */
+function stopIsUp(what) {
+  const t = aimTarget(null, what);
+  return !!t && !targetIsBelow(t, what);
+}
+
+/** A walk has nowhere to go: nothing on it is up, and the ring is not on it. */
+function walkIsSpent(targets) {
+  return skyUpOnly && !targets.includes(guideTarget)
+    && !targets.some((w) => stopIsUp(w));
+}
+
+/**
+ * A walk button with nowhere to go looks spent.
+ *
+ * aria-disabled rather than disabled, for the reason the zoom buttons give:
+ * a disabled button drops out of the tab order and throws a keyboard user's
+ * place away. A press on one still does something -- it says why.
+ *
+ * Not called per frame. It asks where every constellation is, which is fine
+ * on the twenty-second tick and when the ring moves, and not sixty times a
+ * second.
+ */
+function updateSkipButtons() {
+  if (!solution) return;
+  for (const [id, spent] of [
+    ['tgtPlanets', walkIsSpent(PLANET_NAMES)],
+    ['tgtConst', walkIsSpent(CONST_TARGETS)],
+  ]) {
+    const b = $(id);
+    if (b) b.setAttribute('aria-disabled', spent ? 'true' : 'false');
+  }
+}
+
+/** Say why a press went nowhere, in the status line a screen reader reads. */
+function sayDown(sentence) {
+  targetNote = `${sentence} Skipping what is down is on; `
+    + 'press "Include what is down" to reach it anyway.';
+  updateSkyMode();
 }
 
 function aimAtPole() {
@@ -2012,6 +2092,10 @@ function updateSkyMode() {
       + `wireframe, and the arrow points down at it. It ${belowHorizonWords(ringOn)}.`;
   } else {
     $('skyTarget').textContent = '';
+  }
+  if (targetNote) {
+    const rest = $('skyTarget').textContent;
+    $('skyTarget').textContent = rest ? `${targetNote} ${rest}` : targetNote;
   }
   if (following) {
     $('skyMode').textContent =
@@ -2959,8 +3043,13 @@ $('tgtSun').onclick = () => goToTarget(guideTarget === 'sun' ? 'none' : 'sun');
 // cycle reads it rather than keeping a second list that could disagree with
 // the one the map draws from. The extra step at the end is the empty one --
 // the length plus one is where "nothing" lives.
+//
+// With "Skip what is down" on, a planet below the horizon is stepped over,
+// and if none is up at all the press says so instead of moving the ring.
 $('tgtPlanets').onclick = () => {
-  planetStep = (planetStep + 1) % (PLANET_NAMES.length + 1);
+  if (walkIsSpent(PLANET_NAMES)) { sayDown('No planet is above the horizon right now.'); return; }
+  planetStep = nextStop(planetStep, PLANET_NAMES.length,
+    (i) => !skyUpOnly || stopIsUp(PLANET_NAMES[i]));
   const next = planetStep < PLANET_NAMES.length ? PLANET_NAMES[planetStep] : 'none';
   constStep = -1;
   goToTarget(next, { keepCycle: true });
@@ -2971,10 +3060,33 @@ $('tgtPlanets').onclick = () => {
 // name as the caption; after the last, nothing, then round again. It
 // travels there rather than snapping, like everything else does now.
 $('tgtConst').onclick = () => {
-  constStep = (constStep + 1) % (CONST_KEYS.length + 1);
+  if (walkIsSpent(CONST_TARGETS)) { sayDown('No constellation is above the horizon right now.'); return; }
+  constStep = nextStop(constStep, CONST_KEYS.length,
+    (i) => !skyUpOnly || stopIsUp(CONST_TARGETS[i]));
   const next = constStep < CONST_KEYS.length ? 'const:' + CONST_KEYS[constStep] : 'none';
   planetStep = -1;
   goToTarget(next, { keepCycle: true });
+};
+
+// THE SWITCH. An action, labelled with what pressing does, like every button
+// that is not a target; the visible words are short to fit the column and the
+// whole phrase is the accessible name.
+function applyUpOnlyLabel() {
+  const b = $('tgtUpOnly');
+  b.textContent = skyUpOnly ? 'Include what is down' : 'Skip what is down';
+  b.setAttribute('aria-label', skyUpOnly
+    ? 'Include planets and constellations below the horizon'
+    : 'Skip planets and constellations below the horizon');
+}
+applyUpOnlyLabel();
+
+$('tgtUpOnly').onclick = () => {
+  skyUpOnly = !skyUpOnly;
+  store.set('uponly', skyUpOnly);
+  targetNote = '';
+  applyUpOnlyLabel();
+  updateSkipButtons();
+  updateSkyMode();
 };
 
 // The sky turns a quarter of a degree a minute, so the expensive half is on a

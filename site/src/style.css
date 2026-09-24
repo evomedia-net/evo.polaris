@@ -988,11 +988,34 @@ html[data-night='on'] .sky-readout {
      screen, above the pad, and scrolls within itself when it is too tall.
      The pad is three rows of 3.4rem with two 0.35rem gaps over a 0.6rem
      inset -- 11.5rem -- plus this column's own 0.6rem inset and a 0.6rem
-     gap: 12.7rem the column may never enter. */
-  max-height: calc(100% - 12.7rem);
+     gap: 12.7rem the column may never enter.
+
+     AND NEVER DOWN ONTO THE AZ/ALT PLATE EITHER. The plate moved to sit
+     directly above the pad (see .sky-readout) and this cap still stopped at
+     the pad, so a tall enough column covered the numbers. At the default
+     text size nothing was tall enough until the "Skip what is down" switch
+     joined the list; then on a 375x812 phone its last button sat 38px down
+     over them. The plate is two rows of 0.95rem text at a 1.15 line height,
+     0.1rem apart, in 0.4rem of padding: 3.2rem with its border, taken as
+     3.4. So with the pad showing the column keeps clear of 0.6 (inset) +
+     10.9 (pad) + 0.6 (gap) + 3.4 (plate) + 0.6 (gap) + 0.6 (this column's
+     inset) = 16.7rem, and scrolls within itself for the rest. */
+  max-height: calc(100% - 16.7rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+/* The draw-speed row makes the plate one row taller: 0.95 x 1.15 + 0.1,
+   taken as 1.2rem. */
+.live-sky.full:has(#rdCostRow:not([hidden])) .full-targets {
+  max-height: calc(100% - 17.9rem);
+}
+/* In Auto Mode the pad is hidden and the plate drops into the corner it
+   leaves, under 5rem even with the draw-speed row. The pad's cap is then
+   the tighter of the two again, and the column gets its room back. Last,
+   so it wins over the draw-speed rule at equal weight. */
+.live-sky.full:has(#fullPan[hidden]) .full-targets {
+  max-height: calc(100% - 12.7rem);
 }
 .target-grid {
   display: grid;
@@ -1067,6 +1090,12 @@ html[data-night='on'] .live-sky.full .full-targets button[aria-pressed='true'] {
    words and must not be shortened to fit -- the label says what pressing it
    does, which is the rule every button here follows. */
 .live-sky.full .tgt-mode {
+  margin-top: 0.2rem;
+  white-space: normal;
+}
+/* The switch under the targets is an action among values, so it sits a
+   little apart from them and wraps rather than being shortened. */
+.live-sky.full .tgt-filter {
   margin-top: 0.2rem;
   white-space: normal;
 }

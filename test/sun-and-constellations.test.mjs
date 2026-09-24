@@ -89,10 +89,10 @@ test('the Sun is a target, always, and says when it has set', () => {
   assert.match(appJs, /\$\('tgtSun'\)\.onclick = \(\) => goToTarget\(guideTarget === 'sun' \? 'none' : 'sun'\);/,
     'pressing the Sun points at it; pressing again lets go');
   const aim = appJs.slice(appJs.indexOf('function aimTarget('), appJs.indexOf('function aimAtPole('));
-  assert.match(aim, /if \(guideTarget === 'sun'\)/);
+  assert.match(aim, /if \(what === 'sun'\)/);
   assert.match(aim, /name: 'Sun'/);
   const painted = appJs.slice(appJs.indexOf('function targetIsPainted('), appJs.indexOf('function aimAtPole('));
-  assert.match(painted, /if \(guideTarget === 'sun'\) return t\.alt > SUN_MIN_ALT;/,
+  assert.match(painted, /if \(what === 'sun'\) return t\.alt > SUN_MIN_ALT;/,
     'below the horizon the caption must say it has set, from the same gate the disc uses');
   assert.match(appJs, /\['tgtSun', guideTarget === 'sun'\]/, 'aria-pressed must carry the state');
 });
@@ -142,11 +142,13 @@ test('one button walks every figure by name, then lets go, then starts again', (
   assert.match(appJs, /const CONST_KEYS = Object\.keys\(CONSTELLATIONS\);/,
     'the cycle reads the shipped figures rather than keeping a second list');
   const h = appJs.slice(appJs.indexOf("$('tgtConst').onclick"), appJs.indexOf('// The sky turns a quarter'));
-  assert.match(h, /constStep = \(constStep \+ 1\) % \(CONST_KEYS\.length \+ 1\);/, 'the length plus one is where nothing lives');
+  // The walk itself is walk.js's nextStop, whose stop past the end is
+  // "nothing"; test/up-only.test.mjs walks it.
+  assert.match(h, /constStep = nextStop\(constStep, CONST_KEYS\.length,/, 'the length is where nothing lives');
   assert.match(h, /'const:' \+ CONST_KEYS\[constStep\] : 'none'/);
   assert.match(h, /goToTarget\(next, \{ keepCycle: true \}\)/, 'it travels there, like everything else');
   const aim = appJs.slice(appJs.indexOf('function aimTarget('), appJs.indexOf('function aimAtPole('));
-  assert.match(aim, /if \(guideTarget\.startsWith\('const:'\)\)/);
+  assert.match(aim, /if \(what\.startsWith\('const:'\)\)/);
   assert.match(aim, /name: fig\.name/, 'the caption is the figure\'s own name');
   assert.match(aim, /figureCentre\(fig\.lines, byHr\)/, 'the ring goes on the middle of the figure');
 });
@@ -165,5 +167,5 @@ test('the two cycles do not tangle', () => {
 
 test('a figure whose middle is under the ground says so', () => {
   const painted = appJs.slice(appJs.indexOf('function targetIsPainted('), appJs.indexOf('function aimAtPole('));
-  assert.match(painted, /if \(guideTarget\.startsWith\('const:'\)\) return t\.alt > 0;/);
+  assert.match(painted, /if \(what\.startsWith\('const:'\)\) return t\.alt > 0;/);
 });

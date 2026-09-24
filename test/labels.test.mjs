@@ -69,6 +69,9 @@ const VERBS = new Set([
   'zoom', 'exit', 'center',
   // The roll-up over the target list: press it and you can track something.
   'track',
+  // The switch in that list. "Skip what is down" / "Include what is down":
+  // what the target buttons will do about anything below the horizon.
+  'skip', 'include',
 ]);
 
 /** Every <button> in the page: id, visible text, aria-label if it has one. */
@@ -192,6 +195,11 @@ test('every toggle says both directions, and neither is the state it is in', () 
     // accessible name is the full phrase, and that is the label under test.
     ['placeChange', 'Set your location', 'Hide the position boxes'],
     ['whenChange', 'Change the date', 'Hide the date boxes'],
+    // Short on the face so it fits the target column; the accessible name
+    // says what is being skipped.
+    ['tgtUpOnly', 'Skip what is down', 'Include what is down'],
+    ['tgtUpOnly', 'Skip planets and constellations below the horizon',
+      'Include planets and constellations below the horizon'],
   ];
   const shipped = new Map(
     buttonsInHtml(html).filter((b) => b.id).map((b) => [b.id, b.text]),

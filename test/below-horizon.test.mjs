@@ -132,9 +132,9 @@ test('the caption says which way it is going, and the status line stops calling 
   assert.match(label, /targetIsBelow\(t\) \? `\$\{t\.name\} — \$\{belowHorizonWords\(t\)\}` : t\.name/);
   const below = appJs.slice(appJs.indexOf('function targetIsBelow('),
     appJs.indexOf('function belowHorizonWords('));
-  assert.match(below, /PLANET_NAMES\.includes\(guideTarget\)\) return t\.alt <= PLANET_SET_ALT;/,
+  assert.match(below, /PLANET_NAMES\.includes\(what\)\) return t\.alt <= PLANET_SET_ALT;/,
     'a planet is below at the exported threshold');
-  assert.match(below, /guideTarget === 'moon'\) return t\.alt <= MOON_SET_ALT;/,
+  assert.match(below, /what === 'moon'\) return t\.alt <= MOON_SET_ALT;/,
     'and so is the Moon, at its own');
   const block = appJs.slice(appJs.indexOf('} else if (ringOn && targetIsBelow(ringOn))'),
     appJs.indexOf("$('skyTarget').textContent = '';"));

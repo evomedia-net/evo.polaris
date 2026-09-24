@@ -54,7 +54,7 @@ test('the Planets button keeps walking the list; letting go is its last stop', (
   // The one exception, and it is the earlier request: each tap cycles, out
   // from the Sun, then nothing, then round again.
   const h = appJs.slice(appJs.indexOf("$('tgtPlanets').onclick"), appJs.indexOf('// The sky turns a quarter'));
-  assert.match(h, /planetStep = \(planetStep \+ 1\) % \(PLANET_NAMES\.length \+ 1\);/);
+  assert.match(h, /planetStep = nextStop\(planetStep, PLANET_NAMES\.length,/);
   assert.ok(!/guideTarget === 'none'/.test(h), 'the planets button must not short-circuit its cycle');
 });
 

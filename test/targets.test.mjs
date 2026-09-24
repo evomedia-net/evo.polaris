@@ -87,8 +87,10 @@ test('the cycle reads that list rather than keeping its own', () => {
   // is always the one nobody is looking at.
   const h = appJs.slice(appJs.indexOf("$('tgtPlanets').onclick"),
     appJs.indexOf("$('tgtPlanets').onclick") + 500);
-  assert.match(h, /PLANET_NAMES\.length \+ 1/,
-    'the extra step past the end is where "nothing" lives');
+  // The stop past the end is "nothing"; walk.js's nextStop keeps it, and
+  // test/up-only.test.mjs walks it.
+  assert.match(h, /nextStop\(planetStep, PLANET_NAMES\.length,/,
+    'the walk is as long as the list, plus "nothing"');
   assert.match(h, /PLANET_NAMES\[planetStep\]/,
     'the planet must come from the same list the map draws');
   assert.match(h, /'none'/, 'past the last planet the target must be cleared');
