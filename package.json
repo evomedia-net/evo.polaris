@@ -16,6 +16,7 @@
     "serve": "node scripts/serve.mjs",
     "docs:twins": "node scripts/md-txt.mjs",
     "docs:check": "node scripts/md-txt.mjs --check",
+    "precache-stamp": "node scripts/precache-stamp.mjs",
     "build-constellations": "python scripts/build-constellations.py"
   },
   "keywords": [
