@@ -210,47 +210,66 @@ html[data-night='on'] .figure.accent { border-color: var(--ink); }
    mouthstick. These are portfolio links, pressed once, indoors, by someone who
    has already decided to leave. Sizing them as mount controls stacked three
    58px rows above the fold and spent a third of a phone screen before the app
-   started -- 265px of an 812px screen. 2rem is 34px, comfortably past the WCAG
-   2.2 AA target-size floor of 24px, and it still scales with the text-size
-   buttons like everything else.
+   started -- 265px of an 812px screen. 34px is comfortably past the WCAG 2.2
+   AA target-size floor of 24px.
 
    The APP's own bar below keeps --tap. Those buttons get pressed in the dark
-   with a mouthstick; these do not. */
+   with a mouthstick; these do not.
+
+   AND IT IS A FIXED HEIGHT, WHICH IS THE SECOND HALF OF LOCKING A- AND A+.
+   This strip used to grow with the text setting like everything else. It sits
+   ABOVE the app header, so growing it pushed the header down -- and with it
+   the two buttons that must never move. Measured on the live site at 375x812,
+   walking the ladder: the strip went 83, 139, 157, 175, 193px, and the pair
+   went down with it, 18px a press. Locking the pair inside a header that is
+   itself being pushed is not locking it.
+
+   So the strip sets its own font-size from --base and everything in it is in
+   em, which resolves against THAT rather than against the scaled root. Its
+   height is 83px at every setting, the app header starts in the same place,
+   and the pair holds still. The links stay 34px, which was already past the
+   target-size floor and was already argued for on its own terms: they are
+   pressed once, indoors, by someone who has decided to leave. */
 .evo-chrome {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  padding: 0.3rem 0.7rem;
+  font-size: var(--base);
+  gap: 0.25em 1em;
+  padding: 0.3em 0.7em;
   background: #0d1420;
   border-bottom: 1px solid var(--line);
 }
 .evo-chrome-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.4em;
   font-weight: 650;
-  font-size: 0.88rem;
+  font-size: 0.88em;
   color: var(--ink);
   text-decoration: none;
-  min-height: 2rem;
+  /* 34px, and NOT 2em: em here resolves against this element's own 0.88em
+     type and would quietly shrink the target to 30px. */
+  min-height: calc(2 * var(--base));
 }
 /* Overrides the width/height attributes on the inlined mark, so the brand
-   scales with the text-size buttons instead of staying a fixed 24px. */
-.evo-chrome-brand svg { width: 1.2rem; height: 1.2rem; }
+   matches the strip's own type rather than staying a fixed 24px. */
+.evo-chrome-brand svg { width: 1.2em; height: 1.2em; }
 .evo-chrome-tld { color: var(--ink-dim); font-weight: 500; }
-.evo-chrome-nav { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.evo-chrome-nav { display: flex; flex-wrap: wrap; gap: 0.3em; }
 .evo-chrome-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
-  padding: 0 0.55rem;
+  /* 34px, past the WCAG 2.2 AA target-size floor of 24px. In em it would
+     resolve against this link's own 0.8em type and come out 27px. */
+  min-height: calc(2 * var(--base));
+  padding: 0 0.55em;
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: 0.5em;
   color: var(--ink-dim);
   text-decoration: none;
-  font-size: 0.8rem;
+  font-size: 0.8em;
   white-space: nowrap;
 }
 .evo-chrome-nav a:hover, .evo-chrome-nav a:focus-visible {
@@ -262,10 +281,10 @@ html[data-night='on'] .figure.accent { border-color: var(--ink); }
    queries resolve rem against the initial 16px, not the scaled root, so this
    breakpoint is a fixed 432px however large the text is set. */
 @media (max-width: 27rem) {
-  .evo-chrome { gap: 0.2rem; }
+  .evo-chrome { gap: 0.2em; }
   .evo-chrome-brand, .evo-chrome-nav { width: 100%; }
-  .evo-chrome-nav { justify-content: space-between; gap: 0.25rem; }
-  .evo-chrome-nav a { padding: 0 0.4rem; }
+  .evo-chrome-nav { justify-content: space-between; gap: 0.25em; }
+  .evo-chrome-nav a { padding: 0 0.4em; }
 }
 html[data-night='on'] .evo-chrome { background: #0a0000; }
 html[data-night='on'] .evo-chrome-brand,

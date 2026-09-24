@@ -84,3 +84,41 @@ test('the pair is out of the wrapping row it used to shift around in', () => {
   assert.match(html, /id="textSmaller"[^>]*aria-label="Make the text smaller"/);
   assert.match(html, /id="textBigger"[^>]*aria-label="Make the text bigger"/);
 });
+
+test('the site chrome above the header is a fixed height, so the pair is not pushed', () => {
+  // THE SECOND HALF OF LOCKING THE PAIR, and it was missed the first time
+  // because it was verified on localhost -- where this strip does not mount
+  // at all, since it is gated on the evomedia.net hostname.
+  //
+  // The strip sits ABOVE the app header. Growing it pushed the header down and
+  // the pair with it. Measured on the live site at 375x812, walking the
+  // ladder: 83, 139, 157, 175, 193px, and the pair went down 18px a press.
+  // Locking the pair inside a header that is itself being pushed is not
+  // locking it.
+  const chrome = rule('.evo-chrome');
+  assert.match(chrome, /font-size: var\(--base\)/,
+    'the strip sets its own type from the unscaled base');
+  // Everything inside is in em, which resolves against THAT rather than
+  // against the scaled root. One rem anywhere in the strip and it grows again.
+  const from = css.indexOf('.evo-chrome {');
+  const to = css.indexOf("html[data-night='on'] .evo-chrome");
+  const block = css.slice(from, to);
+  assert.ok(to > from, 'the chrome block is gone');
+  const remLines = block.split(/\r?\n/)
+    .filter((l) => /\d(\.\d+)?rem/.test(l) && !/^\s*(\*|\/\*|--)/.test(l)
+      && !/@media/.test(l));
+  assert.deepEqual(remLines, [],
+    `no rem lengths inside the strip, or it grows again: ${remLines.join(' | ')}`);
+});
+
+test('the chrome targets stay 34px, and em would have shrunk them', () => {
+  // The trap in the em conversion. Each of these sets its own smaller type, so
+  // "2em" resolves against THAT: the links came out 27px and the brand 30px,
+  // under the 34px the design argued for. Both are pinned to --base instead.
+  for (const sel of ['.evo-chrome-brand', '.evo-chrome-nav a']) {
+    assert.match(rule(sel), /min-height: calc\(2 \* var\(--base\)\)/,
+      `${sel} must hold 34px, not 2em of its own type`);
+  }
+  // Measured in a browser with the strip mounted: brand 34, links 34, strip
+  // 83px, at every size on the ladder.
+});
