@@ -88,8 +88,15 @@ CHART_CX, CHART_CY, CHART_D = 880, 315, 470
 
 TITLE = "evo.polaris"
 HEADLINE = ["Free polar alignment for star", "trackers and equatorial mounts."]
-# The supporting paragraph. Both sentences are the README's claims, unchanged.
-PARAGRAPH = ["Works offline. Reads the numbers aloud.",
+# The supporting paragraph. Every line is a README claim, unchanged.
+#
+# WHO IT IS FOR GOES FIRST, AND IN THE BRIGHTER INK. The card said what the app
+# does and never who it was built for, so the one thing that makes it different
+# from every paid alternative was the one thing a shared link left out. The two
+# lines under it are the evidence for the first: without them "made for
+# astronomers with disabilities" is a claim, and with them it is a description.
+PARAGRAPH = ["Made for astronomers with disabilities.",
+             "Works offline. Reads the numbers aloud.",
              "No pinching, dragging or press-and-hold."]
 DOMAIN = "polaris.evomedia.net"
 
@@ -211,10 +218,13 @@ def build(shot: Path | None = None) -> Image.Image:
         draw.text((PAD * SS, y), line, font=f_head, fill=INK)
         y += 46 * SS
 
+    # Three lines now rather than two, so the block starts higher: 338 + three
+    # 40s ends at 458, which still clears the accent rule at 478.
     f_para = font(SANS, 29 * SS)
-    y = 358 * SS
-    for line in PARAGRAPH:
-        draw.text((PAD * SS, y), line, font=f_para, fill=DIM)
+    y = 338 * SS
+    for index, line in enumerate(PARAGRAPH):
+        draw.text((PAD * SS, y), line, font=f_para,
+                  fill=INK if index == 0 else DIM)
         y += 40 * SS
 
     draw.rectangle((PAD * SS, 478 * SS, (PAD + 74) * SS, 481 * SS), fill=ACCENT)
