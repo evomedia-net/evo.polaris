@@ -190,10 +190,6 @@ html[data-night='on'] .hemi-btn[aria-pressed='true'] {
   border-color: var(--ink);
   border-width: 3px;
 }
-
-.manual input {
-  background: transparent;
-}
 html[data-night='on'] .figure.accent { border-color: var(--ink); }
 
 /* evomedia.net site chrome. Injected by evomedia-chrome.js on the real site
@@ -741,9 +737,33 @@ details.sub-card[open] > .card-head {
 .readout dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
 
 .manual { display: grid; gap: 0.7rem; margin-top: 0.6rem; }
-.manual label { display: grid; gap: 0.25rem; font-weight: 600; }
-.manual input {
+
+/* EVERY BOX YOU TYPE IN, NOT ONE CARD'S WORTH.
+ *
+ * "It's a little comical. The input for your date in the app that is easy for
+ * disabled people to use. The input box is absolutely tiny and very hard to
+ * select and even read."
+ *
+ * Nothing was wrong with the date field. NOTHING WAS SET ON IT. Every input
+ * rule in this file was written as `.manual input`, scoped to the one card
+ * holding the coordinate boxes, so the date field in the next card down got
+ * browser defaults: 21px tall against this app's own 57.8px floor, 13.3px
+ * type against 18.7px, and black on white -- in both modes, including the one
+ * whose entire promise is that nothing on screen is white.
+ *
+ * So the selector was the bug, not the value. Scoped to a card, an input
+ * added anywhere else is born unstyled, looks fine in review, and is found by
+ * somebody trying to use it in a dark field. Written this way it cannot
+ * happen again, and test/inputs.test.mjs refuses the narrow selector.
+ *
+ * Checkboxes and radios are excluded because a full-width 57.8px checkbox is
+ * a different control with different rules. There are none today; this is so
+ * the first one does not arrive stretched across a card. */
+.card label { display: grid; gap: 0.25rem; font-weight: 600; }
+input:not([type='checkbox']):not([type='radio']) {
   min-height: var(--tap);
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.6rem 0.8rem;
   font: inherit;
   font-size: 1.1rem;
@@ -751,6 +771,15 @@ details.sub-card[open] > .card-head {
   background: var(--bg);
   border: 2px solid var(--line);
   border-radius: 0.7rem;
+  /* The date picker draws its OWN chrome -- the calendar, the spinners, the
+     little arrow -- and the browser picks those colours from this, not from
+     ours. Left alone it hands a dark-adapted eye a white calendar. */
+  color-scheme: dark;
+}
+/* Pure red on black, like everything else. --bg and --ink already change with
+   the theme; --line does not, so the border is named here. */
+html[data-night='on'] input:not([type='checkbox']):not([type='radio']) {
+  border-color: var(--ink);
 }
 
 /* The payoff numbers. Big, tabular, and each in its own block so a screen
