@@ -1,0 +1,69 @@
+SIMBAD TAP, queried 2026-09-25. The source of every number in
+site/src/data/galaxies.js, kept so a wrong coordinate is a test failure
+rather than a wrong arrow. test/galaxies.test.mjs parses this file and
+compares it to the shipped module, field by field.
+
+Service: https://simbad.u-strasbg.fr/simbad/sim-tap/sync
+
+Query, verbatim:
+
+  SELECT main_id, ra, dec, V, galdim_majaxis, galdim_minaxis
+  FROM basic JOIN allfluxes ON oid = oidref
+  WHERE main_id IN ('NAME LMC','NAME SMC','M  31','M  33',
+                    'NAME Centaurus A','M  81','M  83','M 101','NGC    55',
+                    'M 104','M 110','M  32','NGC  6822','NGC   300','M  94')
+  ORDER BY V ASC
+
+Those fifteen are the brightest by V from this query, run without the name
+filter and ordered by V:
+
+  SELECT main_id, otype_txt, ra, dec, V, galdim_majaxis
+  FROM basic JOIN allfluxes ON oid = oidref
+  WHERE otype = 'G..' AND V IS NOT NULL AND V < 8.7 ORDER BY V ASC
+
+with six rows left out. WHAT WAS LEFT OUT, AND WHY -- this is a judgement,
+not a measurement, and it is written down so it can be argued with. Every
+one of them is brighter than M 94, which is the fifteenth that stayed:
+
+  NAME CMa Dwarf Galaxy   V -0.1   no dimensions in SIMBAD. A disputed
+                                   overdensity inside the Milky Way's own
+                                   disc; there is nothing to point at.
+  NAME SDG (Sagittarius)  V  3.6   no dimensions. A dwarf spheroidal
+                                   behind the galactic centre, some ten
+                                   degrees across.
+  Z 75-118                V  7.0   0.48 arcmin across at V 7.0. The
+                                   magnitude does not fit the size, and a
+                                   seventh-magnitude galaxy half an arcminute
+                                   wide would be famous. Not credible.
+  MCG-06-07-001 (Fornax)  V  7.4   27.5 arcmin. Dwarf spheroidal.
+  AM 0311-513             V  7.8   no dimensions.
+  NAME Sculptor Dwarf     V  8.6   15.3 arcmin. Dwarf spheroidal.
+
+The dwarf spheroidals are the interesting exclusion. Their INTEGRATED
+magnitude is bright because they are enormous, but the light is spread so
+thin that no eye and no camera on a tracker sees them as a galaxy -- they
+are resolved star fields, found by counting stars, not by looking. An app
+that points you at one is lying about what is there. The Magellanic Clouds
+are the opposite case and stay: also enormous, also nearby, and plainly
+visible to the naked eye from anywhere south enough to see them.
+
+Positions are J2000 and are precessed to the date like every other
+catalogue object in the app. Sizes are the major and minor axes in
+arcminutes, used to draw each one at its true size on the sky.
+
+main_id|ra|dec|V|galdim_majaxis|galdim_minaxis
+NAME LMC|80.89416666666666|-69.75611111111111|0.4|322.82666|274.77
+NAME SMC|13.158333333333333|-72.80027777777778|2.2|158.11333|93.105
+M  31|10.684708333333333|41.268750000000004|3.44|199.53|70.79
+M  33|23.46206906218|30.660175111980003|5.72|60.26|35.48
+NAME Centaurus A|201.36506337683332|-43.019112508083325|6.84|25.7|17.78
+M  81|148.88821939854|69.06529514038|6.94|21.38|10.23
+M  83|204.25383|-29.865761111111112|7.52|13.8|12.88
+M 101|210.80242916666668|54.34875|7.86|21.88|20.89
+NGC    55|3.7233416666666663|-39.19662777777777|7.87|32.36|3.98
+M 104|189.99763274591663|-11.623054494444448|8.0|8.51|5.01
+M 110|10.09190514583|41.68541867226|8.07|3.332|2.0991666
+M  32|10.67427|40.86517|8.08|3.375|2.73375
+NGC  6822|296.2341625|-14.797580555555559|8.1|13.8|12.88
+NGC   300|13.722694015959998|-37.68421344511|8.13|20.89|13.49
+M  94|192.72114082143|41.12025024573|8.24|6.99078|5.86107

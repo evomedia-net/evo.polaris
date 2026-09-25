@@ -212,6 +212,51 @@ export function drawSkyView(ctx, o) {
     ctx.restore();
   }
 
+  // GALAXIES, AT THEIR TRUE SIZE ON THE SKY.
+  //
+  // Drawn BEFORE the stars, so a star that happens to lie in front of one is
+  // on top of it, which is what the sky does -- every star in the frame is in
+  // our own galaxy and nearer than any of these by a factor of thousands.
+  //
+  // TRUE SIZE, NOT A SYMBOL, and that is the whole reason this is worth
+  // drawing rather than just pointing an arrow at. The Moon and the planets
+  // are exaggerated because they would otherwise be a fraction of a pixel and
+  // the caption says so. These are the opposite problem: Andromeda is three
+  // degrees across, SIX TIMES THE WIDTH OF THE MOON, and the Large Magellanic
+  // Cloud is five. An app that draws them as dots is hiding the one fact that
+  // decides whether one fits the frame you are planning.
+  //
+  // An outline and not a fill: a filled blob would claim a brightness these
+  // do not have, and would hide the stars behind it. The floor is so that the
+  // small ones are still a target rather than a sub-pixel smudge at a narrow
+  // field.
+  if (o.galaxies) {
+    ctx.save();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = night ? '#8b0000' : '#9aa6bd';
+    ctx.font = `500 ${Math.round(ref / 36)}px system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    for (const g of o.galaxies) {
+      const q = projectToScreen(g.v, basis, focal);
+      if (!q) continue;
+      const x = cx + q.x, y = cy + q.y;
+      // The arcminute axes as screen radii, through the same focal length
+      // everything else is projected by.
+      const rx = Math.max(3, Math.tan((g.maj / 120) * Math.PI / 180) * focal);
+      const ry = Math.max(2, Math.tan((g.min / 120) * Math.PI / 180) * focal);
+      if (x < -rx - 40 || x > w + rx + 40 || y < -ry - 40 || y > h + ry + 40) continue;
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      if (g.name !== ringName) {
+        ctx.fillStyle = night ? '#cc0000' : dim;
+        ctx.fillText(g.name, x + rx + 5, y);
+      }
+    }
+    ctx.restore();
+    ctx.textAlign = 'center';
+  }
+
   // STARS, IN THREE PASSES.
   //
   // It was one: project, fill a disc, maybe write a name. The glow forced the

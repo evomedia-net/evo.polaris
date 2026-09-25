@@ -48,6 +48,9 @@ const VALUE_PICKERS = new Set([
   // Planets is the odd one: it cycles rather than selects, so it also carries
   // an aria-label spelling out that a press moves to the next planet out.
   'tgtPole', 'tgtIss', 'tgtMoon', 'tgtSun', 'tgtPlanets', 'tgtConst',
+  // Galaxies walks its list the way Planets does, and carries an aria-label
+  // spelling out that a press moves to the next one, brightest first.
+  'tgtGalaxies',
 ]);
 
 /** Glyph buttons. Their words live in aria-label, which is checked instead. */
@@ -182,6 +185,7 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['skyConst', 'Show the constellations', 'Hide the constellations'],
     ['skyMilky', 'Show the Milky Way', 'Hide the Milky Way'],
     ['skyStarGlow', 'Show the star glow', 'Hide the star glow'],
+    ['skyGalaxies', 'Show the galaxies', 'Hide the galaxies'],
     ['skyPlanets', 'Show the planets', 'Hide the planets'],
     ['skyMoon', 'Show the Moon', 'Hide the Moon'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],

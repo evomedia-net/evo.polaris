@@ -17,7 +17,7 @@
 //
 // This is a CACHE KEY, not the release stamp. build-version.json stays where
 // it is; the build advances once per release on the default branch.
-const VERSION = '0.0.0.1.35';
+const VERSION = '0.0.0.1.36';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [
@@ -28,7 +28,7 @@ const ASSETS = [
   './src/coords.js', './src/briefing.js', './src/iss.js', './src/moon.js',
   './src/planets.js', './src/tracks.js', './src/version.js',
   './build-version.json', './src/dwell.js',
-  './src/data/constellations.js', './src/data/stars.json', './src/data/wmm2025.js', './src/data/icon.svg',
+  './src/data/constellations.js', './src/data/galaxies.js', './src/data/stars.json', './src/data/wmm2025.js', './src/data/icon.svg',
   './src/milkyway.js', './src/data/milkyway.webp', './src/motion.js',
   './src/quat.js', './src/walk.js', './src/textsize.js', './src/starglow.js',
   './src/planet-art.js', './src/data/planets.webp',

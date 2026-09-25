@@ -29,6 +29,7 @@ import {
   drawSkyView, drawMoonDisc, MOON_SET_ALT, PLANET_SET_ALT, SUN_MIN_ALT,
 } from './skydraw.js';
 import { CONSTELLATIONS } from './data/constellations.js';
+import { GALAXIES, GALAXY_KEYS, galaxyFor } from './data/galaxies.js';
 import { createMilkyWay, galacticBasis } from './milkyway.js';
 import { createPlanetArt, CREDIT as PLANET_CREDIT } from './planet-art.js';
 import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation-art.js';
@@ -353,6 +354,16 @@ const CONST_KEYS = Object.keys(CONSTELLATIONS);
 const CONST_TARGETS = CONST_KEYS.map((k) => 'const:' + k);
 let constStep = -1;
 
+// WHERE THE GALAXIES BUTTON IS UP TO. Same shape as the other two walks:
+// one button, brightest first, then nothing, then round again. -1 is "not in
+// the cycle".
+const GALAXY_TARGETS = GALAXY_KEYS.map((k) => 'gal:' + k);
+let galaxyStep = -1;
+
+// The fifteen, placed in the sky, rebuilt on the same slow tick as the stars.
+let skyGalaxies = [];
+let skyShowGalaxies = store.get('galaxies', true);
+
 // ONLY WHAT IS UP.
 //
 // "When jumping through the constellations and the planets and anything like
@@ -380,7 +391,7 @@ let targetNote = '';
 /** Put the ring on something, and take the planet cycle off unless asked. */
 function setTarget(what, { keepCycle = false } = {}) {
   guideTarget = what;
-  if (!keepCycle) { planetStep = -1; constStep = -1; }
+  if (!keepCycle) { planetStep = -1; constStep = -1; galaxyStep = -1; }
   targetNote = '';
   updateTargetName();
   updateSkipButtons();
@@ -416,6 +427,7 @@ function updateTargetName() {
     ['tgtSun', guideTarget === 'sun'],
     ['tgtPlanets', onPlanet],
     ['tgtConst', guideTarget.startsWith('const:')],
+    ['tgtGalaxies', guideTarget.startsWith('gal:')],
   ]) {
     const b = $(id);
     if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -1582,6 +1594,15 @@ function refreshSkyVectors() {
       return [d[0] * m, d[1] * m, d[2] * m];
     }),
   }));
+  // The galaxies are catalogue objects like the stars -- J2000, fixed
+  // against the sky -- so they go through the same rotation and the same
+  // precession matrix. Their sizes are carried along untouched: an angular
+  // size does not change with where you stand.
+  skyGalaxies = GALAXIES.map((g) => ({
+    ...g,
+    v: equatorialToVector(g.ra, g.dec, lst, site.lat, precess),
+  }));
+
   // Same slow tick as the stars: the band turns with the sky, not with you.
   milkyWay = buildMilkyWay(lst, site.lat, 6, 3, 18, precess);
   galactic = galacticBasis(lst, site.lat, precess);
@@ -1891,6 +1912,7 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     starGlow: skyStarGlow ? starGlow : null,
+    galaxies: skyShowGalaxies ? skyGalaxies : null,
     figureArt: skyFigures && figureArt.mode === 'figures' ? figureArt : null,
     figures: skyFigureCorners,
     milkyWay: skyMilkyWay ? milkyWay : null,
@@ -1982,6 +2004,15 @@ function aimTarget(issLook, what = guideTarget) {
       ? { alt: skySunBody.alt, az: skySunBody.az, name: 'Sun' }
       : poleTarget();
   }
+  if (what.startsWith('gal:')) {
+    const g = galaxyFor(what.slice(4));
+    const found = g && skyGalaxies.find((s) => s.key === g.key);
+    if (found) {
+      const { alt, az } = vectorToAltAz(found.v);
+      return { alt, az, name: g.name };
+    }
+    return poleTarget();
+  }
   if (what.startsWith('const:')) {
     // The middle of the figure, from the same star vectors the lines are
     // drawn from, so the ring lands inside what is on screen.
@@ -2018,6 +2049,9 @@ function targetIsPainted(t, what = guideTarget) {
   if (what === 'sun') return t.alt > SUN_MIN_ALT;
   // A figure is a place in the sky rather than a body, but a figure whose
   // middle is under the ground is one you cannot see either.
+  // A galaxy is a place in the sky rather than a body, and one under the
+  // ground is one you cannot photograph either.
+  if (what.startsWith('gal:')) return t.alt > 0;
   if (what.startsWith('const:')) return t.alt > 0;
   return true;                     // a planet and the Moon are painted
 }                                  // wherever they are; the pole is a place,
@@ -2089,6 +2123,7 @@ function updateSkipButtons() {
   for (const [id, spent] of [
     ['tgtPlanets', walkIsSpent(PLANET_NAMES)],
     ['tgtConst', walkIsSpent(CONST_TARGETS)],
+    ['tgtGalaxies', walkIsSpent(GALAXY_TARGETS)],
   ]) {
     const b = $(id);
     if (b) b.setAttribute('aria-disabled', spent ? 'true' : 'false');
@@ -3125,6 +3160,7 @@ $('tgtPlanets').onclick = () => {
     (i) => !skyUpOnly || stopIsUp(PLANET_NAMES[i]));
   const next = planetStep < PLANET_NAMES.length ? PLANET_NAMES[planetStep] : 'none';
   constStep = -1;
+  galaxyStep = -1;
   goToTarget(next, { keepCycle: true });
 };
 
@@ -3138,7 +3174,40 @@ $('tgtConst').onclick = () => {
     (i) => !skyUpOnly || stopIsUp(CONST_TARGETS[i]));
   const next = constStep < CONST_KEYS.length ? 'const:' + CONST_KEYS[constStep] : 'none';
   planetStep = -1;
+  galaxyStep = -1;
   goToTarget(next, { keepCycle: true });
+};
+
+// BRIGHTEST FIRST, THEN NOTHING, THEN ROUND AGAIN. The same walk the planets
+// and the figures use, over the fifteen brightest galaxies.
+//
+// Skipping what is down matters more here than anywhere else in the app:
+// from a northern latitude several of these NEVER rise, and the caption says
+// so rather than sending somebody out to look for the Magellanic Clouds.
+$('tgtGalaxies').onclick = () => {
+  if (walkIsSpent(GALAXY_TARGETS)) { sayDown('No galaxy is above the horizon right now.'); return; }
+  galaxyStep = nextStop(galaxyStep, GALAXY_KEYS.length,
+    (i) => !skyUpOnly || stopIsUp(GALAXY_TARGETS[i]));
+  const next = galaxyStep < GALAXY_KEYS.length ? GALAXY_TARGETS[galaxyStep] : 'none';
+  planetStep = -1;
+  constStep = -1;
+  goToTarget(next, { keepCycle: true });
+};
+
+// THEY ARE DRAWN AT TRUE SIZE, which is what makes this a real choice rather
+// than clutter: Andromeda is three degrees across and the Large Magellanic
+// Cloud five, so at a narrow field one of them fills the screen.
+function applyGalaxiesLabel() {
+  $('skyGalaxies').textContent = skyShowGalaxies
+    ? 'Hide the galaxies' : 'Show the galaxies';
+}
+applyGalaxiesLabel();
+
+$('skyGalaxies').onclick = () => {
+  skyShowGalaxies = !skyShowGalaxies;
+  store.set('galaxies', skyShowGalaxies);
+  applyGalaxiesLabel();
+  drawLiveSky();
 };
 
 // THE SWITCH. An action, labelled with what pressing does, like every button

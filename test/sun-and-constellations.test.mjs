@@ -157,7 +157,7 @@ test('the two cycles do not tangle', () => {
   // Picking a planet leaves the constellation walk, and vice versa, and any
   // other target leaves both -- otherwise the next press of a cycle button
   // resumes from the middle of a walk that was abandoned.
-  assert.match(appJs, /if \(!keepCycle\) \{ planetStep = -1; constStep = -1; \}/);
+  assert.match(appJs, /if \(!keepCycle\) \{ planetStep = -1; constStep = -1; galaxyStep = -1; \}/);
   const planets = appJs.slice(appJs.indexOf("$('tgtPlanets').onclick"), appJs.indexOf("$('tgtConst').onclick"));
   assert.match(planets, /constStep = -1;/);
   const consts = appJs.slice(appJs.indexOf("$('tgtConst').onclick"), appJs.indexOf('// The sky turns a quarter'));
