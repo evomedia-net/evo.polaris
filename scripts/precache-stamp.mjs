@@ -15,9 +15,16 @@
 // Run it AFTER bumping VERSION in site/sw.js, in the same commit as the change
 // it is describing.
 //
-// build-version.json is deliberately not covered. It carries the release
-// stamp, is rewritten by the release rather than by the change, and holding
-// the cache key to it would demand a bump for a file nobody edited.
+// THE RELEASE STAMP IS DELIBERATELY NOT COVERED: build-version.json and
+// src/version.js, the two files under site/ that scripts/bump-version.mjs
+// writes. They are rewritten by the release rather than by a change, and
+// holding the cache key to them would demand a bump for a file nobody
+// edited. Covering version.js turned main red after every release: the
+// release commit moved the footer's number, the guard read that as an
+// unannounced change, and the suite stayed red until the next feature PR
+// happened to restamp. Both are shell files, fetched network-first and
+// re-cached on every online load, so a stale copy of either lives no longer
+// than one visit with the radio on.
 
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -28,9 +35,10 @@ const swPath = fileURLToPath(new URL('site/sw.js', root));
 export const STAMP = fileURLToPath(new URL('test/fixtures/precache.json', root));
 
 /** Paths the worker precaches that the stamp does not cover, and why. */
-const SKIP = new Set([
+export const SKIP = new Set([
   './',                       // the same bytes as ./index.html
   './build-version.json',     // the release stamp, not part of the change
+  './src/version.js',         // the same stamp, as the footer's module
 ]);
 
 /** The cache key the worker is using now. */

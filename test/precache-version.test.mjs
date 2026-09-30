@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
-  assetsIn, versionIn, currentStamp, readStamp,
+  assetsIn, versionIn, currentStamp, readStamp, SKIP,
 } from '../scripts/precache-stamp.mjs';
 
 // A CHANGED FILE THAT SHIPS AND DOES NOTHING.
@@ -62,12 +62,30 @@ test('the cache key has moved since the last stamp, if anything precached change
 test('the stamp covers every precached file, and only real ones', () => {
   const listed = assetsIn(sw);
   const stamped = Object.keys(readStamp().files);
-  // './' is the same bytes as './index.html' and build-version.json is the
-  // release stamp rather than part of any one change; everything else in the
-  // worker's list must be covered, or a file could change unwatched.
-  const expected = listed.filter((f) => f !== './' && f !== './build-version.json');
+  // The skipped few are listed once, in the script, with a reason each;
+  // everything else in the worker's list must be covered, or a file could
+  // change unwatched.
+  const expected = listed.filter((f) => !SKIP.has(f));
+  assert.ok(SKIP.size <= 3, `${SKIP.size} precached files are unwatched -- each needs a reason`);
   assert.deepEqual(stamped.sort(), expected.sort());
   assert.ok(stamped.length > 30, `only ${stamped.length} files stamped`);
+});
+
+test('a release on its own never turns the suite red', () => {
+  // The release commit rewrites the stamp and nothing else. Every file it
+  // writes under site/ must therefore be one the guard does not watch --
+  // otherwise a build bump reads as a change that forgot its cache key, and
+  // main is red from the release until the next feature PR restamps. That
+  // was the state after v0.0.0.1.36: src/version.js was watched, and the
+  // release moved it.
+  const bumper = readFileSync(fileURLToPath(new URL('scripts/bump-version.mjs', root)), 'utf8');
+  const written = [...bumper.matchAll(/join\(ROOT, 'site', ([^)]+)\)/g)]
+    .map((m) => `./${[...m[1].matchAll(/'([^']+)'/g)].map((q) => q[1]).join('/')}`);
+  assert.deepEqual(written.sort(), ['./build-version.json', './src/version.js'],
+    'the bumper writes a different set of site/ files than this test knows about');
+  for (const f of written) {
+    assert.ok(SKIP.has(f), `${f} is written by every release and watched by the guard`);
+  }
 });
 
 test('every precached file is actually there', () => {

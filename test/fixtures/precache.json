@@ -19,7 +19,6 @@
     "./src/moon.js": "c5f4edd984c02d80",
     "./src/planets.js": "c373d0992ce1f6c3",
     "./src/tracks.js": "46cb5ee8b20b720e",
-    "./src/version.js": "97fa0146edadcc41",
     "./src/dwell.js": "6373a0fe2ccd4f04",
     "./src/data/constellations.js": "d48aa978822b3cda",
     "./src/data/galaxies.js": "c0a48738d100b893",
