@@ -2,12 +2,13 @@
  * Read or bump this project's version stamp.
  *
  * Scheme: v{major}.{rc}.{beta}.{alpha}.{build} -- priority left to right.
- * Bumping a stage zeroes every lower segment, build included. This project is
- * ALPHA, so it sits at v0.0.0.1.{build} and only the build counter moves in
- * normal work.
+ * Bumping a stage zeroes every lower segment, build included. Within a stage
+ * only the build counter moves in normal work; the stage written into the
+ * stamp is read off the numbers (see stageOf), never typed.
  *
  *   node scripts/bump-version.mjs get
- *   node scripts/bump-version.mjs bump                 # build + 1
+ *   node scripts/bump-version.mjs bump                 # build + 1, or the
+ *                                                      # version zbump asks for
  *   node scripts/bump-version.mjs bump-stage <stage>   # release|rc|beta|alpha
  *   node scripts/bump-version.mjs tag-command
  *
@@ -28,6 +29,15 @@
  *
  * That third file is why the version was wrong for this project's whole life:
  * the footer carried a hand-typed "v0.0.0.1.0" that no bump could ever reach.
+ *
+ * WHY `bump` TAKES ITS ANSWER FROM ZBUMP WHEN THERE IS ONE. zbump owns the
+ * release: it decides the next version, then runs this script to write it,
+ * then refuses to tag if the two disagree. It runs `bump` whatever kind of
+ * release it is cutting, so a bumper that only knew "build + 1" could never
+ * make a stage change -- `zbump beta` would work out v0.0.1.0.0, this would
+ * write v0.0.0.1.37, and the release would stop at the mismatch. zbump now
+ * says which version it wants in ZBUMP_VERSION; this writes exactly that, and
+ * refuses one that does not move forward.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -60,15 +70,53 @@ export function bumpStage(v, stage) {
   return out;
 }
 
+/**
+ * The stage a version is IN, read off its numbers: the highest of rc, beta
+ * and alpha that is set, or "released" when none is and major is.
+ *
+ * Read rather than carried, because a stage field that is copied forward is
+ * one that can disagree with the number beside it -- and the stamp is what
+ * production serves as its answer to "what is this".
+ */
+export function stageOf(v) {
+  if (v.rc > 0) return 'rc';
+  if (v.beta > 0) return 'beta';
+  if (v.alpha > 0) return 'alpha';
+  if (v.major > 0) return 'released';
+  throw new Error(`${label(v)} is in no stage -- every segment above build is 0`);
+}
+
+/** -1, 0 or 1, by the scheme's priority: major first, build last. */
+export function compare(a, b) {
+  for (const k of STAGES) {
+    if (a[k] !== b[k]) return a[k] < b[k] ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
+ * What `bump` writes: the version zbump asked for, or build + 1 without it.
+ * A requested version has to be ahead of the current one -- writing an equal
+ * or older number would name a release that already happened.
+ */
+export function nextVersion(current, requested) {
+  if (!requested) return bumpStage(current, 'build');
+  const want = parse(requested);
+  if (compare(want, current) <= 0) {
+    throw new Error(`asked for ${label(want)}, which is not ahead of ${label(current)}`);
+  }
+  return want;
+}
+
 function read() {
   return parse(JSON.parse(readFileSync(SOURCE, 'utf8')).version);
 }
 
-function write(v, stage) {
+function write(v) {
   const version = label(v).slice(1);
   const doc = {
     version,
-    stage,
+    stage: stageOf(v),
     scheme: 'v{major}.{rc}.{beta}.{alpha}.{build}',
     note: 'Build advances once per release on the default branch, never inside a PR.',
   };
@@ -87,21 +135,22 @@ function write(v, stage) {
   return label(v);
 }
 
-const [cmd, arg] = process.argv.slice(2);
-const current = read();
-const stage = JSON.parse(readFileSync(SOURCE, 'utf8')).stage || 'alpha';
+// Running it acts; importing it (as the tests do) does not.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const [cmd, arg] = process.argv.slice(2);
+  const current = read();
 
-if (cmd === 'get') {
-  process.stdout.write(`${label(current)}\n`);
-} else if (cmd === 'bump') {
-  process.stdout.write(`${write(bumpStage(current, 'build'), stage)}\n`);
-} else if (cmd === 'bump-stage') {
-  const next = arg === 'release' ? 'released' : arg;
-  process.stdout.write(`${write(bumpStage(current, arg), next)}\n`);
-} else if (cmd === 'tag-command') {
-  const l = label(current);
-  process.stdout.write(`git tag -a ${l} -m "${l}" && git push --follow-tags\n`);
-} else if (cmd) {
-  process.stderr.write('usage: get | bump | bump-stage <stage> | tag-command\n');
-  process.exit(1);
+  if (cmd === 'get') {
+    process.stdout.write(`${label(current)}\n`);
+  } else if (cmd === 'bump') {
+    process.stdout.write(`${write(nextVersion(current, process.env.ZBUMP_VERSION))}\n`);
+  } else if (cmd === 'bump-stage') {
+    process.stdout.write(`${write(bumpStage(current, arg))}\n`);
+  } else if (cmd === 'tag-command') {
+    const l = label(current);
+    process.stdout.write(`git tag -a ${l} -m "${l}" && git push --follow-tags\n`);
+  } else if (cmd) {
+    process.stderr.write('usage: get | bump | bump-stage <stage> | tag-command\n');
+    process.exit(1);
+  }
 }
