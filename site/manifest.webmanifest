@@ -5,11 +5,20 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#080b14",
   "theme_color": "#080b14",
   "categories": ["utilities", "education"],
   "icons": [
     { "src": "src/data/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/phone-tracker.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow",
+      "label": "The numbers to set your tracker to, with Polaris drawn on the polar-scope reticle" },
+    { "src": "screenshots/phone-sky.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow",
+      "label": "The live sky view, with the stars and constellations above the horizon tonight" },
+    { "src": "screenshots/phone-night.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow",
+      "label": "Full-screen sky view in Night Mode: pure red on black, to keep your eyes dark-adapted" },
+    { "src": "screenshots/desktop-sky.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide",
+      "label": "Full-screen sky view on a wide screen, with the controls at the edges" }
   ]
 }

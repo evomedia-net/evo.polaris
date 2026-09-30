@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
   parse, label, bumpStage, stageOf, compare, nextVersion,
@@ -113,15 +114,17 @@ test('the stage switch, run the way zbump will run it', () => {
   try {
     mkdirSync(join(tmp, 'scripts'));
     mkdirSync(join(tmp, 'site', 'src'), { recursive: true });
-    copyFileSync(fileURLToPath(new URL('scripts/bump-version.mjs', root)),
-      join(tmp, 'scripts', 'bump-version.mjs'));
+    for (const s of ['bump-version.mjs', 'package-release.mjs']) {
+      copyFileSync(fileURLToPath(new URL(`scripts/${s}`, root)), join(tmp, 'scripts', s));
+    }
     writeFileSync(join(tmp, 'package.json'), '{"type":"module"}\n');
+    writeFileSync(join(tmp, 'site', 'index.html'), '<!doctype html>\n');
     writeFileSync(join(tmp, 'build-version.json'),
       `${JSON.stringify({ version: '0.0.0.1.36', stage: 'alpha' })}\n`);
 
     const run = (env) => execFileSync(process.execPath,
       [join(tmp, 'scripts', 'bump-version.mjs'), 'bump'],
-      { env: { ...process.env, ...env }, encoding: 'utf8' }).trim();
+      { env: { ...process.env, ...env }, encoding: 'utf8', stdio: 'pipe' }).trim();
 
     assert.equal(run({ ZBUMP_VERSION: 'v0.0.1.0.0' }), 'v0.0.1.0.0');
     const source = JSON.parse(readFileSync(join(tmp, 'build-version.json'), 'utf8'));
@@ -131,6 +134,10 @@ test('the stage switch, run the way zbump will run it', () => {
       readFileSync(join(tmp, 'build-version.json'), 'utf8'));
     assert.match(readFileSync(join(tmp, 'site', 'src', 'version.js'), 'utf8'),
       /export const VERSION = 'v0\.0\.1\.0\.0';/);
+    // And the release packed itself, in the same run zbump makes.
+    const packed = readFileSync(join(tmp, 'releases', 'evo.polaris-v0.0.1.0.0.zip'));
+    assert.equal(readFileSync(join(tmp, 'releases', 'evo.polaris-v0.0.1.0.0.zip.sha256'), 'utf8'),
+      `${createHash('sha256').update(packed).digest('hex')}  evo.polaris-v0.0.1.0.0.zip\n`);
 
     // And the first ordinary release after it is beta build 1.
     assert.equal(run({ ZBUMP_VERSION: '' }), 'v0.0.1.0.1');

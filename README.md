@@ -110,8 +110,12 @@ elevation and type it in.
 The service worker uses **network-first for the app shell** and cache-first only
 for the bundled star and magnetic data. Cache-first for everything is how a
 static site pins every returning visitor to the first build they ever loaded, so
-a deploy would reach nobody until they cleared site data. Bump `VERSION` in
-`sw.js` with each release so old caches are dropped on activate.
+a deploy would reach nobody until they cleared site data. Move `VERSION` in
+`sw.js` whenever a precached file changes, then run `npm run precache-stamp`;
+old caches are dropped on activate. `test/precache-version.test.mjs` fails if a
+precached file changed and the key did not. The release stamp itself
+(`build-version.json`, `src/version.js`) is exempt, so a release on its own
+never needs a new key.
 
 ### The link-preview card
 
@@ -157,7 +161,11 @@ This is the point of the project, not a later pass.
 - **Single taps only.** No drag, no pinch, no double-tap, no press-and-hold.
 - **Targets stay put.** Values update in place; nothing reflows under your
   finger, because re-acquiring a moved target is expensive.
-- **Text scales** from 0.8× to 1.8× with two big buttons, and the choice sticks.
+- **Text scales** through five sizes, from normal to 1.6×, with two big buttons
+  that never move, and the choice sticks.
+- **Turns with the phone.** The installed app is not locked to portrait, so a
+  phone in a fixed landscape mount works too (WCAG 1.3.4), and full screen lays
+  itself out side by side when there is width and no height.
 - **Red night mode**, because an app that ruins your dark adaptation is an app
   you can't use twice in one night.
 - **Reads out loud** via the browser's speech synthesis, for when you are at the
@@ -228,10 +236,47 @@ bash scripts/fetch-sources.sh && npm run build-data
 The app is a plain PWA — no build step, no framework, no dependencies. It works
 offline once loaded, which is the normal case in a dark field.
 
+### Installing it
+
+The same app installs on Android, iPhone and desktop — one set of files, no
+store. On Android, Chrome offers **Install app**. On an iPhone, open it in
+Safari, then **Share → Add to Home Screen**. Installed, it opens in its own
+window with no browser bar and keeps working with no signal.
+
+The iPhone icon and the install sheet's screenshots are pictures of the app,
+drawn from it:
+
+```bash
+npm run serve        # in one terminal
+npm run pwa-images   # in another; needs a local Chrome or Edge
+```
+
+## Releases
+
+Every release is packed into `releases/` as
+`evo.polaris-v{version}.zip`, with a `.sha256` beside it. The zip holds
+`site/` — the whole app, byte for byte what is deployed, and everything needed
+to run it — plus `LICENSE`, this README and `CHECKSUMS.txt`, all under one
+folder named for the version.
+
+```bash
+sha256sum -c evo.polaris-v0.0.1.0.37.zip.sha256    # the zip
+sha256sum -c CHECKSUMS.txt                         # each file, once unzipped
+```
+
+To run a release, serve its `site/` folder from any static web server. It has
+to be over HTTPS, or `localhost`: the location, compass and offline cache are
+browser features that only work in a secure context.
+
+Nobody has to remember to pack one: `scripts/bump-version.mjs` calls
+`scripts/package-release.mjs` every time it stamps a version, so the release
+commit carries its own zip. The same tree always packs to the same bytes.
+
 ## Documentation
 
-The three documents live in [evo.polaris-docs](https://github.com/evomedia-net/evo.polaris-docs),
-which builds them into a docs site:
+The documents are published at
+[docs.evomedia.net/polaris](https://docs.evomedia.net/polaris/), built from the
+`evo.docs` repository:
 
 - **Accuracy, and how it is checked** — what is validated against what, the
   three WMM bugs NOAA's test vectors caught, the two traps that produce
@@ -262,3 +307,12 @@ sky with its stars removed so that only the catalogue's stars are drawn. The
 credit appears on the map wherever the picture does, because the licence puts
 it there. `scripts/build-milkyway.py` makes the texture from the original and
 records how its orientation was checked against the Magellanic Clouds.
+
+Two more pictures ship with it, both CC BY 4.0 and both credited on the map
+beside the Milky Way:
+
+- **Planet surfaces** — [Solar System Scope](https://www.solarsystemscope.com/textures/)
+  (INOVE), built from NASA imagery. `scripts/build-planet-textures.py`.
+- **Constellation figures** — James Hedberg (CUNY-CCNY), *Drawing the 88
+  constellations*, [jameshedberg.com](http://jameshedberg.com).
+  `scripts/build-constellation-art.py`.

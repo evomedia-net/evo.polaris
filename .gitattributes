@@ -6,3 +6,5 @@
 *.png binary
 *.jpg binary
 *.ico binary
+# Release packages: never touched for line endings, never diffed as text.
+*.zip binary

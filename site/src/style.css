@@ -1050,8 +1050,14 @@ html[data-night='on'] .map-btn {
 .milky-credit { display: block; margin-top: 0.35rem; font-size: 0.85em; opacity: 0.85; }
 .milky-credit a { color: inherit; }
 /* Still a plate, still red, still nothing filled brightly. The swatch colours
-   are set in script from the same table the paths use. */
-html[data-night='on'] .sky-legend {
+   are set in script from the same table the paths use.
+
+   BOTH SELECTORS, OR FULL SCREEN SHINES WHITE. The full-screen plate rule
+   above is .live-sky.full .sky-legend, which outranks the night rule on its
+   own (0,3,0 against 0,2,1), so in full screen the key kept its near-white
+   text and grey border in Night Mode -- the one place it must not (#168). */
+html[data-night='on'] .sky-legend,
+html[data-night='on'] .live-sky.full .sky-legend {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.72);
   border-color: var(--ink);
@@ -1390,6 +1396,48 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
   height: 3.4rem;
   font-size: 1.6rem;
   line-height: 1;
+}
+
+/* (Placed after every full-screen rule it overrides: these win on source
+   order at equal weight, and the first draft sat above them and lost.) */
+/* LANDSCAPE: SIDE BY SIDE, BECAUSE THERE IS WIDTH AND NO HEIGHT.
+ *
+ * Every full-screen control in this file is stacked for a phone held upright.
+ * On its side the same phone is 390px tall, and the stacks ran off it (#167):
+ * at the default text size the key covered Zoom in, Hide the horizon and Hide
+ * the constellation art; at the second size the right-hand column climbed 59px
+ * above the top edge, so "Hide the constellation art" could not be reached;
+ * at the third the Track column sat on "Look up".
+ *
+ * So on its side the width is spent instead of the height:
+ *   - the right-hand column goes two by two, half as tall;
+ *   - the key steps left of it rather than hanging above it;
+ *   - the pad moves beside the Track column rather than under it, with the
+ *     Az/Alt plate riding above the pad as it does in portrait;
+ *   - the Track column gets the full height, since nothing is under it now.
+ * Nothing changes size -- "We do not want to change the button size." The
+ * Track column is given a width rather than left to its longest word, because
+ * the pad is placed by it: 9.5rem, against the 9.06 it measures on its own. */
+@media (orientation: landscape) {
+  .live-sky.full .full-zoom {
+    display: grid;
+    grid-template-columns: 4rem 4rem;
+    gap: 0.6rem;
+  }
+  .live-sky.full .sky-legend {
+    right: calc(max(0.6rem, env(safe-area-inset-right)) + 8.6rem + 0.6rem);
+  }
+  .live-sky.full .full-targets,
+  .live-sky.full:has(#rdCostRow:not([hidden])) .full-targets,
+  .live-sky.full:has(#fullPan[hidden]) .full-targets {
+    width: 9.5rem;
+    max-width: none;
+    max-height: calc(100% - 1.2rem);
+  }
+  .live-sky.full .full-pan:not([hidden]),
+  .live-sky.full .sky-readout {
+    left: calc(max(0.6rem, env(safe-area-inset-left)) + 9.5rem + 0.6rem);
+  }
 }
 /* Two buttons rather than pinch-to-zoom: pinching is a two-finger gesture and
    this app does not use any. */

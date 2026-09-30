@@ -17,6 +17,7 @@
     "docs:twins": "node scripts/md-txt.mjs",
     "docs:check": "node scripts/md-txt.mjs --check",
     "precache-stamp": "node scripts/precache-stamp.mjs",
+    "pwa-images": "node scripts/capture-pwa-images.mjs",
     "build-constellations": "python scripts/build-constellations.py"
   },
   "keywords": [

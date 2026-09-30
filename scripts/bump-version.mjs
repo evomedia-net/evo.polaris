@@ -30,6 +30,11 @@
  * That third file is why the version was wrong for this project's whole life:
  * the footer carried a hand-typed "v0.0.0.1.0" that no bump could ever reach.
  *
+ * AND EVERY STAMP PACKS ITS RELEASE. After writing the three files, bump and
+ * bump-stage run scripts/package-release.mjs, which writes
+ * releases/evo.polaris-v{version}.zip and its .sha256 -- so the release commit
+ * zbump makes carries its own package, and nobody has to remember one.
+ *
  * WHY `bump` TAKES ITS ANSWER FROM ZBUMP WHEN THERE IS ONE. zbump owns the
  * release: it decides the next version, then runs this script to write it,
  * then refuses to tag if the two disagree. It runs `bump` whatever kind of
@@ -42,6 +47,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { packageRelease } from './package-release.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = join(ROOT, 'build-version.json');
@@ -140,12 +146,22 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const [cmd, arg] = process.argv.slice(2);
   const current = read();
 
+  // Every stamp packs its release, so the release commit carries its own zip
+  // (see scripts/package-release.mjs). stdout stays the bare version: zbump
+  // and the tests read it, so what was packed goes to stderr.
+  const stampAndPack = (v) => {
+    const written = write(v);
+    const { zipPath, files } = packageRelease({ root: ROOT, version: written });
+    process.stderr.write(`packed ${files} files into ${zipPath}\n`);
+    return written;
+  };
+
   if (cmd === 'get') {
     process.stdout.write(`${label(current)}\n`);
   } else if (cmd === 'bump') {
-    process.stdout.write(`${write(nextVersion(current, process.env.ZBUMP_VERSION))}\n`);
+    process.stdout.write(`${stampAndPack(nextVersion(current, process.env.ZBUMP_VERSION))}\n`);
   } else if (cmd === 'bump-stage') {
-    process.stdout.write(`${write(bumpStage(current, arg))}\n`);
+    process.stdout.write(`${stampAndPack(bumpStage(current, arg))}\n`);
   } else if (cmd === 'tag-command') {
     const l = label(current);
     process.stdout.write(`git tag -a ${l} -m "${l}" && git push --follow-tags\n`);

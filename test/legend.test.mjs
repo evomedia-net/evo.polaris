@@ -237,3 +237,17 @@ test('the app still tells the truth about what leaves the device', () => {
   assert.match(html, /timestamps and nothing about you/,
     'and say what is sent, since the point is that it is not the observer');
 });
+
+test('in full screen at night the key is red too, not near-white', () => {
+  // The full-screen plate rule (.live-sky.full .sky-legend, 0,3,0) outranks
+  // the plain night rule (0,2,1), so in full screen the key kept its white
+  // text and grey border in Night Mode (#168). The night rule has to name the
+  // full-screen selector as well, and win on order: it comes after the plate.
+  const night = css.indexOf("html[data-night='on'] .live-sky.full .sky-legend");
+  assert.ok(night > 0, 'no night rule reaches the full-screen key');
+  assert.ok(night > css.indexOf('.live-sky.full .sky-legend {'),
+    'the night rule comes before the full-screen plate and loses to it');
+  const rule = css.slice(night, css.indexOf('}', night));
+  assert.match(rule, /color: var\(--ink\);/);
+  assert.match(rule, /border-color: var\(--ink\);/);
+});
