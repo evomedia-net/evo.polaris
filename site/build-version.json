@@ -1,6 +1,6 @@
 {
-  "version": "0.0.0.1.36",
-  "stage": "alpha",
+  "version": "0.0.1.0.37",
+  "stage": "beta",
   "scheme": "v{major}.{rc}.{beta}.{alpha}.{build}",
   "note": "Build advances once per release on the default branch, never inside a PR."
 }
