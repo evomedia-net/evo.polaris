@@ -150,11 +150,22 @@ HAND-MATCHED, WHERE THE DRAWING'S PROPORTIONS ARE NOT THE SKY'S
     that grew to reach its stars keeps its resolution.
 
     Every match prints how far it stretched any part of the drawing, and
-    MAX_STRETCH refuses one that asks too much. Seventeen of the twenty-six
-    are matched; the other nine already sit on their stars -- checked
+    MAX_STRETCH refuses one that asks too much. Nineteen of the twenty-six
+    are matched; the other seven already sit on their stars -- checked
     one by one against the stars the app draws lines between, by anatomy
     as well as by number, because a star correctly inside an outlined body
-    counts as far from ink and would fool the number alone.
+    counts as far from ink and would fool the number alone. Sagittarius was
+    counted among those that sat right until 2026-09-30, and did not: its
+    bow bulged outside Kaus Borealis, Kaus Media and Kaus Australis by half
+    a degree to a degree. The nearest-ink number had said 0.2-0.5 degrees,
+    because the nearest ink to those stars was the arrow and the string,
+    not the bow. For a star that belongs ON a line, measure to that line.
+    Capricornus followed the same day, once it had stick lines to be checked
+    against: Deneb Algedi sat two degrees off the tail and the leg stars off
+    the leg. The six zodiac drawings had never been checked at all, because
+    until 2026-10-01 they had no lines. Pisces is the one left as drawn: its
+    western fish is smaller than the Circlet it swims in, and stretching the
+    head out to Gamma would make a different fish.
 
     The landmarks are read off the tile as this script crops it. Change
     MARGIN or the crop rule, and they have to be read again.

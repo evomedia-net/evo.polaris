@@ -34,8 +34,24 @@ OUT = ROOT / "site" / "src" / "data" / "constellations.js"
 # figure fails to resolve.
 NAME = re.compile(
     r"^\s*\d*\s*([A-Z][a-z]{1,2})\s*(\d?)\s*([A-Z][A-Za-z]{2})\s*$")
+# "41    Ari", "13Alp Ari" -> (Flamsteed number, constellation). Some figures
+# run through stars that have no Bayer letter at all -- 41 Arietis, 88
+# Aquarii -- and those are named by their Flamsteed number instead.
+FLAMSTEED = re.compile(r"^\s*(\d+)\D.*?([A-Z][A-Za-z]{2})\s*$")
+# A star in a figure: a Bayer letter ("Gam", the BRIGHTEST component of a
+# double -- the one you can see), a letter with its component ("Psi2", that
+# one exactly), or a Flamsteed number ("41").
+TOKEN = re.compile(r"^(?:([A-Z][a-z]{1,2})(\d?)|(\d+))$")
 
-# Each entry: display name, and the segments as Bayer letters.
+# Each entry: display name, and the segments as Bayer letters (see TOKEN).
+#
+# The six zodiac figures that have artwork -- Aries, Cancer, Libra,
+# Capricornus, Aquarius, Pisces -- were added 2026-10-01, when their drawings
+# were found floating with no lines and no name ("This artwork doesn't seem to
+# have any corresponding constellations"). Their lines follow the figures in
+# d3-celestial's constellations.lines.json (BSD 3-clause): every vertex was
+# matched to the nearest star of this catalogue, all within 0.1 degrees, and
+# only which stars to join was taken from it.
 FIGURES = {
     "UMa": ("The Big Dipper", [
         ("Eta", "Zet"), ("Zet", "Eps"), ("Eps", "Del"),
@@ -76,6 +92,9 @@ FIGURES = {
     "Vir": ("Virgo", [
         ("Alp", "The"), ("The", "Gam"), ("Gam", "Eta"),
         ("Gam", "Del"), ("Del", "Eps")]),
+    "Lib": ("Libra", [
+        ("Sig", "Alp"), ("Alp", "Bet"), ("Bet", "Gam"), ("Gam", "Ups"),
+        ("Ups", "Tau"), ("Alp", "Gam")]),
     "Sco": ("Scorpius", [
         ("Bet", "Del"), ("Del", "Pi"), ("Del", "Sig"), ("Sig", "Alp"),
         ("Alp", "Tau"), ("Tau", "Eps"), ("Eps", "Mu"), ("Mu", "Zet"),
@@ -85,6 +104,15 @@ FIGURES = {
         ("Zet", "Eps"), ("Eps", "Del"), ("Del", "Lam"), ("Lam", "Phi"),
         ("Phi", "Zet"), ("Del", "Gam"), ("Lam", "Del"), ("Phi", "Sig"),
         ("Sig", "Tau"), ("Tau", "Zet")]),
+    "Cap": ("Capricornus", [
+        ("Alp", "Bet"), ("Bet", "Rho"), ("Rho", "Psi"), ("Psi", "Ome"),
+        ("Ome", "Zet"), ("Zet", "Del"), ("Del", "Gam"), ("Gam", "Iot"),
+        ("Iot", "The"), ("The", "Alp")]),
+    "Aqr": ("Aquarius", [
+        ("Eps", "Mu"), ("Mu", "Bet"), ("Bet", "Alp"), ("Alp", "Gam"),
+        ("Gam", "Zet"), ("Zet", "Eta"), ("Eta", "Lam"), ("Lam", "Psi2"),
+        ("Psi2", "88"), ("Bet", "Iot"), ("Alp", "The"), ("Zet", "Pi"),
+        ("98", "Psi2"), ("Psi2", "104")]),
     "Ori": ("Orion", [
         ("Alp", "Zet"), ("Zet", "Eps"), ("Eps", "Del"), ("Del", "Gam"),
         ("Gam", "Alp"), ("Del", "Bet"), ("Zet", "Kap"), ("Kap", "Bet")]),
@@ -94,6 +122,8 @@ FIGURES = {
     "Gem": ("Gemini", [
         ("Alp", "Tau"), ("Tau", "Eps"), ("Eps", "Nu"),
         ("Bet", "Del"), ("Del", "Zet"), ("Zet", "Gam"), ("Del", "Eps")]),
+    "Cnc": ("Cancer", [
+        ("Alp", "Del"), ("Del", "Gam"), ("Gam", "Iot"), ("Del", "Bet")]),
     "Aur": ("Auriga", [
         ("Alp", "Bet"), ("Bet", "The"), ("The", "Iot"),
         ("Iot", "Eps"), ("Eps", "Alp")]),
@@ -105,6 +135,14 @@ FIGURES = {
     "Peg": ("Pegasus, the Great Square", [
         ("Alp", "Bet"), ("Bet", "Gam"), ("Gam", "Alp"),
         ("Alp", "Zet"), ("Zet", "The"), ("Bet", "Eta")]),
+    "Psc": ("Pisces", [
+        ("Phi", "Tau"), ("Tau", "Ups"), ("Ups", "Phi"), ("Phi", "Chi"),
+        ("Chi", "Eta"), ("Eta", "Omi"), ("Omi", "Alp"), ("Alp", "Xi"),
+        ("Xi", "Nu"), ("Nu", "Mu"), ("Mu", "Zet"), ("Zet", "Eps"),
+        ("Eps", "Del"), ("Del", "Ome"), ("Ome", "Iot"), ("Iot", "The"),
+        ("The", "7"), ("7", "Gam"), ("Gam", "Kap"), ("Kap", "Lam"),
+        ("Lam", "19"), ("19", "Iot"), ("Gam", "Bet")]),
+    "Ari": ("Aries", [("41", "Alp"), ("Alp", "Bet"), ("Bet", "Gam")]),
     "CMa": ("Canis Major", [
         ("Alp", "Bet"), ("Alp", "Del"), ("Del", "Eta"),
         ("Del", "Eps"), ("Eps", "Bet")]),
@@ -116,28 +154,50 @@ FIGURES = {
 
 
 def load_index():
-    """{(greek, super, con): (hr, mag)} for every named star in the catalogue."""
-    index = {}
+    """Every named star in the catalogue, two ways.
+
+    bayer:     {(greek, super, con): (hr, mag)}
+    flamsteed: {(number, con): (hr, mag)}
+    """
+    bayer, flamsteed = {}, {}
     for ra, dec, mag, bv, hr, name in json.loads(STARS.read_text()):
         if not name:
             continue
         m = NAME.match(name)
-        if not m:
-            continue
-        key = (m.group(1), m.group(2), m.group(3))
-        # Keep the brightest when a letter has superscripted components: the
-        # figure means the one you can see.
-        if key not in index or mag < index[key][1]:
-            index[key] = (hr, mag)
-    return index
+        if m:
+            key = (m.group(1), m.group(2), m.group(3))
+            if key not in bayer or mag < bayer[key][1]:
+                bayer[key] = (hr, mag)
+        f = FLAMSTEED.match(name)
+        if f:
+            key = (f.group(1), f.group(2))
+            if key not in flamsteed or mag < flamsteed[key][1]:
+                flamsteed[key] = (hr, mag)
+    return bayer, flamsteed
 
 
-def resolve(index, greek, con):
-    for sup in ("", "1", "2"):
-        hit = index.get((greek, sup, con))
-        if hit:
-            return hit[0]
-    return None
+def resolve(index, token, con):
+    """The HR number a figure's token means, or None.
+
+    A BARE LETTER IS THE BRIGHTEST COMPONENT, because the figure means the one
+    you can see. This used to try component 1, then 2, and take the first that
+    existed -- so the Teapot's spout ran to gamma-1 Sagittarii, a faint
+    variable, instead of Alnasl, gamma-2, "the arrow's point" (#173). The
+    comment above the old code said "the brightest"; the code did not.
+    """
+    bayer, flamsteed = index
+    m = TOKEN.match(token)
+    if not m:
+        return None
+    greek, sup, number = m.groups()
+    if number:
+        hit = flamsteed.get((number, con))
+        return hit[0] if hit else None
+    if sup:
+        hit = bayer.get((greek, sup, con))
+        return hit[0] if hit else None
+    candidates = [v for (g, s, c), v in bayer.items() if g == greek and c == con]
+    return min(candidates, key=lambda v: v[1])[0] if candidates else None
 
 
 def main() -> int:

@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0.37",
+  "version": "0.0.1.0.38",
   "files": {
     "./index.html": "d8df9cd0f330fd49",
     "./manifest.webmanifest": "1cbb00eab3a54d0b",
@@ -20,7 +20,7 @@
     "./src/planets.js": "c373d0992ce1f6c3",
     "./src/tracks.js": "46cb5ee8b20b720e",
     "./src/dwell.js": "6373a0fe2ccd4f04",
-    "./src/data/constellations.js": "d48aa978822b3cda",
+    "./src/data/constellations.js": "9d7d3d8723a99e6f",
     "./src/data/galaxies.js": "c0a48738d100b893",
     "./src/data/stars.json": "ee8f82b72512d96b",
     "./src/data/wmm2025.js": "ad3d383f0cf5a72a",
@@ -35,7 +35,7 @@
     "./src/planet-art.js": "157cf0d6bafa79ef",
     "./src/data/planets.webp": "41bebe8d4d5145e8",
     "./src/constellation-art.js": "ddbab5dcea0a2431",
-    "./src/data/figures.webp": "05f7a8027cbed174",
-    "./src/data/figures.js": "12f24a42e828b6ef"
+    "./src/data/figures.webp": "06aed499a6f73553",
+    "./src/data/figures.js": "aec91062f7cf4446"
   }
 }

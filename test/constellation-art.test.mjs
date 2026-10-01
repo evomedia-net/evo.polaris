@@ -230,9 +230,24 @@ test('the hand-matching data is well formed, and every matched figure ships', ()
       }
     }
   }
-  for (const a of ['Sco', 'Cyg', 'Aql']) {
+  for (const a of ['Sco', 'Cyg', 'Aql', 'Sgr']) {
     assert.ok(figures.includes(a), `${a} was the reported case and must stay matched`);
   }
+});
+
+test('the archer’s bow runs through the bow stars, and the arrow ends on Alnasl', () => {
+  // "It just doesn't look like the bow lines up properly" (#171). Placed as
+  // OpenSpace placed it, the bow bulged outside the Teapot's spout edge by
+  // half a degree to a degree. Kaus Borealis, Media and Australis are the
+  // bow's north end, middle and south end by name, and Alnasl is "the
+  // arrow's point" -- those four are what the drawing is matched to.
+  const matching = JSON.parse(readFileSync(
+    fileURLToPath(new URL('../scripts/figure-matching.json', import.meta.url)), 'utf8'));
+  const stars = matching.Sgr.filter((p) => typeof p[2] === 'string').map((p) => p[2]).sort();
+  assert.deepEqual(stars, ['Del', 'Eps', 'Gam', 'Lam']);
+  // And everything that already sat right is pinned: the archer, the horse.
+  assert.ok(matching.Sgr.filter((p) => Array.isArray(p[2])).length >= 6,
+    'without pins the spline drags the horse along with the bow');
 });
 
 test('the build refuses a match that stretches a drawing too far', () => {
