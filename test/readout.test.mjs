@@ -84,13 +84,13 @@ test('in full screen the plate sits above the arrow pad, and drops into its corn
   const full = block('.live-sky.full .sky-readout {');
   assert.match(full, /left: max\(0\.6rem, env\(safe-area-inset-left\)\)/, 'aligned with the pad');
   assert.match(full, /transform: none/);
-  assert.match(full, /bottom: calc\(max\(0\.6rem, env\(safe-area-inset-bottom\)\) \+ 10\.9rem \+ 0\.6rem\)/,
+  assert.match(full, /bottom: calc\(max\(0\.6rem, env\(safe-area-inset-bottom\)\) \+ 10\.9 \* var\(--ctl\) \+ 0\.6rem\)/,
     'three pad rows plus the gap every plate keeps');
-  // The pad is three 3.4rem rows with two 0.35rem gaps: 10.9rem. If the pad
-  // changes, this must change with it.
+  // The pad is three 3.4 rows with two 0.35 gaps: 10.9, in the controls'
+  // unit (#147). If the pad changes, this must change with it.
   const pad = block('.live-sky.full .full-pan:not([hidden]) {');
-  assert.match(pad, /grid-template-columns: 3\.4rem 3\.4rem 3\.4rem/);
-  assert.match(pad, /gap: 0\.35rem/);
+  assert.match(pad, /grid-template-columns: repeat\(3, calc\(3\.4 \* var\(--ctl\)\)\)/);
+  assert.match(pad, /gap: calc\(0\.35 \* var\(--ctl\)\)/);
   const auto = block('.live-sky.full:has(#fullPan[hidden]) .sky-readout {');
   assert.match(auto, /bottom: max\(0\.6rem, env\(safe-area-inset-bottom\)\)/,
     'with no pad there is nothing to sit above');
