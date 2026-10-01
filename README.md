@@ -294,6 +294,11 @@ twins below are generated rather than written.
 Every `.md` in this repo still has a generated `.txt` twin, kept in sync by
 `npm run docs:twins` and enforced by the test suite.
 
+## Security
+
+What can leave the device, and how to report a vulnerability privately: see
+[SECURITY.md](SECURITY.md).
+
 ## Data and licence
 
 MIT. Bundled data is public domain: the Yale Bright Star Catalog (CDS VizieR

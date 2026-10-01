@@ -1,0 +1,54 @@
+# Security
+
+How to report a vulnerability, what to expect, and what is in scope:
+**[the evomedia-net security policy](https://github.com/evomedia-net/.github/blob/main/SECURITY.md)**.
+Short version — email [dev@evomedia.net](mailto:dev@evomedia.net), not a public
+issue.
+
+What follows is particular to evo.polaris.
+
+## What leaves the device
+
+evo.polaris is a static web app: no accounts, no sign-in, and no server side of
+its own. Everything it works out, it works out on the device, and it keeps
+working with no signal at all. Three requests can leave the device, and they
+are listed here so that a report can say *it sends more than this*:
+
+- **The altitude lookup**, and only when you press *Look up altitude for me*:
+  the latitude and longitude you entered go to
+  [Open-Meteo](https://open-meteo.com/)'s elevation service.
+- **The International Space Station**: its position comes from
+  [wheretheiss.at](https://wheretheiss.at/). What is sent is timestamps —
+  nothing about you, and nothing about where you are.
+- **How long the page has been open**: a whole number of seconds, to the
+  site's own server, now and then while the page is open and once more when you
+  leave. No identifier, no cookie, no coordinates. It is not sent when Do Not
+  Track or Global Privacy Control is on, and it cannot be sent offline.
+
+The position you give the app is kept in that browser's own storage, so the app
+opens where you left it, and goes nowhere except the altitude lookup above.
+
+## In scope
+
+- Anything that sends more than the list above, or sends it somewhere else.
+- A way to run script through the input boxes, the address bar, or a cached
+  file.
+- The offline cache serving something other than this app.
+- A leak: a credential, a private path or hostname, or anything else that
+  should not be in a public repository.
+
+## Release integrity
+
+Each release in `releases/` carries a `.sha256` beside the zip and a
+`CHECKSUMS.txt` inside it. They are an **integrity check, not a signature**:
+they catch a truncated download, a corrupted copy and an accidental edit, and
+they do not catch a forger, because whoever can change an archive can change
+the checksums that travel with it.
+
+## Not a finding here
+
+- **A number that is wrong.** That is a bug, and a public issue is the right
+  place for it; how each number is checked is written up in
+  [the accuracy notes](https://docs.evomedia.net/polaris/accuracy).
+- **Needing HTTPS.** Location, the compass and the offline cache only work in a
+  secure context. That is the browser's rule, and it is the right one.

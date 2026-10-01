@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, copyFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
@@ -139,8 +139,15 @@ test('the stage switch, run the way zbump will run it', () => {
     assert.equal(readFileSync(join(tmp, 'releases', 'evo.polaris-v0.0.1.0.0.zip.sha256'), 'utf8'),
       `${createHash('sha256').update(packed).digest('hex')}  evo.polaris-v0.0.1.0.0.zip\n`);
 
-    // And the first ordinary release after it is beta build 1.
-    assert.equal(run({ ZBUMP_VERSION: '' }), 'v0.0.1.0.1');
+    // And the first ordinary release after it is beta build 1 -- with NOTHING
+    // on stderr. zdeploy runs zbump under PowerShell 5.1 with 2>&1 and Stop,
+    // where one stderr line is fatal: "packed 48 files into ..." killed the
+    // first automated release between the stamp and the commit (#174).
+    const quiet = spawnSync(process.execPath, [join(tmp, 'scripts', 'bump-version.mjs'), 'bump'],
+      { env: { ...process.env, ZBUMP_VERSION: '' }, encoding: 'utf8' });
+    assert.equal(quiet.status, 0);
+    assert.equal(quiet.stdout.trim(), 'v0.0.1.0.1');
+    assert.equal(quiet.stderr, '', 'a successful stamp must print nothing to stderr');
     // A repeat of a version already written is refused, not rewritten.
     assert.throws(() => run({ ZBUMP_VERSION: 'v0.0.1.0.1' }), /not ahead/);
   } finally {

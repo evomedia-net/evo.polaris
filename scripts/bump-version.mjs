@@ -147,12 +147,18 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const current = read();
 
   // Every stamp packs its release, so the release commit carries its own zip
-  // (see scripts/package-release.mjs). stdout stays the bare version: zbump
-  // and the tests read it, so what was packed goes to stderr.
+  // (see scripts/package-release.mjs).
+  //
+  // AND SAYS NOTHING ABOUT IT. stdout is the bare version, because zbump and
+  // the tests read it; and stderr has to stay EMPTY on success, because zdeploy
+  // runs zbump under Windows PowerShell 5.1 with 2>&1 and Stop, where a single
+  // line on stderr is a terminating error. "packed 48 files into ..." went to
+  // stderr for exactly one release, and killed it between the stamp and the
+  // commit (#174). The zip and its .sha256 are the report; the release commit
+  // shows them.
   const stampAndPack = (v) => {
     const written = write(v);
-    const { zipPath, files } = packageRelease({ root: ROOT, version: written });
-    process.stderr.write(`packed ${files} files into ${zipPath}\n`);
+    packageRelease({ root: ROOT, version: written });
     return written;
   };
 

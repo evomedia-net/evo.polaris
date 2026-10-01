@@ -4,6 +4,15 @@
   "description": "Free, open-source, accessible polar-alignment assistant for star trackers and equatorial mounts.",
   "type": "module",
   "license": "MIT",
+  "author": "Kelly Michels",
+  "homepage": "https://polaris.evomedia.net",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evomedia-net/evo.polaris.git"
+  },
+  "bugs": {
+    "url": "https://github.com/evomedia-net/evo.polaris/issues"
+  },
   "private": false,
   "scripts": {
     "test": "node --test \"test/*.test.mjs\"",
