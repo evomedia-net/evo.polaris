@@ -235,6 +235,8 @@ Running it
     npm test          # validate the maths
     npm run serve     # http://localhost:8790
 
+The same suite runs on GitHub for every pull request and every push to main.
+
 To regenerate the bundled data from its public sources:
 
     bash scripts/fetch-sources.sh && npm run build-data
