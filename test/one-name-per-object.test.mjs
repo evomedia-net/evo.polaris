@@ -29,8 +29,12 @@ const ACCENT = '#7CFFB2';
 
 function stubCtx() {
   const texts = [];
+  // A name is drawn as a halo stroke in the sky's colour and then the fill on
+  // top of it (#195): one name on screen, two calls. The fills are the names;
+  // the halos are kept apart so a name FILLED twice still fails here.
+  const halos = [];
   return {
-    texts,
+    texts, halos,
     fillStyle: '', strokeStyle: '', lineWidth: 0, globalAlpha: 1, font: '',
     textAlign: '', textBaseline: '', globalCompositeOperation: '', filter: '',
     lineCap: '', lineJoin: '',
@@ -39,7 +43,7 @@ function stubCtx() {
     fill() {}, clearRect() {}, fillRect() {}, setLineDash() {}, clip() {},
     arc() {}, ellipse() {}, quadraticCurveTo() {}, bezierCurveTo() {},
     fillText(t) { texts.push(String(t)); },
-    strokeText(t) { texts.push(String(t)); },
+    strokeText(t) { halos.push(String(t)); },
     measureText(t) { return { width: String(t).length * 6 }; },
     createRadialGradient() { return { addColorStop() {} }; },
     createLinearGradient() { return { addColorStop() {} }; },

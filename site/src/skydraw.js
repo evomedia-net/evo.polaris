@@ -101,9 +101,28 @@ export function drawSkyView(ctx, o) {
   const ink = night ? '#ff0000' : '#e8ecf4';
   const dim = night ? '#8b0000' : '#5b6b86';
   const accent = night ? '#ff0000' : '#7CFFB2';
+  const skyBg = night ? '#000000' : '#05070d';
+  // NAMES ON THE SKY ARE TEXT, AND TEXT HAS TO BE READ (#195). Star and
+  // galaxy names were drawn in `dim` -- 3.6:1 on this sky by day and 2.1:1 in
+  // Night Mode -- and the planet names were 3.6:1 at night: "the star text is
+  // way too low contrast". Every name now takes the light ink the planet names
+  // already used by day and the app's own Night Mode text red by night, both
+  // above 4.5:1, with a halo in the sky's colour so a name that crosses the
+  // white figure art or the Milky Way still reads.
+  const nameInk = night ? '#ff0000' : '#cfd8ea';
+  const nameText = (text, x, y) => {
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2, Math.round(ref / 150));
+    ctx.strokeStyle = skyBg;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = nameInk;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  };
 
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = night ? '#000000' : '#05070d';
+  ctx.fillStyle = skyBg;
   ctx.fillRect(0, 0, w, h);
 
   // Either the device is aimed somewhere, or the buttons are. Same projection
@@ -248,10 +267,7 @@ export function drawSkyView(ctx, o) {
       ctx.beginPath();
       ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
-      if (g.name !== ringName) {
-        ctx.fillStyle = night ? '#cc0000' : dim;
-        ctx.fillText(g.name, x + rx + 5, y);
-      }
+      if (g.name !== ringName) nameText(g.name, x + rx + 5, y);
     }
     ctx.restore();
     ctx.textAlign = 'center';
@@ -310,10 +326,9 @@ export function drawSkyView(ctx, o) {
     if (labelled >= 7) break;
     if (!(s.mag < 2.6 && NAMED.has(s.hr) && NAMED.get(s.hr) !== ringName)) continue;
     labelled += 1;
-    ctx.fillStyle = dim;
     ctx.font = `500 ${Math.round(ref / 34)}px system-ui, sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText(NAMED.get(s.hr), t.x + t.r + 5, t.y);
+    nameText(NAMED.get(s.hr), t.x + t.r + 5, t.y);
     ctx.textAlign = 'center';
   }
 
@@ -399,10 +414,9 @@ export function drawSkyView(ctx, o) {
       // ONE NAME PER OBJECT. If the ring is on this planet it is already
       // captioned, in bigger type, right where you are looking.
       if (p.name !== ringName) {
-        ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
         ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText(p.name, x + r + 5, y);
+        nameText(p.name, x + r + 5, y);
         ctx.textAlign = 'center';
       }
     }
@@ -437,10 +451,9 @@ export function drawSkyView(ctx, o) {
       ctx.fill();
       ctx.restore();
       if (ringName !== 'Sun') {
-        ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
         ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText('Sun', x + r + 5, y);
+        nameText('Sun', x + r + 5, y);
         ctx.textAlign = 'center';
       }
     }
@@ -471,10 +484,9 @@ export function drawSkyView(ctx, o) {
       ctx.restore();
 
       if (ringName !== 'Moon') {
-        ctx.fillStyle = night ? '#cc0000' : '#cfd8ea';
         ctx.font = `600 ${Math.round(ref / 32)}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText('Moon', x + r + 5, y);
+        nameText('Moon', x + r + 5, y);
         ctx.textAlign = 'center';
       }
     }

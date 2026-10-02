@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0.43",
+  "version": "0.0.1.0.44",
   "files": {
     "./index.html": "c9a5f9e22b0f7edf",
     "./manifest.webmanifest": "1cbb00eab3a54d0b",
@@ -11,7 +11,7 @@
     "./src/guide.js": "d18a6510e3145022",
     "./src/words.js": "cc0f7b7386a4b70a",
     "./src/skyview.js": "33a3fee7c1aad890",
-    "./src/skydraw.js": "cf68915cad7eaf08",
+    "./src/skydraw.js": "3b34d51dfdd10d99",
     "./src/evomedia-chrome.js": "cca69c2552ee9123",
     "./src/coords.js": "246b595ef727d073",
     "./src/briefing.js": "b2c3fb11db03a879",
