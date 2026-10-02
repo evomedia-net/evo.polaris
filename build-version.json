@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0.43",
+  "version": "0.0.1.0.44",
   "stage": "beta",
   "scheme": "v{major}.{rc}.{beta}.{alpha}.{build}",
   "note": "Build advances once per release on the default branch, never inside a PR."
