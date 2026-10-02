@@ -5,7 +5,7 @@ Free, open-source polar alignment for star trackers and equatorial mounts —
 built to be usable by astronomers who can't crouch behind an eyepiece, hold a
 phone steady, or work a fiddly touch target in the dark.
 
-Every app that does this today costs money and assumes a body that cooperates.
+Many apps for this job cost money, and most assume a body that cooperates.
 This one is free, works offline, reads its numbers out loud, and never asks you
 to drag, pinch, double-tap or press-and-hold.
 
