@@ -1,10 +1,10 @@
 {
-  "version": "0.0.1.0.40",
+  "version": "0.0.1.0.41",
   "files": {
     "./index.html": "d8df9cd0f330fd49",
     "./manifest.webmanifest": "1cbb00eab3a54d0b",
     "./src/style.css": "8654fec4015a72be",
-    "./src/app.js": "5544f59900a1cbac",
+    "./src/app.js": "331a776e2e00d954",
     "./src/astro.js": "5c672abb05af041e",
     "./src/geomag.js": "ed34724c89f7624c",
     "./src/chart.js": "bcd9285554d6176e",
@@ -13,7 +13,7 @@
     "./src/skyview.js": "33a3fee7c1aad890",
     "./src/skydraw.js": "cf68915cad7eaf08",
     "./src/evomedia-chrome.js": "cca69c2552ee9123",
-    "./src/coords.js": "d25223ae07a463e5",
+    "./src/coords.js": "246b595ef727d073",
     "./src/briefing.js": "b2c3fb11db03a879",
     "./src/iss.js": "c6b4eff8c9916295",
     "./src/moon.js": "c5f4edd984c02d80",

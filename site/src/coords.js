@@ -46,3 +46,23 @@ export function hemisphereFor(value, positive, negative) {
 export function validate(value, limit) {
   return Number.isFinite(value) && Math.abs(value) <= limit;
 }
+
+/**
+ * The position the hand-entry form describes, signed, or ok: false.
+ *
+ * The boxes hold magnitudes and the buttons hold the sign, so anything that
+ * reads a box on its own reads every western and southern position in the
+ * wrong hemisphere. The altitude lookup did exactly that (#183): it sent
+ * 32.80 N 94.61 W as 94.61 E, which is the Tibetan Plateau, and wrote 5052 m
+ * into a box that should have said 86. Everything that turns the form into a
+ * position goes through here, so there is one place that knows about the
+ * buttons.
+ *
+ * @returns {{ok:boolean, lat:number, lon:number}}
+ */
+export function formPosition(latRaw, latHemi, lonRaw, lonHemi) {
+  const lat = resolveCoordinate(latRaw, latHemi, 'S');
+  const lon = resolveCoordinate(lonRaw, lonHemi, 'W');
+  const ok = lat.ok && lon.ok && validate(lat.value, 90) && validate(lon.value, 180);
+  return { ok, lat: lat.value, lon: lon.value };
+}

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveCoordinate, hemisphereFor, validate } from '../site/src/coords.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { resolveCoordinate, hemisphereFor, validate, formPosition } from '../site/src/coords.js';
 
 test('the button supplies the sign, so no minus has to be typed', () => {
   // The whole point: 33.8688 with S selected is Sydney, not Lebanon.
@@ -87,4 +89,37 @@ test('the round trip holds for every place the app has been tested at', () => {
     assert.equal(resolveCoordinate(Math.abs(lat), latHemi, 'S').value, lat, `${name} lat`);
     assert.equal(resolveCoordinate(Math.abs(lon), lonHemi, 'W').value, lon, `${name} lon`);
   }
+});
+
+// THE ALTITUDE LOOKUP READ THE BOXES WITHOUT THE BUTTONS (#183).
+//
+// "If I click look up altitude, it sets it to 5052" -- for a saved position
+// of 32.7975 North, 94.6077 West at 86 m. The lookup parsed the two boxes and
+// sent them to the elevation service as they were, and a box holds only the
+// size of a coordinate: 94.6077 West went out as 94.6077 East, which is the
+// Tibetan Plateau. Apply was always right, because it signs through
+// resolveCoordinate; the lookup now goes through the same door.
+
+test('the form describes a signed position, with the sign from the buttons', () => {
+  assert.deepEqual(formPosition('32.7975', 'N', '94.6077', 'W'),
+    { ok: true, lat: 32.7975, lon: -94.6077 }, 'East Texas, not Tibet');
+  assert.deepEqual(formPosition('33.8688', 'S', '151.2093', 'E'),
+    { ok: true, lat: -33.8688, lon: 151.2093 }, 'Sydney');
+  assert.deepEqual(formPosition('-0.1807', 'N', '-78.4678', 'E'),
+    { ok: true, lat: -0.1807, lon: -78.4678 }, 'a typed minus still wins');
+  assert.equal(formPosition('', 'N', '94.6', 'W').ok, false, 'a blank box is not a position');
+  assert.equal(formPosition('91', 'N', '94.6', 'W').ok, false, 'latitude past the pole');
+  assert.equal(formPosition('32.8', 'N', '181', 'W').ok, false, 'longitude past the date line');
+});
+
+test('the altitude lookup asks about that signed position, not the bare boxes', () => {
+  const app = readFileSync(fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
+  const start = app.indexOf("$('lookupAlt').onclick");
+  assert.ok(start > 0, 'the lookup handler is gone');
+  const handler = app.slice(start, app.indexOf('\n};', start));
+  assert.match(handler, /formPosition\(\$\('inLat'\)\.value, latHemi, \$\('inLon'\)\.value, lonHemi\)/,
+    'the lookup must sign the boxes with the buttons');
+  assert.ok(!/parseFloat\(\$\('in(Lat|Lon)'\)/.test(handler),
+    'reading a box on its own drops its hemisphere');
+  assert.match(handler, /latitude=\$\{encodeURIComponent\(lat\)\}&longitude=\$\{encodeURIComponent\(lon\)\}/);
 });

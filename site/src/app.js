@@ -45,7 +45,7 @@ import {
 } from './moon.js';
 import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
-import { resolveCoordinate, hemisphereFor, validate } from './coords.js';
+import { resolveCoordinate, hemisphereFor, validate, formPosition } from './coords.js';
 import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -969,11 +969,13 @@ $('manualToggle').onclick = () => {
 // It is a convenience, not an accuracy fix -- see the note it prints. The point
 // is to spare anyone having to go and find their elevation and type it in.
 $('lookupAlt').onclick = async () => {
-  const lat = parseFloat($('inLat').value);
-  const lon = parseFloat($('inLon').value);
+  // Signed by the buttons, as Apply does. Read straight from the boxes, a
+  // West longitude went out as East and came back as the Tibetan Plateau
+  // (#183).
+  const { ok, lat, lon } = formPosition($('inLat').value, latHemi, $('inLon').value, lonHemi);
   const note = $('lookupAltNote');
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    note.textContent = 'Fill in latitude and longitude first.';
+  if (!ok) {
+    note.textContent = 'Fill in a latitude from 0 to 90 and a longitude from 0 to 180 first.';
     return;
   }
   note.textContent = 'Looking up the ground elevation…';
