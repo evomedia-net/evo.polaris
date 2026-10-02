@@ -17,7 +17,7 @@
 //
 // This is a CACHE KEY, not the release stamp. build-version.json stays where
 // it is; the build advances once per release on the default branch.
-const VERSION = '0.0.1.0.41';
+const VERSION = '0.0.1.0.42';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [
@@ -38,10 +38,20 @@ const ASSETS = [
 /** Big, immutable, and expensive to re-fetch. */
 const isData = (url) => /\/src\/data\//.test(url.pathname);
 
+// PAST THE BROWSER'S OWN CACHE, OR A DEPLOY WAITS ON A GUESS (#188).
+//
+// nginx sends no Cache-Control, so the browser decides for itself how long a
+// file stays fresh -- about a tenth of its age when fetched. Files nine hours
+// old when a phone last loaded them count as fresh for an hour, and in that
+// hour "the network" below was the browser's cache: v0.0.1.0.41 was live and
+// a phone refreshed onto v0.0.1.0.40 again and again. And the install copied
+// those same stale files into the NEW cache. So the install always fetches
+// fresh ('reload'), and the shell always asks the server ('no-cache'), which
+// costs a 304 when nothing has changed.
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then((c) => c.addAll(ASSETS))
+      .then((c) => c.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -85,7 +95,7 @@ self.addEventListener('fetch', (e) => {
   // App shell: prefer the network, fall back to whatever we last cached, and
   // fall back again to the app itself so a deep link still opens offline.
   e.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-cache' })
       .then((res) => {
         // Same rule for the shell: a cached 404 becomes the offline
         // fallback, which is worse than having nothing cached at all.
