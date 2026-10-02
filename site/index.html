@@ -379,12 +379,19 @@
            the pole. Empty (and silent to a screen reader) otherwise. -->
       <p class="status" id="skyTarget" role="status"></p>
       <p class="hint" id="planetsOut"></p>
-      <p class="hint" id="issOut">Asks api.wheretheiss.at where the station is,
-        once, when this view opens. It is the one thing here that needs the
-        network — nothing else in the sky is fetched, it is all worked out on
-        the device — so with the radio off everything but the station still
-        works. Press this to look it up again and point the ring at it.</p>
+      <p class="hint" id="issOut">Find the ISS asks a free online tracker,
+        wheretheiss.at, where the International Space Station is right now, and
+        points the ring at it. It asks once when this view opens, and again each
+        time you press the button. It is the only part of the sky that needs the
+        internet: the stars, planets and Moon are all worked out on your phone,
+        so with no signal everything except the space station still works.</p>
       <p class="hint" id="skyDiag"></p>
+      <!-- The raw sensor values, for troubleshooting a phone that turns the
+           sky the wrong way. Out of the way until asked for (#192); the
+           button appears once the compass has reported. -->
+      <button id="sensorToggle" class="big-btn ghost" aria-expanded="false"
+              aria-controls="sensorRaw" hidden>Show sensor details</button>
+      <p class="hint" id="sensorRaw" hidden></p>
     </details>
 
     <details class="card" id="moonCard" aria-labelledby="h-moon">

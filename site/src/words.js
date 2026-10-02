@@ -71,3 +71,30 @@ export function compassPoint(deg) {
   const d = ((deg % 360) + 360) % 360;
   return POINTS[Math.round(d / 22.5) % 16];
 }
+
+/**
+ * The compass line under the sky view, in words (#192).
+ *
+ * It used to be the raw sensor dump -- "deviceorientationabsolute event ·
+ * absolute true · alpha 342° beta 14° ..." -- shown to everyone, and its first
+ * number read like a heading when it is not one: the heading is 360 - alpha,
+ * so that phone was pointing 18 degrees EAST of north. The dump is still on
+ * the page, behind "Show sensor details", for the one person who needs it.
+ *
+ * The warning keeps the old rule exactly: a plain deviceorientation event that
+ * does not say it is absolute may be measuring from wherever the phone
+ * happened to point, which turns the sky with no sign that it is wrong.
+ *
+ * @param {{event: string|null, absolute: boolean|null}} sensor
+ * @param {number|null} heading  true heading in degrees, as the app works it out
+ */
+export function compassSummary(sensor, heading) {
+  if (!sensor.event) return '';
+  if (sensor.event === 'deviceorientation' && sensor.absolute !== true) {
+    return 'This phone did not offer a compass that knows where north is, so '
+      + 'the sky may be turned the wrong way. Use the arrow buttons instead.';
+  }
+  if (!Number.isFinite(heading)) return 'Compass working — waiting for a heading.';
+  const d = Math.round(((heading % 360) + 360) % 360) % 360;
+  return `Compass working — the phone is pointing ${d}° ${compassPoint(d)}.`;
+}

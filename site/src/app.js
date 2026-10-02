@@ -6,7 +6,7 @@ import {
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
-import { spellAngle, compassPoint } from './words.js';
+import { spellAngle, compassPoint, compassSummary } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
@@ -740,9 +740,9 @@ function paintWhen() {
   // future night with today's position would be inventing a pass.
   $('issBtn').disabled = planning;
   $('issOut').textContent = planning
-    ? 'Where the station is can only be asked for, not predicted — that needs '
-      + 'orbit propagation from a fresh element set, which this app does not do. '
-      + 'Switch back to right now to use it.'
+    ? 'Where the space station is can only be looked up for right now, not '
+      + 'predicted for another night — that would need orbit calculations this '
+      + 'app does not do. Switch back to right now to use it.'
     : ISS_HINT;
 
   const v = modelValidity();
@@ -2752,21 +2752,32 @@ function screenAngle() {
 // desktop, and the failure that matters -- a RELATIVE alpha, whose zero is
 // wherever the phone happened to be -- looks exactly like a working view that
 // happens to be aimed at the wrong part of the sky. So the app says so.
+//
+// IN WORDS FIRST, NUMBERS ON REQUEST (#192). This line was the raw dump for
+// everyone -- "deviceorientationabsolute event · absolute true · alpha 342°"
+// -- and alpha is not the heading (that is 360 - alpha). The plain line says
+// whether the compass works and where the phone points; the dump, which is
+// what a bug report needs, sits behind "Show sensor details".
 function updateSensorReadout() {
   const el = $('skyDiag');
   if (!el) return;
   const abs = sensorInfo.absolute;
-  const warn = sensorInfo.event === 'deviceorientation' && abs !== true
-    ? ' — this phone did not offer an absolute compass, so the sky may be '
-      + 'turned the wrong way. Use the buttons instead.'
-    : '';
-  el.textContent =
+  el.textContent = compassSummary(sensorInfo, heading);
+  $('sensorRaw').textContent =
     `${sensorInfo.event || 'no'} event · absolute ${abs === null ? 'unstated' : abs}`
     + ` · alpha ${Math.round(sAlpha ?? 0)}° beta ${Math.round(sBeta ?? 0)}°`
-    + ` gamma ${Math.round(sGamma ?? 0)}° · screen ${sensorInfo.screen}°${warn}`
+    + ` gamma ${Math.round(sGamma ?? 0)}° · screen ${sensorInfo.screen}°`
     // Auto Mode rewrites this line every frame; the breadcrumb rides on it.
     + (canvasLosses ? ` · canvas context lost ${canvasLosses}×` : '');
+  $('sensorToggle').hidden = false;
 }
+
+$('sensorToggle').onclick = () => {
+  const raw = $('sensorRaw');
+  raw.hidden = !raw.hidden;
+  $('sensorToggle').setAttribute('aria-expanded', String(!raw.hidden));
+  $('sensorToggle').textContent = raw.hidden ? 'Show sensor details' : 'Hide sensor details';
+};
 
 const STEP = 15;
 // Direction as a unit, not a distance: a press moves STEP degrees, a hold
@@ -2876,7 +2887,7 @@ async function autoLoadIss() {
 
 $('issBtn').onclick = async () => {
   if (!site) { $('issOut').textContent = 'Set your position first.'; return; }
-  $('issOut').textContent = 'Asking where the station is…';
+  $('issOut').textContent = 'Asking where the space station is…';
   try {
     const { iss, look } = await loadIss({ announce: true });
     // Pressing this means "show me where it is", so it takes the ring and the
@@ -2899,7 +2910,7 @@ $('issBtn').onclick = async () => {
     issOn = false;
     issFix = null;
     $('issOut').textContent =
-      `Could not reach the station tracker (${err.message}). Everything else `
+      `Could not reach the space station tracker (${err.message}). Everything else `
       + 'in this app works without the network.';
   }
 };
