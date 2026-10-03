@@ -57,6 +57,8 @@ const VALUE_PICKERS = new Set([
 const GLYPH_BUTTONS = new Set([
   'textSmaller', 'textBigger', 'fullIn', 'fullOut',
   'fullUp', 'fullDown', 'fullLeft', 'fullRight', 'fullPole',
+  // The star buttons in the pad's corners: a star and a sign, the word under it.
+  'fullStarDim', 'fullStarBright',
 ]);
 
 /**

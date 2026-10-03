@@ -1426,7 +1426,7 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
 .live-sky.full .full-pan:not([hidden]) {
   display: grid;
   grid-template-columns: repeat(3, calc(3.4 * var(--ctl)));
-  grid-template-areas: ". up ." "left mid right" ". down .";
+  grid-template-areas: ". up ." "left mid right" "dim down bright";
   gap: calc(0.35 * var(--ctl));
   position: absolute;
   left: max(0.6rem, env(safe-area-inset-left));
@@ -1503,6 +1503,8 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
 .pad-up { grid-area: up; } .pad-left { grid-area: left; }
 .pad-mid { grid-area: mid; } .pad-right { grid-area: right; }
 .pad-down { grid-area: down; }
+/* The star buttons take the full-screen pad's two empty bottom corners. */
+.pad-dim { grid-area: dim; } .pad-bright { grid-area: bright; }
 .sky-pad .big-btn { margin: 0; }
 
 /* Two to a row, so the padding has to come in a little -- at the full 1.05rem

@@ -284,13 +284,23 @@ export function drawSkyView(ctx, o) {
   //
   // So: gather what is on screen, glow the bright ones under one composite,
   // dot the rest, then the names on top of both.
+  // HOW BIG A STAR IS DRAWN, x0.6 to x2.8 (the star buttons). "stars are
+  // very hard to see": one setting scales every disc and glow together,
+  // so the sky keeps its proportions and only the size moves.
+  //
+  // AND IN CSS PIXELS, NOT CANVAS PIXELS (#204). The canvas is drawn at the
+  // screen's density (up to 2x) and starRadius() is in canvas pixels, so on
+  // a phone every star came out at half its desktop size while the text,
+  // the paths and the ring -- all sized from the canvas or the density --
+  // did not. o.dpr is the same capped density the canvas was sized with.
+  const starGain = (o.starGain ?? 1) * (o.dpr ?? 1);
   const shown = [];
   for (const s of sky) {
     const p = projectToScreen(s.v, basis, focal);
     if (!p) continue;
     const x = cx + p.x, y = cy + p.y;
     if (x < -8 || x > w + 8 || y < -8 || y > h + 8) continue;
-    shown.push({ s, x, y, r: starRadius(s.mag) });
+    shown.push({ s, x, y, r: starRadius(s.mag) * starGain });
   }
 
   if (o.starGlow) {
@@ -553,24 +563,34 @@ export function drawSkyView(ctx, o) {
     ctx.textBaseline = 'middle';
   }
 
-  // The ISS, if it has been asked for and is above the horizon.
+  // THE ISS, WHEREVER IT IS (#203). It was drawn only above the horizon --
+  // "a dot below the horizon would be drawing the inside of the Earth" --
+  // and the ring followed it down anyway, so a station underfoot was a ring
+  // and a caption around nothing: "ISS has no icon, or even a dot". The
+  // ground has been a see-through wireframe since the planets were let back
+  // through it on the same grounds ("planets should be visible even if
+  // set"), so the station is drawn where it is too, under the wire.
+  //
+  // A picture, not a dot: a body and two solar wings, which reads as a
+  // spacecraft at a glance and cannot be mistaken for a star. Filled when
+  // sunlit and up -- you can see it -- outlined in shadow or underfoot.
   if (o.iss) {
     const ip = projectToScreen(altAzToVector(o.iss.alt, o.iss.az), basis, focal);
     if (ip) {
       const x = cx + ip.x, y = cy + ip.y;
-      // Hollow when eclipsed, filled when sunlit: up-but-invisible and
-      // up-and-shining are completely different answers to "can I see it".
-      const col = night ? '#ff0000' : (o.iss.sunlit ? '#ffe26a' : '#6b7793');
-      ctx.strokeStyle = col;
-      ctx.fillStyle = col;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x, y, ref / 46, 0, Math.PI * 2);
-      if (o.iss.sunlit) ctx.fill(); else ctx.stroke();
-      ctx.font = `600 ${Math.round(ref / 30)}px system-ui, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillText(o.iss.sunlit ? 'ISS' : 'ISS (in shadow)', x + ref / 34, y);
-      ctx.textAlign = 'center';
+      const up = o.iss.up !== false;
+      const lit = up && o.iss.sunlit;
+      const s = ref / 90;
+      drawStation(ctx, x, y, s, night ? '#ff0000' : (lit ? '#ffe26a' : '#9aa6bd'), lit);
+      // One name per object: when the ring is on the station, its caption
+      // already says so, bigger, right above it.
+      if (ringName !== 'ISS') {
+        ctx.font = `600 ${Math.round(ref / 30)}px system-ui, sans-serif`;
+        ctx.textAlign = 'left';
+        nameText(!up ? 'ISS (below the horizon)' : (lit ? 'ISS' : 'ISS (in shadow)'),
+          x + s * 4.6, y);
+        ctx.textAlign = 'center';
+      }
     }
   }
 
@@ -877,6 +897,39 @@ function reserveBodyLabels(ctx, o, basis, focal, cx, cy, w, h, ref, placed,
   }
 }
 
+/**
+ * The space station as a small picture: a round body on a truss with a solar
+ * wing either side (#203). Filled when it can be seen, outlined when not.
+ * Paths rather than rect(), so it draws on any 2D context the tests stub.
+ */
+export function drawStation(ctx, x, y, s, colour, filled) {
+  ctx.save();
+  ctx.strokeStyle = colour;
+  ctx.fillStyle = colour;
+  ctx.lineWidth = Math.max(1.5, s / 3);
+  ctx.beginPath();
+  ctx.moveTo(x - s * 4.2, y);
+  ctx.lineTo(x + s * 4.2, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, s, 0, Math.PI * 2);
+  if (filled) ctx.fill(); else ctx.stroke();
+  for (const dir of [-1, 1]) {
+    const near = x + dir * s * 1.8, far = x + dir * s * 4.2;
+    ctx.beginPath();
+    ctx.moveTo(near, y - s * 0.9);
+    ctx.lineTo(far, y - s * 0.9);
+    ctx.lineTo(far, y + s * 0.9);
+    ctx.lineTo(near, y + s * 0.9);
+    ctx.closePath();
+    if (filled) ctx.fill(); else ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** How strongly a path is drawn where it runs below the horizon (#202). */
+export const BELOW_HORIZON_ALPHA = 0.55;
+
 export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
                           placed = [], spoken = new Set()) {
   const { points, colour, label, width = 1.6, dash = [7, 6] } = track;
@@ -903,9 +956,15 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
     if (!q) { prev = null; continue; }
     const x = cx + q.x, y = cy + q.y;
     if (prev) {
-      // Below the horizon it stays drawn, but faintly: it is where the thing
+      // Below the horizon it stays drawn, but fainter: it is where the thing
       // is going to come up from, not where it can be seen.
-      ctx.globalAlpha = (p.up && prevUp) ? 0.85 : 0.3;
+      //
+      // FAINTER, NOT GONE (#202). It was 0.3, which put the ISS's bright blue
+      // at 2:1 against the sky -- "not the bright blue the top legend shows
+      // and is almost invisible". BELOW_HORIZON_ALPHA keeps every path's own
+      // colour at 3:1 or better (WCAG 1.4.11, lines and shapes), still
+      // plainly dimmer than the 0.85 above the horizon.
+      ctx.globalAlpha = (p.up && prevUp) ? 0.85 : BELOW_HORIZON_ALPHA;
       ctx.beginPath();
       ctx.moveTo(prev[0], prev[1]);
       ctx.lineTo(x, y);

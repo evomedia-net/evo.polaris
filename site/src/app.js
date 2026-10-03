@@ -1928,6 +1928,9 @@ function drawLiveSky() {
     w: c.width, h: c.height, fov: skyFov, night,
     constellations: skyConstellations,
     starGlow: skyStarGlow ? starGlow : null,
+    starGain: STAR_GAINS[starStep],
+    // Stars are sized in CSS pixels: the same density the canvas uses (#204).
+    dpr: Math.min(window.devicePixelRatio || 1, 2),
     galaxies: skyShowGalaxies ? skyGalaxies : null,
     figureArt: skyFigures && figureArt.mode === 'figures' ? figureArt : null,
     figures: skyFigureCorners,
@@ -1940,11 +1943,12 @@ function drawLiveSky() {
     planetArt: skyShowPlanets && planetArt.mode === 'texture' ? planetArt : null,
     moon: skyShowMoon ? skyMoonBody : null,
     sun: skySunBody,
-    // The marker is only drawn when the station is actually up there --
-    // a dot below the horizon would be drawing the inside of the Earth. The
-    // TARGET is not so restricted: see below.
-    iss: issLook && issLook.aboveHorizon
-      ? { alt: issLook.alt, az: issLook.az, sunlit: issLook.sunlit } : null,
+    // The marker goes wherever the station is, under the see-through
+    // ground when it is below the horizon, the same as the planets and the
+    // Moon (#203); `up` tells the drawing which caption and style to use.
+    iss: issLook
+      ? { alt: issLook.alt, az: issLook.az, sunlit: issLook.sunlit, up: issLook.aboveHorizon }
+      : null,
   });
   if (skyCost) recordDrawCost(performance.now() - startedAt);
   showReadout(painted.aimedAz, painted.aimedAlt);
@@ -2978,6 +2982,31 @@ function applyStarGlowLabel() {
     ? 'Hide the star glow' : 'Show the star glow';
 }
 applyStarGlowLabel();
+
+// STAR BRIGHTNESS. "stars are very hard to see ... I'd like a set of -/+ Star
+// Dimmer buttons". Seven steps of disc size, the normal one in the middle
+// (x1, the look the app always had), remembered like the text size. Both
+// pairs -- Visual Settings, and the full-screen pad's corners -- move the same
+// step, and each stops at its end of the range rather than wrapping.
+const STAR_GAINS = [0.6, 0.8, 1, 1.3, 1.7, 2.2, 2.8];
+const STAR_NORMAL = STAR_GAINS.indexOf(1);
+const clampStarStep = (n) => (Number.isInteger(n) ? Math.min(STAR_GAINS.length - 1, Math.max(0, n)) : STAR_NORMAL);
+let starStep = clampStarStep(store.get('starstep', STAR_NORMAL));
+
+function paintStarButtons() {
+  for (const id of ['skyStarDim', 'fullStarDim']) $(id).disabled = starStep <= 0;
+  for (const id of ['skyStarBright', 'fullStarBright']) $(id).disabled = starStep >= STAR_GAINS.length - 1;
+}
+
+function setStarStep(n) {
+  starStep = clampStarStep(n);
+  store.set('starstep', starStep);
+  paintStarButtons();
+  drawLiveSky();
+}
+for (const id of ['skyStarDim', 'fullStarDim']) $(id).onclick = () => setStarStep(starStep - 1);
+for (const id of ['skyStarBright', 'fullStarBright']) $(id).onclick = () => setStarStep(starStep + 1);
+paintStarButtons();
 
 $('skyStarGlow').onclick = () => {
   skyStarGlow = !skyStarGlow;

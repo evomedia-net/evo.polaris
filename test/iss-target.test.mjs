@@ -69,12 +69,16 @@ test('a target under your feet is still a target', () => {
     'aimTarget must not refuse a target below the horizon');
 });
 
-test('the marker stays in the visible sky even though the target does not', () => {
-  // The dot is "there it is"; the ring is "that way". Drawing the dot under
-  // the horizon would be drawing the inside of the Earth, so the two rules
-  // are deliberately different and both need saying.
-  assert.match(appJs, /iss: issLook && issLook\.aboveHorizon/,
-    'the drawn marker must still be gated on being above the horizon');
+test('the marker goes wherever the station is, and says when that is underfoot', () => {
+  // It used to stay in the visible sky -- "drawing the dot under the horizon
+  // would be drawing the inside of the Earth" -- while the ring followed the
+  // station down, which left a ring and a caption around nothing: "ISS has
+  // no icon, or even a dot" (#203). The ground is a see-through wireframe now
+  // and the planets and the Moon are drawn under it; so is the station, with
+  // `up` telling the drawing to say so.
+  assert.match(appJs, /iss: issLook\s*\?\s*\{ alt: issLook\.alt, az: issLook\.az, sunlit: issLook\.sunlit, up: issLook\.aboveHorizon \}/,
+    'the marker must be handed over whether or not the station is up');
+  assert.doesNotMatch(appJs, /iss: issLook && issLook\.aboveHorizon/);
 });
 
 test('it says where the station is, including that it is underfoot', () => {
