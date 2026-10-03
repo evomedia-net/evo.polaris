@@ -45,7 +45,7 @@ import {
 } from './moon.js';
 import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
-import { resolveCoordinate, hemisphereFor, validate, formPosition } from './coords.js';
+import { resolveCoordinate, hemisphereFor, validate, formPosition, isSouthernZone } from './coords.js';
 import { VERSION } from './version.js';
 
 const $ = (id) => document.getElementById(id);
@@ -64,7 +64,20 @@ const store = {
 // nothing and saves them typing; silently adopting it would hand a first-time
 // user in Sydney a Texas solution that is confidently wrong in every number,
 // and this app has no business guessing where anyone is standing.
-const DEFAULT_SITE = { lat: 30.0563, lon: -95.2107, altitude: 26 };
+const DEFAULT_SITE = { name: 'Kingwood, Texas', lat: 30.0563, lon: -95.2107, altitude: 26 };
+// AND ITS SOUTHERN TWIN. A visitor whose phone is set to a southern time zone
+// gets a southern example: postcode 2000, Sydney NSW -- coordinates from
+// zippopotam.us, elevation from the same Open-Meteo lookup. The time zone is
+// read on the phone (no permission, no network, nothing sent) and only picks
+// which example fills the boxes; it is still never applied on its own.
+const SOUTHERN_DEFAULT_SITE = { name: 'Sydney, Australia', lat: -33.8721, lon: 151.2044, altitude: 59 };
+
+/** The example for this device: Sydney in a southern time zone, else Kingwood. */
+function exampleSite() {
+  let zone;
+  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { /* no Intl */ }
+  return isSouthernZone(zone) ? SOUTHERN_DEFAULT_SITE : DEFAULT_SITE;
+}
 
 // The fleet's docs live at docs.evomedia.net/<project>/ -- the same shape as
 // /ablecamera/, /evo-ai/ and the rest.
@@ -949,17 +962,18 @@ $('manualToggle').onclick = () => {
   $('manualToggle').textContent = box.hidden
     ? 'Enter it by hand instead' : 'Hide the hand-entry boxes';
   if (box.hidden) return;
-  // Your saved position if you have one, the default if you do not, so the
-  // boxes are never blank and applying them is a tap rather than typing.
-  const from = site || DEFAULT_SITE;
+  // Your saved position if you have one, an example from your hemisphere if
+  // you do not (see exampleSite), so the boxes are never blank and applying
+  // them is a tap rather than typing.
+  const from = site || exampleSite();
   latHemi = fillCoord('inLat', from.lat, 'N', 'S');
   lonHemi = fillCoord('inLon', from.lon, 'E', 'W');
   paintHemi();
   $('inAlt').value = Math.round(from.altitude || 0);
   $('prefillNote').textContent = site
     ? 'Filled in with your saved position.'
-    : 'Filled in with a starting point — replace it with yours, or use the '
-      + 'location button above.';
+    : `Filled in with ${from.name} as a starting point — replace it with yours, `
+      + 'or use the location button above.';
 };
 
 // Altitude lookup. Deliberately a button rather than automatic: it is the only

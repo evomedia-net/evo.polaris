@@ -10,6 +10,8 @@
 // hemisphere wording to contradict it: 95.2107 instead of -95.2107 moves you
 // from Texas to central China and only the sidereal time quietly disagrees.
 
+import { SOUTHERN_ZONES } from './data/southern-zones.js';
+
 /**
  * Combine a typed magnitude with a hemisphere button into a signed value.
  *
@@ -65,4 +67,16 @@ export function formPosition(latRaw, latHemi, lonRaw, lonHemi) {
   const lon = resolveCoordinate(lonRaw, lonHemi, 'W');
   const ok = lat.ok && lon.ok && validate(lat.value, 90) && validate(lon.value, 180);
   return { ok, lat: lat.value, lon: lon.value };
+}
+
+/**
+ * Whether a device time zone is south of the equator, so the hand-entry boxes
+ * can show an example from the right hemisphere before anyone has given their
+ * position. The zone is read on the phone and goes nowhere; an unknown or
+ * missing zone counts as northern, which is the example the app always had.
+ *
+ * @param {string|undefined} timeZone  an IANA name, e.g. "Australia/Sydney"
+ */
+export function isSouthernZone(timeZone) {
+  return typeof timeZone === 'string' && SOUTHERN_ZONES.has(timeZone);
 }

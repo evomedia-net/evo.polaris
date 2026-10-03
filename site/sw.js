@@ -17,7 +17,7 @@
 //
 // This is a CACHE KEY, not the release stamp. build-version.json stays where
 // it is; the build advances once per release on the default branch.
-const VERSION = '0.0.1.0.44';
+const VERSION = '0.0.1.0.45';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [
@@ -33,6 +33,7 @@ const ASSETS = [
   './src/quat.js', './src/walk.js', './src/textsize.js', './src/starglow.js',
   './src/planet-art.js', './src/data/planets.webp',
   './src/constellation-art.js', './src/data/figures.webp', './src/data/figures.js',
+  './src/data/southern-zones.js',
 ];
 
 /** Big, immutable, and expensive to re-fetch. */

@@ -1,10 +1,10 @@
 {
-  "version": "0.0.1.0.44",
+  "version": "0.0.1.0.45",
   "files": {
     "./index.html": "c9a5f9e22b0f7edf",
     "./manifest.webmanifest": "1cbb00eab3a54d0b",
     "./src/style.css": "8654fec4015a72be",
-    "./src/app.js": "900b01388a4e118f",
+    "./src/app.js": "599cab0ec6326587",
     "./src/astro.js": "5c672abb05af041e",
     "./src/geomag.js": "ed34724c89f7624c",
     "./src/chart.js": "bcd9285554d6176e",
@@ -13,7 +13,7 @@
     "./src/skyview.js": "33a3fee7c1aad890",
     "./src/skydraw.js": "3b34d51dfdd10d99",
     "./src/evomedia-chrome.js": "cca69c2552ee9123",
-    "./src/coords.js": "246b595ef727d073",
+    "./src/coords.js": "4164f26d2eddaaeb",
     "./src/briefing.js": "b2c3fb11db03a879",
     "./src/iss.js": "c6b4eff8c9916295",
     "./src/moon.js": "c5f4edd984c02d80",
@@ -36,6 +36,7 @@
     "./src/data/planets.webp": "41bebe8d4d5145e8",
     "./src/constellation-art.js": "ddbab5dcea0a2431",
     "./src/data/figures.webp": "06aed499a6f73553",
-    "./src/data/figures.js": "aec91062f7cf4446"
+    "./src/data/figures.js": "aec91062f7cf4446",
+    "./src/data/southern-zones.js": "fbdeedeb1c937f5a"
   }
 }
