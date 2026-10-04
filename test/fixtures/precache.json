@@ -1,9 +1,9 @@
 {
-  "version": "0.0.1.0.46",
+  "version": "0.0.1.0.47",
   "files": {
-    "./index.html": "b043423bb558117a",
+    "./index.html": "fdcd3afcd3c991de",
     "./manifest.webmanifest": "1cbb00eab3a54d0b",
-    "./src/style.css": "83a8c4cd726cc0bc",
+    "./src/style.css": "29756f13c4355488",
     "./src/app.js": "6031f7725af05d99",
     "./src/astro.js": "5c672abb05af041e",
     "./src/geomag.js": "ed34724c89f7624c",
@@ -11,7 +11,7 @@
     "./src/guide.js": "d18a6510e3145022",
     "./src/words.js": "cc0f7b7386a4b70a",
     "./src/skyview.js": "33a3fee7c1aad890",
-    "./src/skydraw.js": "9d03c42c91b60d98",
+    "./src/skydraw.js": "74fa39e2a1f39e30",
     "./src/evomedia-chrome.js": "cca69c2552ee9123",
     "./src/coords.js": "4164f26d2eddaaeb",
     "./src/briefing.js": "b2c3fb11db03a879",

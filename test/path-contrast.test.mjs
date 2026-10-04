@@ -35,6 +35,6 @@ test('every path keeps 3:1 against the sky where it runs below the horizon', () 
 });
 
 test('and is still plainly fainter there than above it', () => {
-  assert.match(draw, /ctx\.globalAlpha = \(p\.up && prevUp\) \? 0\.85 : BELOW_HORIZON_ALPHA;/);
+  assert.match(draw, /ctx\.globalAlpha = runUp \? 0\.85 : BELOW_HORIZON_ALPHA;/);
   assert.ok(BELOW_HORIZON_ALPHA < 0.85 - 0.2, 'below must still read as the fainter half');
 });

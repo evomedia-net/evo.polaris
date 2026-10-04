@@ -407,6 +407,25 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
   max-width: 6.5rem;
   padding: 0.25rem 0.5rem;
 }
+/* THE DOCS LINK: A BIG "?" AND THE WORD UNDER IT (#209). It was a bare "?"
+   in body text, underlined because it is a link, saying nothing about where
+   it went. Stacked like the full-screen buttons -- glyph over word -- inside
+   the same --tap box, so the bar keeps its height. No underline: it is a
+   button-shaped control, and the underline was the only thing marking it as
+   a link anyway. */
+.docs-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.2rem 0.6rem;
+  text-decoration: none;
+  line-height: 1;
+}
+.docs-glyph { font-size: 1.7rem; font-weight: 700; line-height: 1; }
+.docs-word { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; }
+
 .icon-btn.is-night {
   background: var(--accent);
   color: var(--accent-ink);

@@ -949,30 +949,50 @@ export function drawTrack(ctx, track, basis, focal, cx, cy, w, h, night,
   ctx.lineWidth = Math.max(1, width * scale);
   ctx.strokeStyle = ink;
 
+  // ONE STROKE PER RUN, OR THE DASHES VANISH (#207). Each pair of samples
+  // was stroked on its own, and a dash pattern starts again at the start of
+  // every stroke -- so wherever a segment (two degrees, for the ISS) came out
+  // shorter than one dash, every segment was all dash and no gap: "iss line
+  // is no longer dashed", seen once #202 made the path bright enough to
+  // notice. A run is every consecutive segment on the same side of the
+  // horizon, drawn as one polyline so the pattern flows along the whole of
+  // it; a new run starts only where the path crosses the horizon or leaves
+  // the projection.
+  //
+  // Below the horizon it stays drawn, but fainter: it is where the thing is
+  // going to come up from, not where it can be seen. FAINTER, NOT GONE
+  // (#202): BELOW_HORIZON_ALPHA keeps every path's own colour at 3:1 or
+  // better (WCAG 1.4.11), still plainly dimmer than the 0.85 above it.
+  let run = [];
+  let runUp = null;
+  const flush = () => {
+    if (run.length >= 2) {
+      ctx.globalAlpha = runUp ? 0.85 : BELOW_HORIZON_ALPHA;
+      ctx.beginPath();
+      ctx.moveTo(run[0][0], run[0][1]);
+      for (let i = 1; i < run.length; i++) ctx.lineTo(run[i][0], run[i][1]);
+      ctx.stroke();
+    }
+    run = [];
+    runUp = null;
+  };
   let prev = null, prevUp = true;
   const seen = [];
   for (const p of points) {
     const q = projectToScreen(p.v, basis, focal);
-    if (!q) { prev = null; continue; }
+    if (!q) { flush(); prev = null; continue; }
     const x = cx + q.x, y = cy + q.y;
     if (prev) {
-      // Below the horizon it stays drawn, but fainter: it is where the thing
-      // is going to come up from, not where it can be seen.
-      //
-      // FAINTER, NOT GONE (#202). It was 0.3, which put the ISS's bright blue
-      // at 2:1 against the sky -- "not the bright blue the top legend shows
-      // and is almost invisible". BELOW_HORIZON_ALPHA keeps every path's own
-      // colour at 3:1 or better (WCAG 1.4.11, lines and shapes), still
-      // plainly dimmer than the 0.85 above the horizon.
-      ctx.globalAlpha = (p.up && prevUp) ? 0.85 : BELOW_HORIZON_ALPHA;
-      ctx.beginPath();
-      ctx.moveTo(prev[0], prev[1]);
-      ctx.lineTo(x, y);
-      ctx.stroke();
+      const up = p.up && prevUp;
+      if (runUp !== null && up !== runUp) flush();
+      if (run.length === 0) run.push(prev);
+      runUp = up;
+      run.push([x, y]);
     }
     prev = [x, y]; prevUp = p.up;
     if (p.up && x > 0 && x < w && y > 0 && y < h) seen.push([x, y]);
   }
+  flush();
 
   // A PATH NAMES ITS BODY ONLY WHEN NOTHING ELSE WILL. The ring names its
   // target and a body on screen names itself; a third copy along the dashes
