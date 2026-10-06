@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The paths things move along, drawn on the sky.
 //
 // A planet is a dot among ten thousand dots. Its PATH is what tells you which

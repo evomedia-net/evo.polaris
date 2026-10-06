@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+
 # Fetch the public-domain source catalogs that scripts/build-data.py converts.
 #
 # Only the GENERATED files are committed (src/data/). The Yale catalog is 1.7 MB

@@ -1,3 +1,7 @@
+# evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+
 # Fetched source catalog -- 1.7 MB, regenerate with scripts/fetch-sources.sh.
 # The generated src/data/stars.json IS committed: the app needs it offline.
 scripts/bsc5.dat

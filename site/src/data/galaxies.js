@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// The code is MIT-licensed (see LICENSE). The data's source and terms are named below and in README.md.
+
 // THE FIFTEEN BRIGHTEST GALAXIES, FROM SIMBAD.
 //
 // Every number here came from one SIMBAD TAP query on 2026-09-25, and that

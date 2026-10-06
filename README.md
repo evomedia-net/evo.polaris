@@ -303,9 +303,18 @@ What can leave the device, and how to report a vulnerability privately: see
 
 ## Data and licence
 
-MIT. Bundled data is public domain: the Yale Bright Star Catalog (CDS VizieR
-V/50, 9,096 stars) and NOAA's World Magnetic Model 2025, valid through 2030.
-See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Every code file opens with the same three-line
+header: the project, who made it (dev@evomedia.net), and the licence. The data
+files say something different on that third line, because their numbers come
+from the sources below rather than from this project.
+
+Bundled data is public domain: the Yale Bright Star Catalog (CDS VizieR
+V/50, 9,096 stars), NOAA's World Magnetic Model 2025, valid through 2030, and
+the [IANA time zone database](https://www.iana.org/time-zones), which says
+which time zones lie south of the equator. The fifteen galaxies' positions,
+sizes and brightness come from [SIMBAD](https://simbad.cds.unistra.fr/): this
+research has made use of the SIMBAD database, operated at CDS, Strasbourg,
+France.
 
 The Milky Way is a photograph: [ESO/S. Brunier's all-sky
 panorama](https://www.eso.org/public/images/eso0932a/), licensed

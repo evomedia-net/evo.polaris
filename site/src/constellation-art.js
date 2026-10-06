@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The constellation figures, ghosted onto the sky.
 //
 // James Hedberg drew all 88 of them and placed them where they belong; the

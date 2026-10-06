@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The dwell beacon: what it sends, when, and who it refuses to measure.
 //
 // Everything worth testing here is a boundary or a promise, and none of it

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // How long the app was actually used.
 //
 // polaris is one page. Every line in its access log - the document, the

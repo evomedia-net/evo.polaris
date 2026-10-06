@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+
 """Build the Milky Way texture from ESO's all-sky panorama.
 
     python scripts/build-milkyway.py [--source path/to/eso0932a.tif]

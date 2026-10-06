@@ -1,3 +1,7 @@
+# evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+
 # Normalise to LF in the repository. The .txt twins are compared byte for byte
 # by test/md-twin.test.mjs, so leaving line endings to the platform is how that
 # check turns red on one machine and green on another.

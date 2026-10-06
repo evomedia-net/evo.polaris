@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The Moon: where it is, and how much of it is lit.
 //
 // This matters more than it looks for the job this app does. The Moon is the

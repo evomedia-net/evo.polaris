@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // RECORD WHAT THE CACHE KEY IN sw.js IS A KEY FOR.
 //
 // The service worker names its cache from VERSION, and a returning visitor

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Render the installed app's images from the app itself.
 //
 //     npm run serve                 # in one terminal: http://localhost:8790

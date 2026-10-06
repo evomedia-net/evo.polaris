@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 /**
  * Render every prose .md in the repository to its .txt twin.
  *

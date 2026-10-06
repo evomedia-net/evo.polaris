@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // A live window on the sky: hold the phone up and see the stars where they
 // actually are, the way Stellarium and its kin work.
 //

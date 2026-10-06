@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The shapes of movement, as pure functions, so they can be tested without a
 // frame loop -- which node does not have and a hidden browser tab does not
 // run.

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // World Magnetic Model 2025 -- magnetic declination.
 //
 // Why this is in the app at all: a phone compass reads MAGNETIC north, but a
