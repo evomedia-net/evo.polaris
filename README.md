@@ -1,8 +1,13 @@
 # evo.polaris
 
-Free, open-source polar alignment for star trackers and equatorial mounts.
-**Made for astronomers with disabilities, by a disabled astronomer.**
+Free, open-source polar alignment and night-sky guide for star trackers and
+equatorial mounts. **Made for astronomers with disabilities, by a disabled astronomer.**
 **Usable by everyone.**
+
+It started as a way to find Polaris and has grown into a guide to the whole
+night sky: one tap points you at **the International Space Station**,
+**the planets**, **the Moon and the Sun**, **28 constellations** and
+**the fifteen brightest galaxies**, with the Milky Way drawn behind them.
 
 It is built for people with **physical disabilities**,
 **limited fine motor control** (a tremor, a weak grip, hands that can't land on
@@ -38,8 +43,29 @@ a mount:
 | **Compass bearing for true north** | Magnetic declination is corrected on-device, so the azimuth you set is true north and not magnetic north. |
 | **Polaris on the reticle** | Clock position and radius on the 12-hour iOptron AccuAlign dial, drawn as well as written. |
 
-Plus a live sky chart of the circumpolar sky with the Big Dipper star-hop drawn
-on it, and — with the compass on — arrows telling you which way to turn.
+## Finding things in the sky
+
+The sky view is a live chart of the sky above you tonight, and its **Track**
+menu points you at something with one tap:
+
+- **Polaris**, with the Big Dipper star-hop drawn to it (the Southern Cross in
+  the south).
+- **The International Space Station**, where it is right now, with its path
+  across your sky. This is the one part of the app that needs the internet; it
+  asks a free tracker, and everything else is worked out on your phone.
+- **The Moon** and **the Sun**.
+- **The planets**: one button, tapped again and again, walks outward from the
+  Sun, Mercury first and Pluto last.
+- **28 constellations**, the same way, each drawn as a stick figure, with
+  James Hedberg's artwork behind it if you want it.
+- **The fifteen brightest galaxies**, brightest first, each drawn at its true
+  size, the Andromeda Galaxy three degrees across.
+
+A switch skips planets and constellations that are below the horizon. With the
+compass on, arrows tell you which way to turn. Without it, Manual Mode moves
+the view with Up, Down, Left and Right buttons, so you never have to hold the
+phone up to the sky. The stars can be made brighter or dimmer, and the whole
+view goes full screen.
 
 ## Both hemispheres
 
