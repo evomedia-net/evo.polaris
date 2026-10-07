@@ -10,7 +10,7 @@ import {
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
-import { spellAngle, compassPoint, compassSummary } from './words.js';
+import { spellAngle, compassPoint, compassWords, compassSummary } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
@@ -414,7 +414,17 @@ let targetNote = '';
 let heard = null;
 let heardForce = false;
 function announceTarget(ringOn) {
-  const text = $('skyTarget').textContent;
+  let text = $('skyTarget').textContent;
+  // WHERE IT IS, IN WORDS (#222). The drawn line is empty while the target is
+  // above the horizon -- the ring on the chart says where it is, and a caption
+  // repeating the pressed button was taken out on purpose. A screen reader
+  // has no ring, so pressing Moon said "Moon, pressed" and nothing more. The
+  // position goes to the reader only; the screen is unchanged.
+  if (!text && ringOn && ringOn.alt >= 0) {
+    const az = Math.round(((ringOn.az % 360) + 360) % 360);
+    text = `${ringOn.name}: ${az}° round, ${compassWords(az)}, `
+      + `${Math.round(ringOn.alt)}° up.`;
+  }
   const key = [guideTarget, ringOn ? (ringOn.alt < 0 ? 'down' : 'up') : '-', targetNote].join('|');
   const next = nextAnnouncement(heard, {
     key, text,

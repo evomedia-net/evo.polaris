@@ -96,7 +96,7 @@ test('it says where the station is, including that it is underfoot', () => {
   assert.match(html, /<p class="status" id="skyTarget"><\/p>/, '#skyTarget is drawn, not spoken');
   assert.match(html, /<p class="visually-hidden" id="skyAnnounce" role="status"><\/p>/,
     '#skyAnnounce must be the live region');
-  assert.match(appJs, /const text = \$\('skyTarget'\)\.textContent;/, 'it says what the line shows');
+  assert.match(appJs, /(?:const|let) text = \$\('skyTarget'\)\.textContent;/, 'it says what the line shows');
 });
 
 test('tracking redraws far more often than the stars do', () => {

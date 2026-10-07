@@ -86,3 +86,26 @@ test('the app speaks through the hidden region, by this rule', () => {
   // Both ways of choosing the station count as a press.
   assert.ok((app.match(/heardForce = true;/g) || []).length >= 2);
 });
+
+// WHERE IT IS, IN WORDS (#222). Pressing a target above the horizon left the
+// drawn line empty -- the ring says where it is -- and so a screen reader
+// heard "Moon, pressed" and nothing about where the Moon was.
+
+test('a target above the horizon is told to the reader in degrees and in words', () => {
+  const app = readFileSync(fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
+  const fn = app.slice(app.indexOf('function announceTarget('), app.indexOf('function setTarget('));
+  assert.match(fn, /if \(!text && ringOn && ringOn\.alt >= 0\)/, 'only when nothing is drawn and it is up');
+  assert.match(fn, /`\$\{ringOn\.name\}: \$\{az\}° round, \$\{compassWords\(az\)\}, `/);
+  // The drawn line is left alone: the position goes to the reader only.
+  assert.doesNotMatch(fn, /\$\('skyTarget'\)\.textContent =/);
+});
+
+test('compass points are spelled out, so "SE" is not read as two letters', async () => {
+  const { compassWords } = await import('../site/src/words.js');
+  assert.equal(compassWords(0), 'north');
+  assert.equal(compassWords(359), 'north');
+  assert.equal(compassWords(142), 'south-east');
+  assert.equal(compassWords(22.5), 'north-north-east');
+  assert.equal(compassWords(270), 'west');
+  assert.equal(compassWords(-90), 'west');
+});
