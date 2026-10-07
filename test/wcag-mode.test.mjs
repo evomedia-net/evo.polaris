@@ -45,18 +45,21 @@ test('the switch is in the header beside A- / A+, after them, and says what pres
 test('it is remembered, sets data-wcag, and its label names the mode it switches to', () => {
   assert.match(app, /let wcag = store\.get\('wcag', false\);/);
   assert.match(app, /dataset\.wcag = wcag \? 'on' : 'off';/);
-  assert.match(app, /wb\.textContent = wcag \? 'Use Normal Mode' : 'Use WCAG Mode';/);
+  assert.match(app, /wb\.textContent = wcag \? 'Exit WCAG Mode' : 'Use WCAG Mode';/);
   // The spoken name carries the words on the button (WCAG 2.5.3).
-  for (const words of ['Use Normal Mode', 'Use WCAG Mode']) {
+  for (const words of ['Exit WCAG Mode', 'Use WCAG Mode']) {
     assert.match(app, new RegExp(`\\? '${words}\\.|: '${words},`), `the name must contain "${words}"`);
   }
+  // NEVER "NORMAL". Kelly: '"Normal" mode text implies disabled are not
+  // "Normal"'. The button says what it does and names nobody.
+  for (const src of [app, html]) assert.doesNotMatch(src, /Normal Mode/);
   assert.match(app, /\$\('wcagToggle'\)\.onclick = \(\) => \{\s*wcag = !wcag; store\.set\('wcag', wcag\); applyAppearance\(\);/);
 });
 
 test('every rule WCAG Mode adds applies only while it is on', () => {
   assert.ok(WCAG_SECTION.length > 200, 'the WCAG Mode section of style.css is missing');
   const loose = selectors(WCAG_SECTION).filter((s) => !s.startsWith("html[data-wcag='on']") && s !== '.leg-fold');
-  assert.deepEqual(loose, [], 'a WCAG Mode rule without html[data-wcag=\'on\'] changes the normal mode too');
+  assert.deepEqual(loose, [], 'a WCAG Mode rule without html[data-wcag=\'on\'] changes the default mode too');
   // .leg-fold is the one exception, and it only ever hides.
   assert.match(WCAG_SECTION, /\n\.leg-fold \{ display: none; \}/);
 });

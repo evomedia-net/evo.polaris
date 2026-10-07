@@ -1652,10 +1652,10 @@ canvas {
  * "This needs a WCAG complient version that can be toggled at top, next to
  * -A / +A ... do not modify any current settings, add this as a new option."
  * In WCAG's own terms, a conforming alternate version: the switch is in the
- * normal mode's header, and every rule below is scoped to
+ * default mode's header, and every rule below is scoped to
  * html[data-wcag='on'], so nothing in the modes that already exist changes.
  *
- * The audit behind it found the normal mode already at AAA text contrast
+ * The audit behind it found the default mode already at AAA text contrast
  * (7:1) and 44px targets by day. What it could not promise is below. */
 
 /* 2.4.11 FOCUS NOT OBSCURED. The bar is pinned, so tabbing back up the page
@@ -1689,7 +1689,7 @@ html[data-wcag='on'] .live-sky.full .sky-legend.folded #legMoon { display: none;
    the Art button below. So in WCAG Mode both are sized from --base, which
    does not move with A+: the button keeps the pair's locked 58px (over the
    44px of WCAG's AAA target size) and the credits keep the size they have at
-   the normal setting. Browser zoom still enlarges them, which is what 1.4.4
+   the default setting. Browser zoom still enlarges them, which is what 1.4.4
    asks. The key's own rows, once someone opens it, still grow with A+.
    The plate ignores the pointer so a drag can start through it; its one
    button must not. */

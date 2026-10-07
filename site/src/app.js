@@ -513,16 +513,18 @@ function applyAppearance() {
   document.documentElement.dataset.night = night ? 'on' : 'off';
   document.documentElement.dataset.wcag = wcag ? 'on' : 'off';
 
-  // THE SAME RULE AS NIGHT MODE'S BUTTON: the label is the mode pressing
-  // switches TO, and the name carries the words on the button (2.5.3).
+  // THE LABEL IS WHAT PRESSING DOES, and it never names the other mode.
+  // It first offered to switch back to "Normal" -- and that says the people
+  // who need WCAG Mode are not (Kelly: '"Normal" mode text implies disabled
+  // are not "Normal"'). So on, it is "Exit WCAG Mode": the action, with no
+  // label on anyone. The spoken name carries the words on the button (2.5.3).
   const wb = $('wcagToggle');
   if (wb) {
-    wb.textContent = wcag ? 'Use Normal Mode' : 'Use WCAG Mode';
+    wb.textContent = wcag ? 'Exit WCAG Mode' : 'Use WCAG Mode';
     wb.setAttribute('aria-label', wcag
-      ? 'Use Normal Mode. WCAG Mode is on now: a version of this app that '
-        + 'meets WCAG 2.2 level AA.'
-      : 'Use WCAG Mode, a version of this app that meets WCAG 2.2 level AA. '
-        + 'Normal Mode is on now.');
+      ? 'Exit WCAG Mode. It is on now: a version of this app that meets '
+        + 'WCAG 2.2 level AA.'
+      : 'Use WCAG Mode, a version of this app that meets WCAG 2.2 level AA.');
   }
   // The full-screen key's fold: only drawn in WCAG Mode, so harmless here.
   const legend = $('skyLegend');

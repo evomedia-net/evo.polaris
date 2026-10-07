@@ -226,8 +226,9 @@ This is the point of the project, not a later pass.
 ## WCAG 2.2 conformance
 
 **WCAG Mode** is a separate option, switched on with the **Use WCAG Mode**
-button under A− / A+ and remembered between visits. It changes nothing about
-the normal mode. It is built to meet **WCAG 2.2 Level AA** and adds:
+button under A− / A+. Once it is on, the same button reads **Exit WCAG Mode**.
+It is remembered between visits and changes nothing about the default mode.
+It is built to meet **WCAG 2.2 Level AA** and adds:
 
 - **Focus that is never hidden** (2.4.11). A control that takes keyboard focus
   is scrolled clear of the pinned header.
