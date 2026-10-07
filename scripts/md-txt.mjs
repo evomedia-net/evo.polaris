@@ -50,6 +50,9 @@ const UNDERLINE = ["=", "-", "~", ".", ".", "."];
 function inline(text) {
   return text
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1") // images -> alt text
+    // An HTML <img>, which README uses where a picture needs a width, is a
+    // picture too: its alt text is what plain text can say about it.
+    .replace(/<img\b[^>]*?\balt="([^"]*)"[^>]*>/g, "$1")
     // Links -> text (url), except when the text already is the url: README
     // links `build-version.json` to itself, and "build-version.json
     // (build-version.json)" tells the reader nothing twice. The comparison

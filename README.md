@@ -1,12 +1,31 @@
 # evo.polaris
 
-Free, open-source polar alignment for star trackers and equatorial mounts —
-built to be usable by astronomers who can't crouch behind an eyepiece, hold a
-phone steady, or work a fiddly touch target in the dark.
+Free, open-source polar alignment for star trackers and equatorial mounts.
+**Made for astronomers with disabilities, by a disabled astronomer.**
+**Usable by everyone.**
+
+It is built for people with **physical disabilities**,
+**limited fine motor control** (a tremor, a weak grip, hands that can't land on
+a small target) and **low vision**: astronomers who can't crouch behind an
+eyepiece, hold a phone steady, or work a fiddly touch target in the dark.
+Everyone else gets an app that is simply easier to use at night.
 
 Many apps for this job cost money, and most assume a body that cooperates.
-This one is free, works offline, reads its numbers out loud, and never asks you
-to drag, pinch, double-tap or press-and-hold.
+This one is free and works offline, and:
+
+- **reads its numbers out loud**, and writes each one out in words as well as
+  digits;
+- **needs single taps only**: no dragging, pinching, double-tapping or
+  press-and-hold;
+- **keeps its large buttons where they are**, so nothing moves under your
+  finger;
+- **scales its text up to 1.6×**, in high-contrast colours, with a pure-red
+  Night Mode that keeps your eyes dark-adapted.
+
+<img src="site/screenshots/phone-tracker.png" width="280" alt="evo.polaris on a phone: the latitude to set, 32.80 degrees, also written out as thirty-two degrees, forty-eight minutes, and Polaris at 8:23 on the polar-scope reticle, drawn as a clock dial.">
+<img src="site/screenshots/phone-night.png" width="280" alt="The full-screen sky view in Night Mode, pure red on black, with large labelled buttons for moving, zooming and dimming the stars.">
+
+<img src="site/screenshots/desktop-sky.png" width="720" alt="The sky view on a desktop: Polaris circled at the end of the Little Dipper, with large labelled buttons for moving around the sky, zooming, and making the stars brighter or dimmer.">
 
 ## What it tells you
 
