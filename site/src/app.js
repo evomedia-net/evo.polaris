@@ -803,7 +803,7 @@ function setPlaceChangeLabel(open) {
   // coordinates beside it. The accessible name is the same words unbroken.
   btn.innerHTML = open ? 'Hide the<br>boxes' : 'Set your<br>location';
   btn.setAttribute('aria-label',
-    open ? 'Hide the position boxes' : 'Set your location');
+    open ? 'Hide the boxes for your position' : 'Set your location');
 }
 
 $('placeChange').onclick = () => {
@@ -837,7 +837,7 @@ function setWhenChangeLabel(open) {
   const btn = $('whenChange');
   btn.innerHTML = open ? 'Hide the<br>boxes' : 'Change<br>date';
   btn.setAttribute('aria-label',
-    open ? 'Hide the date boxes' : 'Change the date');
+    open ? 'Hide the boxes for the date' : 'Change date, to see the sky at another time');
 }
 
 function paintWhen() {
@@ -1891,7 +1891,7 @@ function applyFullScreen() {
   // the symbols every video player uses.
   $('fullGlyph').textContent = fullOn ? '✕' : '⛶';
   $('fullBtn').setAttribute('aria-label',
-    fullOn ? 'Exit full screen' : 'Fill the screen');
+    fullOn ? 'Exit full screen' : 'Use full screen');
   // The word under the glyph says the same thing the name does.
   const tag = $('fullBtnTag');
   if (tag) tag.textContent = fullOn ? 'Exit' : 'Full screen';
@@ -3400,8 +3400,8 @@ function applyUpOnlyLabel() {
   const b = $('tgtUpOnly');
   b.textContent = skyUpOnly ? 'Include what is down' : 'Skip what is down';
   b.setAttribute('aria-label', skyUpOnly
-    ? 'Include planets and constellations below the horizon'
-    : 'Skip planets and constellations below the horizon');
+    ? 'Include what is down: stop at planets and constellations below the horizon too'
+    : 'Skip what is down: pass over planets and constellations below the horizon');
 }
 applyUpOnlyLabel();
 

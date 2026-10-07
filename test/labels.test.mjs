@@ -196,7 +196,7 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['skyMoon', 'Show the Moon', 'Hide the Moon'],
     ['manualToggle', 'Enter it by hand instead', 'Hide the hand-entry boxes'],
     // "Exit" is the word written under the glyph, so the name contains it.
-    ['fullBtn', 'Fill the screen', 'Exit full screen'],
+    ['fullBtn', 'Use full screen', 'Exit full screen'],
     // Auto Mode is the phone steering, Manual Mode is the arrows. One
     // control, action-labelled -- it replaced two buttons whose names were
     // near-identical and meant entirely different things.
@@ -204,13 +204,13 @@ test('every toggle says both directions, and neither is the state it is in', () 
     ['modeBtn', 'Use Auto Mode', 'Use Manual Mode'],
     // Its visible word is short so it shares a row with the coordinates; the
     // accessible name is the full phrase, and that is the label under test.
-    ['placeChange', 'Set your location', 'Hide the position boxes'],
-    ['whenChange', 'Change the date', 'Hide the date boxes'],
+    ['placeChange', 'Set your location', 'Hide the boxes for your position'],
+    ['whenChange', 'Change date, to see the sky at another time', 'Hide the boxes for the date'],
     // Short on the face so it fits the target column; the accessible name
     // says what is being skipped.
     ['tgtUpOnly', 'Skip what is down', 'Include what is down'],
-    ['tgtUpOnly', 'Skip planets and constellations below the horizon',
-      'Include planets and constellations below the horizon'],
+    ['tgtUpOnly', 'Skip what is down: pass over planets and constellations below the horizon',
+      'Include what is down: stop at planets and constellations below the horizon too'],
   ];
   const shipped = new Map(
     buttonsInHtml(html).filter((b) => b.id).map((b) => [b.id, b.text]),
