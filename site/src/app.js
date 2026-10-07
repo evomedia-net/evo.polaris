@@ -602,10 +602,13 @@ function applyAppearance() {
   // reads as a double negative ("Use Night Mode, not pressed").
   const btn = $('nightToggle');
   btn.textContent = night ? 'Use Dark Mode' : 'Use Night Mode';
+  // THE NAME STARTS WITH THE WORDS ON THE BUTTON (#224, WCAG 2.5.3). It said
+  // "Switch to Night Mode, ..." under a button reading "Use Night Mode", so a
+  // voice-control user who said what they saw got no match.
   btn.setAttribute('aria-label', night
-    ? 'Switch to Dark Mode. Night Mode is on now: pure red on black, which '
+    ? 'Use Dark Mode. Night Mode is on now: pure red on black, which '
       + 'preserves dark adaptation.'
-    : 'Switch to Night Mode, which is pure red on black and preserves dark '
+    : 'Use Night Mode, which is pure red on black and preserves dark '
       + 'adaptation. Dark Mode is on now.');
   btn.classList.toggle('is-night', night);
 

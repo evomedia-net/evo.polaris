@@ -1,10 +1,10 @@
 {
-  "version": "0.0.1.0.51",
+  "version": "0.0.1.0.52",
   "files": {
     "./index.html": "db68eb12e2860ada",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
     "./src/style.css": "1565920d7b0dc708",
-    "./src/app.js": "e1610af3dff95fd1",
+    "./src/app.js": "9f8ac98e58f91fc3",
     "./src/astro.js": "6707c12d4794db5b",
     "./src/geomag.js": "ddbaae47354712d9",
     "./src/chart.js": "6089dd2842e5c050",
