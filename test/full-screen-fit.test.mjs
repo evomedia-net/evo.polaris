@@ -84,8 +84,11 @@ test('the height it is capped at is the column under the key', () => {
   // 12rem is the tallest the key measured: all six rows, credits wrapped, at
   // 1.45 and 1.6 on a 375px phone (11.9rem). A seventh row makes that stale.
   assert.ok(near(Number(keyAndGaps), 12 + 3 * GAP), `${keyAndGaps}rem for the key and its gaps`);
+  // Rows of the key itself. WCAG Mode's fold (#218) is a list item too, but it
+  // is drawn only in WCAG Mode, where it stands in for the three path rows it
+  // folds -- so the tallest plate is still these six.
   const rows = (html.slice(html.indexOf('id="skyLegend"'), html.indexOf('</ul>', html.indexOf('id="skyLegend"')))
-    .match(/<li /g) || []).length;
+    .match(/<li class="leg-row/g) || []).length;
   assert.equal(rows, 6, 'the key has a new row: measure its height again and move the 12rem');
 });
 

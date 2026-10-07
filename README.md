@@ -220,6 +220,47 @@ This is the point of the project, not a later pass.
   reticle and chart are support. Nothing requires reading a picture.
 - **Manual position entry** for when GPS won't play, and fields keep their
   values when an entry is rejected.
+- **WCAG Mode**, one press away under A− / A+: a version of the app built to
+  meet WCAG 2.2 Level AA. See below.
+
+## WCAG 2.2 conformance
+
+**WCAG Mode** is a separate option, switched on with the **Use WCAG Mode**
+button under A− / A+. Once it is on, the same button reads **Exit WCAG Mode**.
+It is remembered between visits and changes nothing about the default mode.
+It is built to meet **WCAG 2.2 Level AA** and adds:
+
+- **Focus that is never hidden** (2.4.11). A control that takes keyboard focus
+  is scrolled clear of the pinned header.
+- **A full screen that never covers its controls** (2.4.11). The key folds
+  behind a **Show the Key** button. The photo credits stay on screen, as their
+  licence requires, at a fixed size so larger text cannot push them into the
+  buttons.
+- **Track labels that wrap instead of being cut off** (1.4.4, 1.4.10).
+- **Errors tied to their field** (3.3.1). A rejected latitude or longitude box
+  is marked invalid, linked to the message that explains it, and given focus.
+- **Links underlined** (1.4.1), and **photo credits at full strength** so they
+  stay readable in Night Mode (1.4.3).
+
+Beyond AA, Dark Mode keeps all text at 7:1 contrast or better (AAA, 1.4.6) and
+every control at least 44px (AAA, 2.5.5), in both modes. Night Mode's pure red
+on black reaches 5.25:1: AA, not AAA, because anything brighter would cost the
+dark adaptation it exists to protect.
+
+**How it was checked,** on 2026-10-07:
+- axe-core 4.10 found no WCAG A or AA violations in WCAG Mode, in Dark Mode or
+  Night Mode, with every key row and photo credit on screen;
+- each A and AA criterion was reviewed by hand;
+- the page reflows at 320px wide at the largest text size and under WCAG's
+  text-spacing overrides;
+- the full-screen layout was measured at 320×568, 375×667, 390×844 and 667×375
+  at all five text sizes.
+
+**Known limits.** On the smallest phones (320×568), and on phones held
+sideways, at the app's three largest text sizes, the folded key's photo credits
+still touch the Art button or the Az/Alt readout in full screen. WCAG's resize
+tests use browser zoom, which stays clear. Screen-reader testing on real
+devices (VoiceOver, TalkBack) has not been done yet.
 
 ## Accuracy, and how it is checked
 

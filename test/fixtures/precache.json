@@ -1,10 +1,10 @@
 {
-  "version": "0.0.1.0.49",
+  "version": "0.0.1.0.50",
   "files": {
-    "./index.html": "e046e3907c2408cf",
+    "./index.html": "865d4d893095a21c",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
-    "./src/style.css": "f2521b6705201047",
-    "./src/app.js": "6aa217b1ebbcf52b",
+    "./src/style.css": "1565920d7b0dc708",
+    "./src/app.js": "f34042b49a156e15",
     "./src/astro.js": "6707c12d4794db5b",
     "./src/geomag.js": "ddbaae47354712d9",
     "./src/chart.js": "6089dd2842e5c050",

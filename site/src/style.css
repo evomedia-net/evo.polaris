@@ -459,6 +459,10 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
   display: flex;
   flex: 0 0 auto;
   gap: calc(0.4 * var(--base));
+  /* Wraps at exactly the pair's width: the WCAG Mode switch (#218) takes the
+     row under them and the pair keeps its corner. */
+  flex-wrap: wrap;
+  max-width: calc(2 * var(--tap-lock) + 0.4 * var(--base));
 }
 .sizing .icon-btn {
   min-width: var(--tap-lock);
@@ -466,6 +470,15 @@ html[data-night='on'] .evo-chrome-brand svg circle { fill: var(--ink); }
   padding: 0 calc(0.7 * var(--base));
   font-size: var(--base);
   border-radius: calc(0.7 * var(--base));
+}
+/* WCAG MODE'S SWITCH SITS UNDER THE PAIR (#218). The group wraps at exactly
+   the pair's width, so A- and A+ keep their corner and the switch takes the
+   row beneath them, as wide as both. Its text is locked like theirs: it is
+   one of the controls you reach for when the screen is already hard to use.
+   The wrap and the width are on .sizing above. */
+.sizing .wcag-btn {
+  flex: 1 0 100%;
+  line-height: 1.15;
 }
 /* The end of the ladder, in the same ink as every other spent button. */
 .icon-btn[aria-disabled='true'] {
@@ -1614,6 +1627,11 @@ canvas {
 }
 
 .foot { margin: 2rem 0 0; padding: 0 0.3rem; color: var(--ink-dim); font-size: 0.88rem; }
+/* THE SOURCE LINK WEARS THE FOOTER'S OWN INK (#217). Unstyled, it was the
+   browser's #0000ee: 2.09:1 on this page, and the one blue thing on a Night
+   Mode screen that must be red. Underlined, so it reads as a link without
+   leaning on colour. */
+.foot a { color: inherit; text-decoration: underline; }
 
 .visually-hidden {
   position: absolute;
@@ -1628,3 +1646,66 @@ canvas {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* --- WCAG MODE (#218) -------------------------------------------------------
+ *
+ * "This needs a WCAG complient version that can be toggled at top, next to
+ * -A / +A ... do not modify any current settings, add this as a new option."
+ * In WCAG's own terms, a conforming alternate version: the switch is in the
+ * default mode's header, and every rule below is scoped to
+ * html[data-wcag='on'], so nothing in the modes that already exist changes.
+ *
+ * The audit behind it found the default mode already at AAA text contrast
+ * (7:1) and 44px targets by day. What it could not promise is below. */
+
+/* 2.4.11 FOCUS NOT OBSCURED. The bar is pinned, so tabbing back up the page
+   scrolled the focused control to the top edge -- under the bar. app.js
+   measures the bar into --bar-h, which is 0 while the bar is unpinned. */
+html[data-wcag='on'] { scroll-padding-top: calc(var(--bar-h, 0px) + 0.5rem); }
+
+/* 1.4.1: a link in running text is told apart by more than its colour. */
+html[data-wcag='on'] a:not(.icon-btn) { text-decoration: underline; }
+
+/* 1.4.4 / 1.4.10 (#180): the full-screen Track labels wrap rather than lose
+   their last letters. "Constellations" is the one word that has to break. */
+html[data-wcag='on'] .live-sky.full .tgt-btn {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+/* 2.4.11 (#179): in full screen the key's dashed-line rows fold behind one
+   button, so the plate cannot grow into the controls under it. The photo
+   credits stay on the plate whatever the fold: ESO's terms say the Milky
+   Way's "cannot be hidden or separated from the image". */
+.leg-fold { display: none; }
+html[data-wcag='on'] .live-sky.full .leg-fold { display: flex; }
+html[data-wcag='on'] .live-sky.full .sky-legend.folded #legIss,
+html[data-wcag='on'] .live-sky.full .sky-legend.folded #legPlanets,
+html[data-wcag='on'] .live-sky.full .sky-legend.folded #legMoon { display: none; }
+/* LOCKED LIKE THE SIZING PAIR. Folded, the plate is this button and up to
+   three credits, and at 1.6 on a 375x667 phone those grew to 304px -- the
+   button to --tap (92px) and every credit to two lines -- and still reached
+   the Art button below. So in WCAG Mode both are sized from --base, which
+   does not move with A+: the button keeps the pair's locked 58px (over the
+   44px of WCAG's AAA target size) and the credits keep the size they have at
+   the default setting. Browser zoom still enlarges them, which is what 1.4.4
+   asks. The key's own rows, once someone opens it, still grow with A+.
+   The plate ignores the pointer so a drag can start through it; its one
+   button must not. */
+html[data-wcag='on'] .live-sky.full .key-fold {
+  position: static;
+  pointer-events: auto;
+  min-height: var(--tap-lock);
+  padding: 0 calc(0.7 * var(--base));
+  font-size: var(--base);
+  white-space: nowrap;
+}
+html[data-wcag='on'] .live-sky.full .leg-credit { font-size: calc(0.68 * var(--base)); }
+
+/* 1.4.3: THE CREDITS AT FULL INK. They are dimmed to 85% to sit behind the
+   key, which in Night Mode made the red #d90000 on black: 3.93:1, under the
+   4.5:1 minimum. Pure red is 5.25:1. In Dark Mode they are over 7:1 either
+   way. */
+html[data-wcag='on'] .leg-credit,
+html[data-wcag='on'] .milky-credit { opacity: 1; }

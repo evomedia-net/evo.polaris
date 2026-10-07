@@ -56,6 +56,13 @@
   <div class="sizing">
     <button id="textSmaller" class="icon-btn size-btn" aria-label="Make the text smaller">A−</button>
     <button id="textBigger" class="icon-btn size-btn" aria-label="Make the text bigger">A+</button>
+    <!-- WCAG MODE (#218): "This needs a WCAG complient version that can be
+         toggled at top, next to -A / +A ... do not modify any current
+         settings, add this as a new option". Under the pair, as wide as the
+         two of them and locked to the same fixed size, so neither moves. The
+         label says what pressing does; on, it is "Exit WCAG Mode", never a
+         name for the other mode (see app.js). -->
+    <button id="wcagToggle" class="icon-btn wcag-btn">Use WCAG Mode</button>
   </div>
 </header>
 
@@ -322,6 +329,12 @@
              drawn from, so the key cannot disagree with the map. -->
         <ul class="sky-legend" id="skyLegend"
             aria-label="What the dashed paths mean" hidden>
+          <!-- WCAG MODE'S FOLD (#218, #179). Only in WCAG Mode and only in
+               full screen, where a six-row key ran into the controls below it
+               on short screens. It folds the dashed-line rows; the photo
+               credits below stay, because the licence keeps them on the
+               picture. Hidden everywhere else, so the default mode is unchanged. -->
+          <li class="leg-fold"><button id="keyFold" class="map-btn key-fold">Show the Key</button></li>
           <li class="leg-row" id="legIss" hidden><svg class="leg-line" viewBox="0 0 46 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="45" y2="4" stroke-width="2"/></svg>ISS</li>
           <li class="leg-row" id="legPlanets" hidden><svg class="leg-line" viewBox="0 0 46 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="45" y2="4" stroke-width="2"/></svg>Planets</li>
           <li class="leg-row" id="legMoon" hidden><svg class="leg-line" viewBox="0 0 46 8" aria-hidden="true" focusable="false"><line x1="1" y1="4" x2="45" y2="4" stroke-width="2"/></svg>Moon</li>
