@@ -502,10 +502,33 @@ let compassByUser = false;
 // this one does not, and a size the buttons cannot reach is a trap.
 let scale = clampScale(store.get('scale', SCALE_MIN));
 let night = store.get('night', false);
+// WCAG MODE (#218): a new option beside the others, never a change to them.
+// Its rules are all scoped to data-wcag in style.css.
+let wcag = store.get('wcag', false);
+// Folded unless someone opened it: the fold is the point of the mode.
+let keyOpen = store.get('keyOpen', false);
 
 function applyAppearance() {
   document.documentElement.style.setProperty('--scale', scale);
   document.documentElement.dataset.night = night ? 'on' : 'off';
+  document.documentElement.dataset.wcag = wcag ? 'on' : 'off';
+
+  // THE SAME RULE AS NIGHT MODE'S BUTTON: the label is the mode pressing
+  // switches TO, and the name carries the words on the button (2.5.3).
+  const wb = $('wcagToggle');
+  if (wb) {
+    wb.textContent = wcag ? 'Use Normal Mode' : 'Use WCAG Mode';
+    wb.setAttribute('aria-label', wcag
+      ? 'Use Normal Mode. WCAG Mode is on now: a version of this app that '
+        + 'meets WCAG 2.2 level AA.'
+      : 'Use WCAG Mode, a version of this app that meets WCAG 2.2 level AA. '
+        + 'Normal Mode is on now.');
+  }
+  // The full-screen key's fold: only drawn in WCAG Mode, so harmless here.
+  const legend = $('skyLegend');
+  if (legend) legend.classList.toggle('folded', !keyOpen);
+  const kf = $('keyFold');
+  if (kf) kf.textContent = keyOpen ? 'Hide the Key' : 'Show the Key';
 
   // A sizing button at the end of the ladder looks spent, the way the zoom
   // buttons do at their limits -- and for the same reason it is aria-disabled
@@ -584,8 +607,13 @@ function pinHeader() {
   if (!bar) return;
   // Measure unpinned, or the measurement is of the state we are deciding.
   bar.classList.remove('unpinned');
-  const tall = bar.getBoundingClientRect().height > window.innerHeight / 3;
+  const h = bar.getBoundingClientRect().height;
+  const tall = h > window.innerHeight / 3;
   bar.classList.toggle('unpinned', tall);
+  // How much of the top the pinned bar covers, for WCAG Mode's
+  // scroll-padding (2.4.11): a control taking focus scrolls clear of it.
+  // Nothing in the other modes reads this.
+  document.documentElement.style.setProperty('--bar-h', tall ? '0px' : `${Math.ceil(h)}px`);
 }
 
 function setScale(v) {
@@ -597,6 +625,27 @@ $('textBigger').onclick = () => setScale(scale + SCALE_STEP);
 $('textSmaller').onclick = () => setScale(scale - SCALE_STEP);
 $('nightToggle').onclick = () => {
   night = !night; store.set('night', night); applyAppearance();
+};
+$('wcagToggle').onclick = () => {
+  wcag = !wcag; store.set('wcag', wcag); applyAppearance();
+};
+// 2.4.11 FOCUS NOT OBSCURED, WHICHEVER WAY FOCUS ARRIVES. style.css sets
+// scroll-padding-top in WCAG Mode, but a browser does not use it for every
+// way focus moves -- measured: element.focus() left a button at top 0, under
+// a 144px bar. So in WCAG Mode, anything that takes focus beneath the pinned
+// bar is scrolled to just below it. Full screen has no page to scroll, and
+// the bar's own buttons are never under it.
+document.addEventListener('focusin', (e) => {
+  if (!wcag) return;
+  const bar = document.querySelector('.bar');
+  if (!bar || bar.classList.contains('unpinned') || bar.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.live-sky.full')) return;
+  const under = bar.getBoundingClientRect().bottom;
+  const top = e.target.getBoundingClientRect().top;
+  if (top < under) window.scrollBy({ top: top - under - 8, behavior: 'instant' });
+});
+$('keyFold').onclick = () => {
+  keyOpen = !keyOpen; store.set('keyOpen', keyOpen); applyAppearance();
 };
 
 // --- collapsible cards ------------------------------------------------------
@@ -1020,6 +1069,27 @@ $('lookupAlt').onclick = async () => {
   }
 };
 
+/**
+ * WCAG MODE NAMES THE FIELD IN CODE AS WELL AS IN WORDS (#218, 3.3.1). The
+ * status line already says which box is wrong and how to put it right; in
+ * WCAG Mode the box itself is also marked invalid, pointed at that message,
+ * and given focus, so a screen reader lands on it and reads why. `id` null
+ * clears both boxes. Outside WCAG Mode it only ever clears.
+ */
+function markInvalid(id) {
+  for (const f of ['inLat', 'inLon']) {
+    const bad = wcag && f === id;
+    if (bad) {
+      $(f).setAttribute('aria-invalid', 'true');
+      $(f).setAttribute('aria-describedby', 'locateStatus');
+    } else {
+      $(f).removeAttribute('aria-invalid');
+      $(f).removeAttribute('aria-describedby');
+    }
+  }
+  if (wcag && id) $(id).focus();
+}
+
 $('manualApply').onclick = () => {
   const latR = resolveCoordinate($('inLat').value, latHemi, 'S');
   const lonR = resolveCoordinate($('inLon').value, lonHemi, 'W');
@@ -1029,14 +1099,17 @@ $('manualApply').onclick = () => {
     $('locateStatus').textContent =
       'Latitude must be a number from 0 to 90. Use the North / South buttons '
       + 'for the side of the equator.';
+    markInvalid('inLat');
     return;                                    // fields keep their values
   }
   if (!lonR.ok || !validate(lonR.value, 180)) {
     $('locateStatus').textContent =
       'Longitude must be a number from 0 to 180. Use the East / West buttons '
       + 'for the side of the prime meridian.';
+    markInvalid('inLon');
     return;
   }
+  markInvalid(null);
   // Keep the form showing exactly what was accepted.
   latHemi = latR.hemi; lonHemi = lonR.hemi;
   $('inLat').value = latR.magnitude;
