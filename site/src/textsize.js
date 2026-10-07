@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // HOW BIG THE APP GOES, AS A LADDER OF SIZES.
 //
 // "I think the button size [ -A ] [ +A ] should have a max of 5. Otherwise the

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The service-worker precache list is a hand-kept copy of what the app loads,
 // and it had already drifted twice: guide.js, words.js, skyview.js, skydraw.js,
 // coords.js and briefing.js were all shipped without being listed.

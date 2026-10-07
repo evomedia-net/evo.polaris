@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // A BRIGHT STAR IS A GLOW WITH SPIKES, NOT A BIGGER DOT.
 //
 // Kelly, looking at OpenSpace's sky: "some of the stars had streaks or had

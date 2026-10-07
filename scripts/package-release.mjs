@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // PACKAGE A RELEASE: THE APP AS DEPLOYED, IN ONE ZIP, IN releases/.
 //
 //     node scripts/package-release.mjs            # the version in build-version.json

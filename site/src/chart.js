@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Drawing: the circumpolar sky chart, and the polar-scope reticle.
 //
 // Both are decoration in the accessibility sense -- every number they show also

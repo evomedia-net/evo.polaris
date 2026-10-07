@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Where the view is pointing, as a rotation rather than as two angles.
 //
 // WHY THIS EXISTS. The aim used to be stored as {az, alt}, and a drag was

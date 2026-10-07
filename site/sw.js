@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Offline-first: a dark field has no signal, so everything must already be here.
 //
 // Two strategies on purpose, because "cache-first for everything" is how a
@@ -17,7 +21,7 @@
 //
 // This is a CACHE KEY, not the release stamp. build-version.json stays where
 // it is; the build advances once per release on the default branch.
-const VERSION = '0.0.1.0.47';
+const VERSION = '0.0.1.0.48';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // A hand-kept plain-text duplicate drifts, and the drift is invisible precisely
 // because nobody reads both copies. Generating the twins is only half the fix:
 // this makes a forgotten regeneration fail the suite instead of shipping a

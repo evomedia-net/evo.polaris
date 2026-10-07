@@ -1,3 +1,7 @@
+# evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+# Created by Kelly Michels · dev@evomedia.net
+# Licensed under the MIT License. See LICENSE.
+
 r"""Render this app's link-preview card.
 
     python scripts\make_og_card.py            # writes site/og-card.png

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The planets as little worlds rather than coloured dots.
 //
 // WHY THIS EXISTS. A planet was a dot sized from its magnitude: correct, and

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Validates our WMM implementation against NOAA's own published test values,
 // shipped inside WMM2025COF.zip. If this passes, the declination the app shows
 // is the declination NOAA says it is.

@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // The Milky Way as a photograph, projected into the sky view.
 //
 // Until this, the band was two terms of arithmetic -- a cosine toward the

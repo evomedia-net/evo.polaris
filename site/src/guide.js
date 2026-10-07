@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Two-axis pointing: where the phone is aimed versus where the pole is.
 //
 // Until now the only live signal was the compass, so the app could say "turn

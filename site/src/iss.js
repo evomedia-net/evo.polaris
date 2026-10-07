@@ -1,3 +1,7 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
 // Where the International Space Station is, right now.
 //
 // THIS IS THE ONE FEATURE THAT CANNOT WORK OFFLINE, and that is worth stating
