@@ -77,6 +77,19 @@ export function compassPoint(deg) {
 }
 
 /**
+ * The same point in words, for what is SAID rather than drawn (#222). "SE" read
+ * out is "S, E"; "south-east" is a direction.
+ */
+const WORDS = { N: 'north', E: 'east', S: 'south', W: 'west' };
+export function compassWords(deg) {
+  const p = compassPoint(deg);
+  // NNE is "north-north-east": the leading letter, then the two-letter point.
+  if (p.length === 3) return `${WORDS[p[0]]}-${WORDS[p[1]]}-${WORDS[p[2]]}`;
+  if (p.length === 2) return `${WORDS[p[0]]}-${WORDS[p[1]]}`;
+  return WORDS[p];
+}
+
+/**
  * The compass line under the sky view, in words (#192).
  *
  * It used to be the raw sensor dump -- "deviceorientationabsolute event ·

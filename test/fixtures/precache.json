@@ -1,15 +1,15 @@
 {
-  "version": "0.0.1.0.50",
+  "version": "0.0.1.0.51",
   "files": {
-    "./index.html": "865d4d893095a21c",
+    "./index.html": "db68eb12e2860ada",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
     "./src/style.css": "1565920d7b0dc708",
-    "./src/app.js": "f34042b49a156e15",
+    "./src/app.js": "e1610af3dff95fd1",
     "./src/astro.js": "6707c12d4794db5b",
     "./src/geomag.js": "ddbaae47354712d9",
     "./src/chart.js": "6089dd2842e5c050",
     "./src/guide.js": "f17ae18f8e9f5175",
-    "./src/words.js": "d0f8f48fbd576e83",
+    "./src/words.js": "48a7b51528d8e623",
     "./src/skyview.js": "24cafff725511e1d",
     "./src/skydraw.js": "e7a5eeec78c6d731",
     "./src/evomedia-chrome.js": "9df24a6abd574ec9",
@@ -37,6 +37,7 @@
     "./src/constellation-art.js": "0eb4cec424786561",
     "./src/data/figures.webp": "06aed499a6f73553",
     "./src/data/figures.js": "5846b927b5d59076",
-    "./src/data/southern-zones.js": "73fc26cc5fcb8289"
+    "./src/data/southern-zones.js": "73fc26cc5fcb8289",
+    "./src/announce.js": "86f018c1f1e1cdc5"
   }
 }

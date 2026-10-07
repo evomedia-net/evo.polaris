@@ -10,7 +10,7 @@ import {
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
 import { drawSkyChart, drawReticle } from './chart.js';
-import { spellAngle, compassPoint, compassSummary } from './words.js';
+import { spellAngle, compassPoint, compassWords, compassSummary } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
   buildSkyVectors, smoothAngle, buildMilkyWay, buildBodies, altAzToVector,
@@ -51,6 +51,7 @@ import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './p
 import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate, formPosition, isSouthernZone } from './coords.js';
 import { VERSION } from './version.js';
+import { nextAnnouncement } from './announce.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -405,8 +406,50 @@ let skyUpOnly = store.get('uponly', false);
 // whenever the ring moves or the toggle changes.
 let targetNote = '';
 
+// WHAT A SCREEN READER HEARS ABOUT THE RING (#221). #skyTarget is drawn on
+// every pass of the loop; #skyAnnounce is the live region, and announce.js
+// decides when it is written -- once per change, never the same words twice,
+// and a moving target again only after it has moved and half a minute has
+// passed. A press always speaks, even of the target already chosen.
+let heard = null;
+let heardForce = false;
+function announceTarget(ringOn) {
+  let text = $('skyTarget').textContent;
+  // WHERE IT IS, IN WORDS (#222). The drawn line is empty while the target is
+  // above the horizon -- the ring on the chart says where it is, and a caption
+  // repeating the pressed button was taken out on purpose. A screen reader
+  // has no ring, so pressing Moon said "Moon, pressed" and nothing more. The
+  // position goes to the reader only; the screen is unchanged.
+  if (!text && ringOn && ringOn.alt >= 0) {
+    const az = Math.round(((ringOn.az % 360) + 360) % 360);
+    text = `${ringOn.name}: ${az}° round, ${compassWords(az)}, `
+      + `${Math.round(ringOn.alt)}° up.`;
+  }
+  const key = [guideTarget, ringOn ? (ringOn.alt < 0 ? 'down' : 'up') : '-', targetNote].join('|');
+  const next = nextAnnouncement(heard, {
+    key, text,
+    az: ringOn ? ringOn.az : null,
+    alt: ringOn ? ringOn.alt : null,
+    at: performance.now(),
+    force: heardForce,
+  });
+  heardForce = false;
+  if (!next) return;
+  heard = next;
+  const region = $('skyAnnounce');
+  // The same words written again are not a change, and are not read out;
+  // a press that repeats them clears the region first so they are.
+  if (region.textContent === text && text) {
+    region.textContent = '';
+    setTimeout(() => { region.textContent = text; }, 100);
+  } else {
+    region.textContent = text;
+  }
+}
+
 /** Put the ring on something, and take the planet cycle off unless asked. */
 function setTarget(what, { keepCycle = false } = {}) {
+  heardForce = true;                           // a press is always answered
   guideTarget = what;
   if (!keepCycle) { planetStep = -1; constStep = -1; galaxyStep = -1; }
   targetNote = '';
@@ -2289,6 +2332,7 @@ function updateSkyMode() {
     const rest = $('skyTarget').textContent;
     $('skyTarget').textContent = rest ? `${targetNote} ${rest}` : targetNote;
   }
+  announceTarget(ringOn);
   if (following) {
     $('skyMode').textContent =
       `${when}Auto Mode: following the phone. The arrows take over if you `
@@ -2990,6 +3034,7 @@ $('issBtn').onclick = async () => {
     // Pressing this means "show me where it is", so it takes the ring and the
     // arrow with it. The automatic load deliberately does not -- it is not a
     // request to go and look. "Find the pole" is the way back.
+    heardForce = true;                         // a press is always answered (#221)
     guideTarget = 'iss';
     planetStep = -1;
     updateTargetName();
