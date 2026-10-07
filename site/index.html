@@ -407,8 +407,13 @@
 
       <p class="hint" id="skyMode"></p>
       <!-- What the ring and the arrow are locked to, when that is not
-           the pole. Empty (and silent to a screen reader) otherwise. -->
-      <p class="status" id="skyTarget" role="status"></p>
+           the pole. Empty otherwise. Drawn, not spoken: it is rewritten on
+           every pass of the drawing loop, and as a live region that made a
+           screen reader restart a forty-word sentence 2.4 times a second
+           (#221). What is SAID goes in #skyAnnounce, which app.js writes only
+           when the words are worth hearing (see announce.js). -->
+      <p class="status" id="skyTarget"></p>
+      <p class="visually-hidden" id="skyAnnounce" role="status"></p>
       <p class="hint" id="planetsOut"></p>
       <p class="hint" id="issOut">Find the ISS asks a free online tracker,
         wheretheiss.at, where the International Space Station is right now, and

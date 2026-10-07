@@ -89,10 +89,14 @@ test('it says where the station is, including that it is underfoot', () => {
   assert.match(html, /id="skyTarget"/, 'the status line must exist in the markup');
   assert.match(appJs, /BELOW `?\s*\+?\s*'?the horizon/,
     'the status must say plainly when the station is below the horizon');
-  // A live region, or the text changes silently for a screen reader.
-  const el = html.slice(html.indexOf('id="skyTarget"') - 60,
-    html.indexOf('id="skyTarget"') + 60);
-  assert.match(el, /role="status"/, '#skyTarget must be a live region');
+  // SAID THROUGH #skyAnnounce, NOT #skyTarget (#221). The drawn line is
+  // rewritten every frame, and as the live region it made a screen reader
+  // restart its sentence 2.4 times a second. The words reach the reader
+  // through a hidden region that announce.js writes only when they change.
+  assert.match(html, /<p class="status" id="skyTarget"><\/p>/, '#skyTarget is drawn, not spoken');
+  assert.match(html, /<p class="visually-hidden" id="skyAnnounce" role="status"><\/p>/,
+    '#skyAnnounce must be the live region');
+  assert.match(appJs, /const text = \$\('skyTarget'\)\.textContent;/, 'it says what the line shows');
 });
 
 test('tracking redraws far more often than the stars do', () => {

@@ -1,0 +1,88 @@
+// evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+// Created by Kelly Michels · dev@evomedia.net
+// Licensed under the MIT License. See LICENSE.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { nextAnnouncement, REPEAT_MS, REPEAT_DEG } from '../site/src/announce.js';
+
+// A SCREEN READER HEARS EACH THING ONCE, NOT 2.4 TIMES A SECOND (#221).
+//
+// Measured on the live site: tracking the ISS rewrote the live region 36 times
+// in 15 seconds, each time with a forty-word sentence. The rule in announce.js
+// decides what is said; these are the cases that matter, driven the way the
+// drawing loop drives it.
+
+const iss = (at, az, alt, extra = {}) => ({
+  key: 'iss|up|', text: `Tracking the ISS: ${Math.round(az)}° round, ${Math.round(alt)}° up.`,
+  az, alt, at, ...extra,
+});
+
+/** Run a sequence through the rule and return what was said. */
+function said(seq) {
+  let prev = null;
+  const out = [];
+  for (const now of seq) {
+    const next = nextAnnouncement(prev, now);
+    if (next) { prev = next; out.push(now.text); }
+  }
+  return out;
+}
+
+test('the ISS crossing the sky for fifteen seconds is said once, not 36 times', () => {
+  // 2.4 frames a second, the station moving about a degree a second.
+  const frames = Array.from({ length: 36 }, (_, i) => iss(i * 417, 81 + i * 0.4, 30 + i * 0.4));
+  assert.equal(said(frames).length, 1);
+});
+
+test('a moving target is said again only after it has moved AND half a minute has passed', () => {
+  const start = iss(0, 100, 30);
+  // Far, but too soon.
+  assert.deepEqual(said([start, iss(5000, 140, 30)]), [start.text]);
+  // Late enough, but it has barely moved.
+  assert.deepEqual(said([start, iss(REPEAT_MS + 1, 100 + REPEAT_DEG / 2, 30)]), [start.text]);
+  // Late enough and far enough.
+  const later = iss(REPEAT_MS + 1, 100 + REPEAT_DEG + 1, 30);
+  assert.deepEqual(said([start, later]), [start.text, later.text]);
+});
+
+test('bearings wrap: 359° to 2° is three degrees, not 357', () => {
+  const a = iss(0, 359, 30);
+  const b = iss(REPEAT_MS + 1, 2, 30);
+  assert.deepEqual(said([a, b]), [a.text], 'a 3° move must not count as a 357° one');
+});
+
+test('a new target, a horizon crossing or a note is said at once', () => {
+  const moon = { key: 'moon|up|', text: 'Moon: 142° round, 35° up.', az: 142, alt: 35, at: 1000 };
+  const down = { ...iss(1200, 81, -2), key: 'iss|down|', text: 'Tracking the ISS: 81° round and 2° BELOW the horizon.' };
+  const note = { key: 'none|-|That was the last planet.', text: 'That was the last planet.', az: null, alt: null, at: 1300 };
+  const seq = [iss(0, 81, 3), moon, down, note];
+  assert.deepEqual(said(seq), seq.map((s) => s.text));
+});
+
+test('a press is always answered, even of the target already chosen', () => {
+  const a = iss(0, 81, 30);
+  const again = { ...iss(200, 81, 30), force: true };
+  assert.deepEqual(said([a, again]), [a.text, again.text]);
+});
+
+test('the same words are never said twice, and an empty line is not chatter', () => {
+  const pole = { key: 'pole|up|', text: '', az: 0, alt: 33, at: 0 };
+  assert.equal(said([pole, { ...pole, at: 50 }, { ...pole, at: REPEAT_MS * 2, az: 90 }]).length, 1);
+});
+
+test('the app speaks through the hidden region, by this rule', () => {
+  const read = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
+  const app = read('../site/src/app.js');
+  const html = read('../site/index.html');
+  const sw = read('../site/sw.js');
+  assert.match(app, /import \{ nextAnnouncement \} from '\.\/announce\.js';/);
+  assert.match(app, /announceTarget\(ringOn\);/, 'every pass of updateSkyMode goes through the rule');
+  assert.match(html, /id="skyAnnounce" role="status"/);
+  assert.doesNotMatch(html, /id="skyTarget" role="status"/, 'the drawn line must not be a live region again');
+  assert.match(sw, /'\.\/src\/announce\.js'/, 'offline, the rule has to be there too');
+  // Both ways of choosing the station count as a press.
+  assert.ok((app.match(/heardForce = true;/g) || []).length >= 2);
+});
