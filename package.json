@@ -1,7 +1,8 @@
 {
   "name": "evo-polaris",
   "version": "0.0.0.1.0",
-  "description": "Free, open-source, accessible polar-alignment assistant for star trackers and equatorial mounts.",
+  "description": "Free, open-source polar alignment and night-sky guide (Polaris, the ISS, planets, constellations, galaxies), made for astronomers with physical disabilities, limited fine motor control or low vision, and usable by everyone.",
+  "keywords": ["polar alignment", "star tracker", "astronomy", "astrophotography", "sky map", "stargazing", "iss tracker", "planets", "constellations", "galaxies", "accessibility", "disability", "low vision", "motor impairment", "assistive technology", "pwa", "offline"],
   "type": "module",
   "license": "MIT",
   "author": "Kelly Michels <dev@evomedia.net> (https://evomedia.net)",

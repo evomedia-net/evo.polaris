@@ -27,3 +27,11 @@ test('rendering strips markup but keeps the words and link targets', () => {
   assert.ok(txt.includes('a link (https://x.test)'), 'link target should survive');
   assert.ok(!txt.includes('**') && !txt.includes('`'), 'no markup should remain');
 });
+
+test('a picture becomes its alt text, whether written as markdown or as an HTML <img>', () => {
+  // README sizes its screenshots with <img width>, which markdown cannot do (#213).
+  const txt = render('![A dial](a.png)\n<img src="b.png" width="280" alt="The sky in red">\n');
+  assert.ok(txt.includes('A dial'), 'markdown image -> alt text');
+  assert.ok(txt.includes('The sky in red'), 'HTML image -> alt text');
+  assert.ok(!txt.includes('<img') && !txt.includes('b.png'), 'no tag or path should remain');
+});

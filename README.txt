@@ -1,13 +1,37 @@
 evo.polaris
 ===========
 
-Free, open-source polar alignment for star trackers and equatorial mounts —
-built to be usable by astronomers who can't crouch behind an eyepiece, hold a
-phone steady, or work a fiddly touch target in the dark.
+Free, open-source polar alignment and night-sky guide for star trackers and
+equatorial mounts. Made for astronomers with disabilities, by a disabled astronomer.
+Usable by everyone.
+
+It started as a way to find Polaris and has grown into a guide to the whole
+night sky: one tap points you at the International Space Station,
+the planets, the Moon and the Sun, 28 constellations and
+the fifteen brightest galaxies, with the Milky Way drawn behind them.
+
+It is built for people with physical disabilities,
+limited fine motor control (a tremor, a weak grip, hands that can't land on
+a small target) and low vision: astronomers who can't crouch behind an
+eyepiece, hold a phone steady, or work a fiddly touch target in the dark.
+Everyone else gets an app that is simply easier to use at night.
 
 Many apps for this job cost money, and most assume a body that cooperates.
-This one is free, works offline, reads its numbers out loud, and never asks you
-to drag, pinch, double-tap or press-and-hold.
+This one is free and works offline, and:
+
+- reads its numbers out loud, and writes each one out in words as well as
+  digits;
+- needs single taps only: no dragging, pinching, double-tapping or
+  press-and-hold;
+- keeps its large buttons where they are, so nothing moves under your
+  finger;
+- scales its text up to 1.6×, in high-contrast colours, with a pure-red
+  Night Mode that keeps your eyes dark-adapted.
+
+evo.polaris on a phone: the latitude to set, 32.80 degrees, also written out as thirty-two degrees, forty-eight minutes, and Polaris at 8:23 on the polar-scope reticle, drawn as a clock dial.
+The full-screen sky view in Night Mode, pure red on black, with large labelled buttons for moving, zooming and dimming the stars.
+
+The sky view on a desktop: Polaris circled at the end of the Little Dipper, with large labelled buttons for moving around the sky, zooming, and making the stars brighter or dimmer.
 
 What it tells you
 -----------------
@@ -21,8 +45,30 @@ a mount:
 | Compass bearing for true north | Magnetic declination is corrected on-device, so the azimuth you set is true north and not magnetic north. |
 | Polaris on the reticle | Clock position and radius on the 12-hour iOptron AccuAlign dial, drawn as well as written. |
 
-Plus a live sky chart of the circumpolar sky with the Big Dipper star-hop drawn
-on it, and — with the compass on — arrows telling you which way to turn.
+Finding things in the sky
+-------------------------
+
+The sky view is a live chart of the sky above you tonight, and its Track
+menu points you at something with one tap:
+
+- Polaris, with the Big Dipper star-hop drawn to it (the Southern Cross in
+  the south).
+- The International Space Station, where it is right now, with its path
+  across your sky. This is the one part of the app that needs the internet; it
+  asks a free tracker, and everything else is worked out on your phone.
+- The Moon and the Sun.
+- The planets: one button, tapped again and again, walks outward from the
+  Sun, Mercury first and Pluto last.
+- 28 constellations, the same way, each drawn as a stick figure, with
+  James Hedberg's artwork behind it if you want it.
+- The fifteen brightest galaxies, brightest first, each drawn at its true
+  size, the Andromeda Galaxy three degrees across.
+
+A switch skips planets and constellations that are below the horizon. With the
+compass on, arrows tell you which way to turn. Without it, Manual Mode moves
+the view with Up, Down, Left and Right buttons, so you never have to hold the
+phone up to the sky. The stars can be made brighter or dimmer, and the whole
+view goes full screen.
 
 Both hemispheres
 ----------------

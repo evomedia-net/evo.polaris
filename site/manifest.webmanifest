@@ -1,7 +1,7 @@
 {
-  "name": "evo.polaris — polar alignment",
+  "name": "evo.polaris — polar alignment and sky guide",
   "short_name": "evo.polaris",
-  "description": "Free, accessible polar alignment for star trackers and equatorial mounts.",
+  "description": "Free, accessible polar alignment and night-sky guide: find Polaris, the ISS, the planets, constellations and galaxies. Made for astronomers with physical disabilities, limited fine motor control or low vision, and usable by everyone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
