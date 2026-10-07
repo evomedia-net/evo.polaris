@@ -1614,6 +1614,11 @@ canvas {
 }
 
 .foot { margin: 2rem 0 0; padding: 0 0.3rem; color: var(--ink-dim); font-size: 0.88rem; }
+/* THE SOURCE LINK WEARS THE FOOTER'S OWN INK (#217). Unstyled, it was the
+   browser's #0000ee: 2.09:1 on this page, and the one blue thing on a Night
+   Mode screen that must be red. Underlined, so it reads as a link without
+   leaning on colour. */
+.foot a { color: inherit; text-decoration: underline; }
 
 .visually-hidden {
   position: absolute;

@@ -1,9 +1,9 @@
 {
-  "version": "0.0.1.0.49",
+  "version": "0.0.1.0.50",
   "files": {
     "./index.html": "e046e3907c2408cf",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
-    "./src/style.css": "f2521b6705201047",
+    "./src/style.css": "4f30ee9a2b7b1b0f",
     "./src/app.js": "6aa217b1ebbcf52b",
     "./src/astro.js": "6707c12d4794db5b",
     "./src/geomag.js": "ddbaae47354712d9",
