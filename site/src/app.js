@@ -875,20 +875,25 @@ $('whenChange').onclick = () => {
   $('whenCard').hidden = !opening;
   setWhenChangeLabel(opening);
   if (!opening) return;
-  $('inWhen').value = localInputValue(plannedFor ? appTime() : eveningToday());
+  // THE BOX OPENS AT NOW (#229). It used to offer tonight at nine, silently,
+  // under "as the clock will read where you are standing" -- so at 3:27 PM it
+  // said 9:00 PM and read as a wrong clock ("it's only 3:27pm here"), and one
+  // press of Use this date and time drew every star, planet and the Moon five
+  // and a half hours from where they are. Now it starts at the real time, and
+  // the line under it says what that is. A time already set shows as it was.
+  const now = new Date();
+  $('inWhen').value = localInputValue(plannedFor ? appTime() : now);
+  const clock = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  $('whenNowNote').textContent = plannedFor
+    ? `It is ${clock} now. The box shows the time you set.`
+    : `It is ${clock} now. Change this to the date and time you will be out, `
+      + 'then press Use this date and time.';
   const tz = (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || 'this device';
   $('whenTzNote').textContent =
     `Read in this device's time zone (${tz}). The app cannot tell that you will `
     + 'be somewhere on a different clock, so for a trip across a time-zone line, '
     + 'enter the time as it would read here.';
 };
-
-/** Tonight at nine, because that is when people plan to be out. */
-function eveningToday() {
-  const d = new Date();
-  d.setHours(21, 0, 0, 0);
-  return d;
-}
 
 $('whenApply').onclick = () => {
   const v = $('inWhen').value;

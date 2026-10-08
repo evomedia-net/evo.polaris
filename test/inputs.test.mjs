@@ -64,7 +64,7 @@ test('every input in the page is one the rule covers', () => {
       `a ${type} is outside the rule and needs its own sizing: ${tag}`);
   }
   // The one this was reported about, still there and still a real field.
-  assert.match(html, /<input id="inWhen" type="datetime-local">/);
+  assert.match(html, /<input id="inWhen" type="datetime-local"[^>]*>/);
 });
 
 test('the label above a field is a grid in every card, not just the manual one', () => {
