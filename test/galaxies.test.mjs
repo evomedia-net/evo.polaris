@@ -164,7 +164,7 @@ test('they are drawn at their true size, not as dots', () => {
 });
 
 test('the switch, the button and the file all exist', () => {
-  assert.match(html, /id="tgtGalaxies"[^>]*aria-label="Point at the next galaxy, brightest first">Galaxies</);
+  assert.match(html, /id="tgtGalaxies"[^>]*aria-label="Galaxies: point at the next galaxy, brightest first">Galaxies</);
   assert.match(html, /id="skyGalaxies" class="big-btn">Hide the galaxies</);
   assert.match(appJs, /let skyShowGalaxies = store\.get\('galaxies', true\);/);
   assert.match(appJs, /galaxies: skyShowGalaxies \? skyGalaxies : null,/);

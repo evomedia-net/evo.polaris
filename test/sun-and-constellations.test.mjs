@@ -142,7 +142,7 @@ test('every shipped figure has a centre that is inside the sky it is drawn from'
 });
 
 test('one button walks every figure by name, then lets go, then starts again', () => {
-  assert.match(html, /id="tgtConst" class="map-btn tgt-btn" aria-pressed="false"\s+aria-label="Point at the next constellation">Constellations</);
+  assert.match(html, /id="tgtConst" class="map-btn tgt-btn" aria-pressed="false"\s+aria-label="Constellations: point at the next constellation">Constellations</);
   assert.match(appJs, /const CONST_KEYS = Object\.keys\(CONSTELLATIONS\);/,
     'the cycle reads the shipped figures rather than keeping a second list');
   const h = appJs.slice(appJs.indexOf("$('tgtConst').onclick"), appJs.indexOf('// The sky turns a quarter'));

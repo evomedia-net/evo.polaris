@@ -86,7 +86,7 @@ test('it lives in the Track list, after the two walks it changes', () => {
   assert.ok(grid.includes('id="tgtUpOnly"'), 'it rolls up with the targets');
   assert.ok(grid.indexOf('id="tgtConst"') < grid.indexOf('id="tgtUpOnly"'),
     'under Planets and Constellations');
-  assert.match(html, /id="tgtUpOnly" class="map-btn tgt-btn tgt-filter"\s+aria-label="Skip planets and constellations below the horizon">Skip what is down</);
+  assert.match(html, /id="tgtUpOnly" class="map-btn tgt-btn tgt-filter"\s+aria-label="Skip what is down: pass over planets and constellations below the horizon">Skip what is down</);
   assert.ok(!/id="tgtUpOnly"[^>]*aria-pressed/.test(html),
     'an action, labelled with what pressing does -- not a value picker');
   assert.match(css, /\.live-sky\.full \.tgt-filter \{/);
