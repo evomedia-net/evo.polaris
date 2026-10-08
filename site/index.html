@@ -164,8 +164,11 @@
 
     <label>Date and time
       <span class="hint">as the clock will read where you are standing</span>
-      <input id="inWhen" type="datetime-local">
+      <input id="inWhen" type="datetime-local" aria-describedby="whenNowNote whenTzNote">
     </label>
+    <!-- What the time is now, so the box is never mistaken for a wrong
+         clock (#229). Filled in when the panel opens. -->
+    <p class="hint" id="whenNowNote"></p>
     <p class="hint" id="whenTzNote"></p>
 
     <button id="whenApply" class="big-btn primary">Use this date and time</button>
