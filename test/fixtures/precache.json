@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0.54",
+  "version": "0.0.1.0.55",
   "files": {
     "./index.html": "933455fcb2be4b16",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
@@ -11,7 +11,7 @@
     "./src/guide.js": "f17ae18f8e9f5175",
     "./src/words.js": "48a7b51528d8e623",
     "./src/skyview.js": "24cafff725511e1d",
-    "./src/skydraw.js": "e7a5eeec78c6d731",
+    "./src/skydraw.js": "728366abbdbec4e8",
     "./src/evomedia-chrome.js": "9df24a6abd574ec9",
     "./src/coords.js": "ac98c8ebc8925e13",
     "./src/briefing.js": "a470c942ca1f5385",
@@ -31,7 +31,7 @@
     "./src/quat.js": "bb423cf53b087ba2",
     "./src/walk.js": "b96bd194e484dd9d",
     "./src/textsize.js": "731f9ccbe02cb0a5",
-    "./src/starglow.js": "2f73005df3f2fdf0",
+    "./src/starglow.js": "3539f5ddcf8e5fb9",
     "./src/planet-art.js": "24a347ae08d6b2e2",
     "./src/data/planets.webp": "41bebe8d4d5145e8",
     "./src/constellation-art.js": "0eb4cec424786561",
