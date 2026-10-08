@@ -1122,6 +1122,11 @@ html[data-night='on'] .map-btn {
 .leg-credit { font-size: 0.68rem; font-weight: 500; opacity: 0.85; }
 .milky-credit { display: block; margin-top: 0.35rem; font-size: 0.85em; opacity: 0.85; }
 .milky-credit a { color: inherit; }
+/* AT FULL INK AT NIGHT (#232). 85% of pure red is #d90000 on black: 3.93:1,
+   under the 4.5:1 WCAG 1.4.3 asks of text this size. Full red is 5.25:1. By
+   day 85% of near-white is still over 7:1, so the softening stays there. */
+html[data-night='on'] .leg-credit,
+html[data-night='on'] .milky-credit { opacity: 1; }
 /* Still a plate, still red, still nothing filled brightly. The swatch colours
    are set in script from the same table the paths use.
 
