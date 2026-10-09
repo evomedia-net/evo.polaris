@@ -300,47 +300,64 @@ export function createConstellationArt({ forceOff = false } = {}) {
     return red;
   }
 
+  // ALWAYS THROUGH A BUFFER, AND THE MESH NEVER ADDS (#238).
+  //
+  // Each figure is warped onto the sky as a mesh of triangles, every one
+  // grown by a pixel so its neighbours overlap instead of leaving a gap. The
+  // mesh used to be painted straight onto the sky with 'lighter' -- which
+  // ADDS -- so every overlap was painted twice and came out twice as bright:
+  // thin straight lines along every edge of the mesh, across every figure,
+  // brightest over the strokes. "still lots of lines on polaris page".
+  //
+  // So the mesh is painted into a buffer at full strength with 'lighten',
+  // which keeps the brighter of the two: the same pixel painted twice is the
+  // same pixel, and the seams are gone. (At the art's own opacity it would
+  // not be -- 60% laid twice is 84% -- which is why the opacity waits.) Then
+  // the buffer goes onto the sky ONCE, at that opacity and with 'lighter',
+  // exactly as the figures always looked.
+  //
+  // At a wide field the buffer is also smaller, and scaled up as it is laid.
   layer.draw = function draw(target, opts) {
-    const { figures, basis, focal, w, h } = opts;
+    const { figures, focal, w, h, night, opacity = null } = opts;
     if (!img || !figures || !figures.length) return 0;
-    // At a wide field, paint into a smaller buffer and scale it up once.
-    const step = opts.noScale ? null : LOD_STEPS.find((l) => focal < l.focal * w);
-    if (step) {
-      const s = step.scale;
-      const bw = Math.max(1, Math.round(w * s)), bh = Math.max(1, Math.round(h * s));
-      if (!buffer) buffer = document.createElement('canvas');
-      if (buffer.width !== bw || buffer.height !== bh) { buffer.width = bw; buffer.height = bh; }
-      const bg = buffer.getContext('2d');
-      bg.setTransform(1, 0, 0, 1, 0, 0);
-      bg.clearRect(0, 0, bw, bh);
-      const n = draw(bg, {
-        ...opts, noScale: true, focal: focal * s, cx: opts.cx * s, cy: opts.cy * s, w: bw, h: bh,
-      });
-      if (n) {
-        target.save();
-        target.globalCompositeOperation = 'lighter';
-        target.imageSmoothingQuality = 'high';
-        target.drawImage(buffer, 0, 0, bw, bh, 0, 0, w, h);
-        target.restore();
-      }
-      return n;
+    const step = LOD_STEPS.find((l) => focal < l.focal * w);
+    const s = step ? step.scale : 1;
+    const bw = Math.max(1, Math.round(w * s)), bh = Math.max(1, Math.round(h * s));
+    if (!buffer) buffer = document.createElement('canvas');
+    if (buffer.width !== bw || buffer.height !== bh) { buffer.width = bw; buffer.height = bh; }
+    const bg = buffer.getContext('2d');
+    bg.setTransform(1, 0, 0, 1, 0, 0);
+    bg.clearRect(0, 0, bw, bh);
+    const n = paint(bg, {
+      ...opts, focal: focal * s, cx: opts.cx * s, cy: opts.cy * s, w: bw, h: bh,
+    });
+    if (n) {
+      target.save();
+      target.globalAlpha = opacity === null ? (night ? NIGHT_ALPHA : DAY_ALPHA) : opacity;
+      // Additive, so the art only ever LIGHTENS the sky: a ghost that could
+      // darken would punch holes in the Milky Way behind it. It is also why
+      // the atlas needs no alpha channel: black adds nothing, so the ink is
+      // stored as brightness on black, at a third of the size.
+      target.globalCompositeOperation = 'lighter';
+      target.imageSmoothingQuality = 'high';
+      target.drawImage(buffer, 0, 0, bw, bh, 0, 0, w, h);
+      target.restore();
     }
-    return paint(target, opts);
+    return n;
   };
 
-  function paint(ctx, { figures, basis, focal, cx, cy, w, h, night, opacity = null }) {
+  /** The mesh, at full strength, into the buffer. See layer.draw for why. */
+  function paint(ctx, { figures, basis, focal, cx, cy, w, h, night }) {
     let drawn = 0;
 
     const sheet = night ? redAtlas() : img;
     if (!sheet) return 0;
 
     ctx.save();
-    ctx.globalAlpha = opacity === null ? (night ? NIGHT_ALPHA : DAY_ALPHA) : opacity;
-    // Additive, so the art only ever LIGHTENS the sky: a ghost that could
-    // darken would punch holes in the Milky Way behind it. It is also why
-    // the atlas needs no alpha channel: black adds nothing, so the ink is
-    // stored as brightness on black, at a third of the size.
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 1;
+    // Overlapping triangle edges are painted twice; keeping the brighter of
+    // the two makes that harmless, where adding them made a seam (#238).
+    ctx.globalCompositeOperation = 'lighten';
     // Smoothing is set per figure, just below: see SMOOTH_BELOW_SCALE.
 
     for (const fig of figures) {
