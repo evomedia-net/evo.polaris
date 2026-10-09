@@ -35,13 +35,6 @@ export const GLOW_MAX_MAG = 3.5;
 export const GLOW_SCALE = 4.6;
 
 /**
- * How long the spikes are, as a share of the length they had when the glow
- * was one sprite (#234). Kelly picked it from four drawn side by side: "C:
- * shorter spikes" -- a small cross, not a streak.
- */
-export const SPIKE_SHARE = 0.72;
-
-/**
  * How many distinct spike orientations are pre-rendered.
  *
  * The cross has four arms at right angles, so it repeats every quarter turn:
@@ -71,15 +64,7 @@ export function spikeAngleFor(hr) {
 }
 
 /**
- * Two sprites per colour: the core and halo, and the crossed spikes.
- *
- * APART BECAUSE THEY ARE SIZED APART (#234). They were one sprite, scaled
- * from the star's dot, and #205 rightly made the dot follow the screen's
- * density so phones stopped drawing every star at half size. The spikes came
- * along: twice as long on a high-density screen, at every brightness, until
- * they ran across the constellation art as long streaks -- "these are new,
- * looks like a star lens effect". The halo is the star, so it follows the dot;
- * the spikes are a symbol, so they keep the length they were designed at.
+ * One sprite: core, halo, spikes, in one colour.
  *
  * NIGHT MODE IS PURE RED AND HAS ITS OWN STOPS. Everywhere else the core runs
  * to white and the halo carries a little blue-grey, which is what makes it
@@ -88,17 +73,12 @@ export function spikeAngleFor(hr) {
  * the same shape is drawn in one channel, fading by transparency instead of
  * by lightening. test/night-* holds every night colour to #xx0000.
  */
-function canvasOfSprite() {
+function sprite(colour, night) {
   const c = document.createElement('canvas');
   c.width = SPRITE; c.height = SPRITE;
   const g = c.getContext('2d');
+  const m = SPRITE / 2;
   g.globalCompositeOperation = 'lighter';
-  return { c, g, m: SPRITE / 2 };
-}
-
-/** The core and halo. Round, so one is enough: it is never rotated. */
-function haloSprite(colour, night) {
-  const { c, g, m } = canvasOfSprite();
 
   // The halo stops well inside the sprite: a glow that reached the edge was
   // the "fog" version, and this is the half Kelly asked to cut back.
@@ -122,12 +102,7 @@ function haloSprite(colour, night) {
   }
   g.fillStyle = rg;
   g.beginPath(); g.arc(m, m, R, 0, Math.PI * 2); g.fill();
-  return c;
-}
 
-/** The crossed spikes alone, to be pre-rendered at every angle. */
-function spikeSprite(colour, night) {
-  const { c, g, m } = canvasOfSprite();
   const L = m * 0.92;
   const ink = night ? '#cc0000' : colour;
   const clear = night ? 'rgba(204, 0, 0, 0)' : 'rgba(0, 0, 0, 0)';
@@ -182,25 +157,19 @@ export function createStarGlow() {
       const key = `${night ? 'n' : 'd'}:${colour}`;
       if (cache.has(key)) return cache.get(key);
       let made = null;
-      try {
-        made = { halo: haloSprite(colour, night), spikes: rotations(spikeSprite(colour, night)) };
-      } catch { made = null; }
+      try { made = rotations(sprite(colour, night)); } catch { made = null; }
       cache.set(key, made);
       return made;
     },
     /**
-     * Draw one star's glow, centred: the halo at the radius its dot would
-     * have had times GLOW_SCALE, and the spikes at `spikeRadius` times
-     * GLOW_SCALE. The caller sizes the spikes apart from the halo (#234);
-     * without it they follow the dot. Returns false if there was no sheet.
+     * Draw one star's glow, centred, at the radius its dot would have had
+     * times GLOW_SCALE. Returns false if there was no sheet to draw.
      */
-    draw(ctx, x, y, dotRadius, colour, hr, night, spikeRadius = dotRadius) {
+    draw(ctx, x, y, dotRadius, colour, hr, night) {
       const sheet = this.sheet(colour, night);
       if (!sheet) return false;
       const r = dotRadius * GLOW_SCALE;
-      ctx.drawImage(sheet.halo, x - r, y - r, r * 2, r * 2);
-      const rs = spikeRadius * GLOW_SCALE;
-      ctx.drawImage(sheet.spikes[spikeAngleFor(hr)], x - rs, y - rs, rs * 2, rs * 2);
+      ctx.drawImage(sheet[spikeAngleFor(hr)], x - r, y - r, r * 2, r * 2);
       return true;
     },
     /** For tests and diagnostics: how many sheets have been built. */

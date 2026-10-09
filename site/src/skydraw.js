@@ -8,7 +8,7 @@ import {
   deviceBasis, basisFromAim, applyScreenAngle, altAzToVector, vectorToAltAz,
   focalLength, projectToScreen, starRadius, starColour,
 } from './skyview.js';
-import { GLOW_MAX_MAG, SPIKE_SHARE } from './starglow.js';
+import { GLOW_MAX_MAG } from './starglow.js';
 import { CONSTELLATIONS } from './data/constellations.js';
 
 const NAMED = new Map([
@@ -304,15 +304,7 @@ export function drawSkyView(ctx, o) {
     if (!p) continue;
     const x = cx + p.x, y = cy + p.y;
     if (x < -8 || x > w + 8 || y < -8 || y > h + 8) continue;
-    // rs: what the glow's spikes are sized from (#234). The same apparent
-    // size on every screen, like the rest of the star -- but SPIKE_SHARE of
-    // their old length, and never stretched by the brightness buttons: past
-    // the default only the halo grows, so turning the stars up cannot draw
-    // the long streaks across the art that x2.8 used to. Dimmer still
-    // shortens them.
-    const userGain = o.starGain ?? 1;
-    const rs = starRadius(s.mag) * (o.dpr ?? 1) * Math.min(userGain, 1) * SPIKE_SHARE;
-    shown.push({ s, x, y, r: starRadius(s.mag) * starGain, rs });
+    shown.push({ s, x, y, r: starRadius(s.mag) * starGain });
   }
 
   if (o.starGlow) {
@@ -320,7 +312,7 @@ export function drawSkyView(ctx, o) {
     ctx.globalCompositeOperation = 'lighter';
     for (const t of shown) {
       if (t.s.mag >= GLOW_MAX_MAG) continue;
-      o.starGlow.draw(ctx, t.x, t.y, t.r, starColour(t.s.bv, night), t.s.hr, night, t.rs);
+      o.starGlow.draw(ctx, t.x, t.y, t.r, starColour(t.s.bv, night), t.s.hr, night);
     }
     ctx.restore();
   }
