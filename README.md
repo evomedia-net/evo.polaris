@@ -20,8 +20,9 @@ This one is free and works offline, and:
 
 - **reads its numbers out loud**, and writes each one out in words as well as
   digits;
-- **needs single taps only**: no dragging, pinching, double-tapping or
-  press-and-hold;
+- **works entirely by single taps**: you can drag the sky, or hold an arrow
+  to keep it moving, but the buttons do everything those do, and nothing needs
+  a pinch or a double-tap;
 - **keeps its large buttons where they are**, so nothing moves under your
   finger;
 - **scales its text up to 1.6×**, in high-contrast colours, with a pure-red
@@ -203,7 +204,9 @@ PNG keeps sharp and what JPEG's chroma subsampling smears.
 
 This is the point of the project, not a later pass.
 
-- **Single taps only.** No drag, no pinch, no double-tap, no press-and-hold.
+- **Single taps reach everything.** Dragging the sky and holding an arrow are
+  shortcuts, never the only way: the arrow buttons go everywhere a drag goes.
+  Nothing needs a pinch or a double-tap.
 - **Targets stay put.** Values update in place; nothing reflows under your
   finger, because re-acquiring a moved target is expensive.
 - **Text scales** through five sizes, from normal to 1.6×, with two big buttons

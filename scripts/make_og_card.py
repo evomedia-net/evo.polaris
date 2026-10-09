@@ -101,7 +101,7 @@ HEADLINE = ["Free polar alignment for star", "trackers and equatorial mounts."]
 # astronomers with disabilities" is a claim, and with them it is a description.
 PARAGRAPH = ["Made for astronomers with disabilities.",
              "Works offline. Reads the numbers aloud.",
-             "No pinching, dragging or press-and-hold."]
+             "Works entirely by single taps."]
 DOMAIN = "polaris.evomedia.net"
 
 
