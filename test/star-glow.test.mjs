@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
-  GLOW_MAX_MAG, GLOW_SCALE, SPIKE_ANGLES, SPIKE_SHARE, spikeAngleFor, createStarGlow,
+  GLOW_MAX_MAG, GLOW_SCALE, SPIKE_ANGLES, spikeAngleFor, createStarGlow,
 } from '../site/src/starglow.js';
 
 // A BRIGHT STAR IS A GLOW WITH SPIKES.
@@ -136,34 +136,8 @@ test('the glow is one composite for the whole pass, not one per star', () => {
   assert.match(block, /ctx\.save\(\);\s*\n\s*ctx\.globalCompositeOperation = 'lighter';/);
   assert.match(block, /ctx\.restore\(\);/);
   assert.match(block, /if \(t\.s\.mag >= GLOW_MAX_MAG\) continue;/);
-  assert.match(block, /o\.starGlow\.draw\(ctx, t\.x, t\.y, t\.r, starColour\(t\.s\.bv, night\), t\.s\.hr, night, t\.rs\)/,
+  assert.match(block, /o\.starGlow\.draw\(ctx, t\.x, t\.y, t\.r, starColour\(t\.s\.bv, night\), t\.s\.hr, night\)/,
     'the glow takes the same colour the dot would have used');
-});
-
-// THE SPIKES DO NOT DOUBLE ON A PHONE (#234). The halo follows the dot, which
-// follows the screen's density since #205; the spikes are sized from the dot
-// BEFORE the density, so they keep the length they were designed at instead of
-// running across the sky as streaks.
-test('the spikes are sized apart from the halo: shorter, and capped at the default brightness', () => {
-  assert.match(skydraw, /const rs = starRadius\(s\.mag\) \* \(o\.dpr \?\? 1\) \* Math\.min\(userGain, 1\) \* SPIKE_SHARE;/);
-  assert.match(skydraw, /r: starRadius\(s\.mag\) \* starGain, rs \}/);
-  assert.equal(SPIKE_SHARE, 0.72, 'the length Kelly picked from the side-by-side');
-  const src = readFileSync(fileURLToPath(new URL('../site/src/starglow.js', import.meta.url)), 'utf8');
-  assert.match(src, /draw\(ctx, x, y, dotRadius, colour, hr, night, spikeRadius = dotRadius\)/);
-  assert.match(src, /const r = dotRadius \* GLOW_SCALE;\s*ctx\.drawImage\(sheet\.halo,/);
-  assert.match(src, /const rs = spikeRadius \* GLOW_SCALE;\s*ctx\.drawImage\(sheet\.spikes\[spikeAngleFor\(hr\)\],/);
-});
-
-test('turning the stars up grows the halo, never the spikes into streaks', () => {
-  // The same arithmetic skydraw.js uses, at the brightest step and the densest
-  // screen: that combination drew spikes ~115px long on the brightest stars.
-  const dot = 4.9, dpr = 2;
-  const spikes = (gain) => dot * dpr * Math.min(gain, 1) * SPIKE_SHARE * GLOW_SCALE;
-  const halo = (gain) => dot * gain * dpr * GLOW_SCALE;
-  assert.equal(spikes(2.8), spikes(1), 'past the default the spikes stop');
-  assert.ok(halo(2.8) > halo(1), 'the halo still grows');
-  assert.ok(spikes(0.6) < spikes(1), 'dimmer still shortens them');
-  assert.ok(spikes(2.8) < 0.3 * dot * 2.8 * dpr * GLOW_SCALE, 'a fraction of the old ~115px streak');
 });
 
 test('a star that got a glow does not also get a disc on top of it', () => {
@@ -215,5 +189,5 @@ test('the switch says what pressing it does, both ways', () => {
 test('the module is cached for offline use', () => {
   assert.match(sw, /'\.\/src\/starglow\.js'/);
   assert.match(appJs, /import \{ createStarGlow \} from '\.\/starglow\.js';/);
-  assert.match(skydraw, /import \{ GLOW_MAX_MAG, SPIKE_SHARE \} from '\.\/starglow\.js';/);
+  assert.match(skydraw, /import \{ GLOW_MAX_MAG \} from '\.\/starglow\.js';/);
 });
