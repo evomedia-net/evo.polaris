@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0.55",
+  "version": "0.0.1.0.56",
   "files": {
     "./index.html": "933455fcb2be4b16",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
@@ -34,7 +34,7 @@
     "./src/starglow.js": "3539f5ddcf8e5fb9",
     "./src/planet-art.js": "24a347ae08d6b2e2",
     "./src/data/planets.webp": "41bebe8d4d5145e8",
-    "./src/constellation-art.js": "0eb4cec424786561",
+    "./src/constellation-art.js": "949a344a61e84055",
     "./src/data/figures.webp": "06aed499a6f73553",
     "./src/data/figures.js": "5846b927b5d59076",
     "./src/data/southern-zones.js": "73fc26cc5fcb8289",

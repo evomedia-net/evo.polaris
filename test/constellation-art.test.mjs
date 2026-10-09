@@ -342,9 +342,37 @@ test('wide fields paint the layer smaller and scale it up once, in two steps', (
   assert.match(art, /\{ focal: 0\.65, scale: 0\.8 \}/, 'past about 75');
   const draw = art.slice(art.indexOf('layer.draw = function draw'), art.indexOf('function paint('));
   assert.match(draw, /LOD_STEPS\.find\(\(l\) => focal < l\.focal \* w\)/, 'chosen from the focal length');
-  assert.match(draw, /noScale: true, focal: focal \* s, cx: opts\.cx \* s, cy: opts\.cy \* s, w: bw, h: bh/,
+  assert.match(draw, /focal: focal \* s, cx: opts\.cx \* s, cy: opts\.cy \* s, w: bw, h: bh/,
     'the buffer is the same view at a smaller size');
   assert.match(draw, /target\.drawImage\(buffer, 0, 0, bw, bh, 0, 0, w, h\);/, 'scaled up in one draw');
-  assert.match(draw, /if \(step\) \{/);
+  assert.match(draw, /const s = step \? step\.scale : 1;/, 'full size when zoomed in, through the same buffer');
   assert.doesNotMatch(draw, /if \(focal < HALF_RES/, 'the single half-size step is gone');
+});
+
+// THE MESH NEVER ADDS, SO ITS OVERLAPS LEAVE NO SEAMS (#238).
+//
+// Every triangle of a figure's mesh is grown a pixel so its neighbours
+// overlap. Painted with 'lighter' straight onto the sky, each overlap was
+// added twice: thin straight lines along every mesh edge, across every
+// figure -- "still lots of lines on polaris page". The mesh now goes into a
+// buffer at full strength with 'lighten', and the buffer onto the sky once.
+test('the mesh is painted at full strength with lighten, and laid on the sky once', () => {
+  const paintFn = art.slice(art.indexOf('function paint('), art.indexOf('for (const fig of figures)', art.indexOf('function paint(')));
+  assert.match(paintFn, /ctx\.globalAlpha = 1;/);
+  assert.match(paintFn, /ctx\.globalCompositeOperation = 'lighten';/);
+  assert.doesNotMatch(paintFn, /'lighter'/, 'adding in the mesh is what drew the seams');
+  const draw = art.slice(art.indexOf('layer.draw = function draw'), art.indexOf('function paint('));
+  assert.match(draw, /target\.globalAlpha = opacity === null \? \(night \? NIGHT_ALPHA : DAY_ALPHA\) : opacity;/,
+    'the opacity is applied once, to the whole buffer');
+  assert.match(draw, /target\.globalCompositeOperation = 'lighter';/, 'and it still only ever lightens the sky');
+  assert.doesNotMatch(draw, /return paint\(target/, 'never straight onto the sky');
+});
+
+test('painting an overlap twice is harmless at full strength and not at the opacity of the art', () => {
+  // The arithmetic behind the choice: 'lighten' is max(), laid at alpha a.
+  const lay = (dst, src, a) => (1 - a) * dst + a * Math.max(dst, src);
+  const once = lay(0, 1, 1), twice = lay(lay(0, 1, 1), 1, 1);
+  assert.equal(once, twice, 'at full strength the overlap matches its neighbours');
+  const at = 0.6;
+  assert.notEqual(lay(0, 1, at), lay(lay(0, 1, at), 1, at), 'at the opacity it would still be a (fainter) seam');
 });
