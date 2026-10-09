@@ -19,14 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Bundled data, both public domain and redistributable:
-
-* src/data/stars.json is derived from the Yale Bright Star Catalog, 5th Revised
-  Edition (Hoffleit & Warren, 1991), distributed by the CDS as VizieR V/50.
-
-* src/data/wmm2025.js contains the World Magnetic Model 2025 coefficients
-  published by NOAA NCEI and the British Geological Survey. A work of the US
-  Government, not subject to copyright protection in the United States.
