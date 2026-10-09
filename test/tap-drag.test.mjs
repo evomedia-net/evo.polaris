@@ -168,3 +168,21 @@ test('the stated design constraint matches what the app now does', () => {
   assert.match(top, /pan pad reaches every direction/,
     'it must say why the gesture is allowed: the buttons reach the same places');
 });
+
+test('the README and the link card state the same rule as the app', () => {
+  // The style.css header was corrected when the drag arrived; the README and
+  // the link-preview card were not, and went on promising "no dragging,
+  // pinching or press-and-hold" to everyone a link was shared with. Kelly:
+  // "it supports dragging, pinching too though" (#245). The promise is that
+  // taps reach everything, not that nothing else exists.
+  const readme = readFileSync(fileURLToPath(new URL('../README.md', import.meta.url)), 'utf8');
+  const card = readFileSync(fileURLToPath(new URL('../scripts/make_og_card.py', import.meta.url)), 'utf8');
+  for (const [name, text] of [['README.md', readme], ['make_og_card.py', card]]) {
+    assert.ok(!/single taps only|no drag|no dragging|no pinching, dragging/i.test(text),
+      `${name} still says the app has no dragging, and it has`);
+  }
+  assert.match(readme, /Single taps reach everything/,
+    'the README must state the rule: taps reach everything, gestures are shortcuts');
+  assert.match(card, /"Works entirely by single taps\."/,
+    'the card line must stay a README claim');
+});
