@@ -91,7 +91,11 @@ PAD = 78
 CHART_CX, CHART_CY, CHART_D = 880, 315, 470
 
 TITLE = "evo.polaris"
-HEADLINE = ["Free polar alignment for star", "trackers and equatorial mounts."]
+# Finding things first, then aligning the mount: the app grew from a polar
+# scope helper into a guide to the whole sky, and the card said only the
+# first half. "Find Polaris" still holds -- the chart is rendered from a
+# northern latitude for exactly that reason (see README).
+HEADLINE = ["Find Polaris, the ISS, planets", "and galaxies. Align your mount."]
 # The supporting paragraph. Every line is a README claim, unchanged.
 #
 # WHO IT IS FOR GOES FIRST, AND IN THE BRIGHTER INK. The card said what the app
@@ -100,7 +104,7 @@ HEADLINE = ["Free polar alignment for star", "trackers and equatorial mounts."]
 # lines under it are the evidence for the first: without them "made for
 # astronomers with disabilities" is a claim, and with them it is a description.
 PARAGRAPH = ["Made for astronomers with disabilities.",
-             "Works offline. Reads the numbers aloud.",
+             "Free and offline. Reads numbers aloud.",
              "Works entirely by single taps."]
 DOMAIN = "polaris.evomedia.net"
 

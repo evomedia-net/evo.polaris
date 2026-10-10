@@ -1,8 +1,8 @@
 {
-  "version": "0.0.1.0.60",
+  "version": "0.0.1.0.61",
   "files": {
-    "./index.html": "91fd5b37b61c3d61",
-    "./manifest.webmanifest": "689c1f37fc6eddb5",
+    "./index.html": "3503da2a6ca2bd7d",
+    "./manifest.webmanifest": "7306136af0a2b64d",
     "./src/style.css": "776bb025ce3f6ed0",
     "./src/app.js": "a32ebd050287c2b0",
     "./src/astro.js": "6707c12d4794db5b",
