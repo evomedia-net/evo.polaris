@@ -1,7 +1,7 @@
 {
-  "version": "0.0.1.0.59",
+  "version": "0.0.1.0.60",
   "files": {
-    "./index.html": "c69388564cf5076f",
+    "./index.html": "91fd5b37b61c3d61",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
     "./src/style.css": "776bb025ce3f6ed0",
     "./src/app.js": "a32ebd050287c2b0",

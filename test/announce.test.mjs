@@ -109,3 +109,17 @@ test('compass points are spelled out, so "SE" is not read as two letters', async
   assert.equal(compassWords(270), 'west');
   assert.equal(compassWords(-90), 'west');
 });
+
+test('the live region is inside the full-screen figure, so it is heard in full screen (#251)', () => {
+  // Full screen is #liveSkyWrap alone; whatever is outside it leaves the
+  // accessibility tree until full screen ends. NVDA heard nothing when
+  // Polaris was pressed in full screen, and the Moon only after leaving it.
+  const html = readFileSync(fileURLToPath(new URL('../site/index.html', import.meta.url)), 'utf8');
+  const start = html.indexOf('id="liveSkyWrap"');
+  const end = html.indexOf('</figure>', start);
+  const at = html.indexOf('id="skyAnnounce"');
+  assert.ok(start > 0 && end > start, 'the sky figure has moved; point this test at it');
+  assert.ok(html.slice(start, end).indexOf('<figure') === -1, 'a figure nested in the sky figure would confuse this test');
+  assert.ok(at > start && at < end, '#skyAnnounce must live inside #liveSkyWrap');
+  assert.equal((html.match(/id="skyAnnounce"/g) || []).length, 1, 'one live region, not two');
+});
