@@ -9,7 +9,7 @@ import {
   equatorialToHorizontal, precessionMatrix,
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
-import { drawSkyChart, drawReticle } from './chart.js';
+import { drawSkyChart, drawReticle, POLARIS_HR } from './chart.js';
 import { spellAngle, compassPoint, compassWords, compassSummary } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
@@ -45,7 +45,7 @@ import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
 import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
-  moonRiseSet, describeMoonTimes,
+  moonRiseSet, describeMoonTimes, topocentricMoon, moonPhaseWords,
 } from './moon.js';
 import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
@@ -231,6 +231,7 @@ milkyLayer.ready.then(() => {
 });
 let skyPlanetList = [];
 let skyMoonBody = null;
+let skyMoonWords = null;      // its phase, in words, for the ring's label (#264)
 // The Sun, as a body like the Moon: where it is right now, so the ring and
 // the arrow can point at it whether it is up or not.
 let skySunBody = null;
@@ -422,7 +423,7 @@ function announceTarget(ringOn) {
   // position goes to the reader only; the screen is unchanged.
   if (!text && ringOn && ringOn.alt >= 0) {
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
-    text = `${ringOn.name}: ${az}° round, ${compassWords(az)}, `
+    text = `${ringOn.name}${ringOn.phase ? ` (${ringOn.phase})` : ''}: ${az}° round, ${compassWords(az)}, `
       + `${Math.round(ringOn.alt)}° up.`;
   }
   const key = [guideTarget, ringOn ? (ringOn.alt < 0 ? 'down' : 'up') : '-', targetNote].join('|');
@@ -1388,7 +1389,10 @@ function render() {
 
   // --- the Moon, the brightest thing that will ruin an exposure --------------
   const moon = moonPhase(now);
-  const moonHz = equatorialToHorizontal(moon.ra, moon.dec, solution.lst, site.lat);
+  // From where you stand, not from the centre of the Earth (#263): up to
+  // 0.95 degrees lower, which decides "below the horizon" near moonrise.
+  const moonHere = topocentricMoon(moon, solution.lst, site.lat, site.altitude || 0);
+  const moonHz = equatorialToHorizontal(moonHere.ra, moonHere.dec, solution.lst, site.lat);
   $('moonText').textContent =
     `${describeMoon(moon, moonHz.alt)} Bearing ${moonHz.az.toFixed(0)}°, `
     + `${Math.round(moon.distanceKm).toLocaleString()} km away.`;
@@ -1757,6 +1761,9 @@ function refreshSkyVectors() {
   // the same tick rather than cached alongside them. Both go through the same
   // rotation the stars do -- one implementation, so they cannot disagree.
   const ph = moonPhase(when);
+  // The Moon where it is from here (#263). Geocentric, it was drawn up to
+  // 0.95 degrees too high -- the ring missed it by most of a Moon-width.
+  const moonHere = topocentricMoon(ph, lst, site.lat, site.altitude || 0);
   const sunNow = sunEquatorial(when);
   const bodies = buildBodies([
     // THE PHASE IS REAL, even though the face is not. Mercury and Venus show
@@ -1771,7 +1778,7 @@ function refreshSkyVectors() {
       ringTilt: p.name === 'Saturn' ? ringOpening(p) : null,
     })),
     {
-      name: 'Moon', ra: ph.ra, dec: ph.dec,
+      name: 'Moon', ra: moonHere.ra, dec: moonHere.dec,
       illuminated: ph.illuminated,
       brightLimb: brightLimbAngle(ph, sunEquatorial(when)),
       isMoon: true,
@@ -1782,6 +1789,7 @@ function refreshSkyVectors() {
   ], lst, site.lat, precess);
   skyPlanetList = bodies.filter((b) => !b.isMoon);
   skyMoonBody = bodies.find((b) => b.isMoon) || null;
+  skyMoonWords = moonPhaseWords(ph);
   // The Sun's series is of date, like the Moon's, so it is not precessed
   // again -- the same flag, for the same reason.
   const sunEq = sunEquatorial(appTime());
@@ -1809,7 +1817,11 @@ function refreshSkyVectors() {
   }
   if (skyShowMoon) {
     skyTracks.push({
-      points: placeTrack(moonTrack(when), lst, site.lat),   // already of date
+      // Already of date; and corrected for where you stand like the disc,
+      // or the line would run most of a degree from the Moon it belongs to.
+      points: placeTrack(moonTrack(when).map((p) => ({
+        ...p, ...topocentricMoon(p, lst, site.lat, site.altitude || 0),
+      })), lst, site.lat),
       ...TRACK_STYLE.moon,
       label: 'Moon',
     });
@@ -2124,8 +2136,31 @@ function showReadout(az, alt) {
  * plain geometry and points down through the ground quite happily; only the
  * MARKER is held back to the visible sky.
  */
-/** The pole, which is what this app is for and what it falls back to. */
+/**
+ * Polaris in the north, the pole in the south: what this app is for, and
+ * what every other target falls back to.
+ *
+ * THE RING IS ON THE STAR (#262). Kelly: "polaris target a little off". It
+ * was put on the celestial POLE -- altitude equal to the latitude, azimuth
+ * due north -- and labelled "Polaris", and the star is about 0.65 degrees
+ * from the pole: plainly outside the ring at any zoom past the default. So
+ * in the north the ring goes where the star is DRAWN, the same vector the
+ * chart paints the dot from, which is the one place it cannot disagree
+ * with. The pole is still the fallback, before the stars are built or for
+ * a latitude where Polaris is below the horizon.
+ *
+ * In the south there is no pole star worth ringing -- Sigma Octantis is
+ * magnitude 5.5, barely visible -- so the ring stays on the pole and says
+ * so: "South pole".
+ */
 function poleTarget() {
+  if (solution.hemisphere !== 'south' && skyVectors) {
+    const star = skyVectors.find((s) => s.hr === POLARIS_HR);
+    if (star) {
+      const { alt, az } = vectorToAltAz(star.v);
+      return { alt, az, name: 'Polaris' };
+    }
+  }
   return {
     alt: Math.abs(solution.latitudeSetting),
     az: solution.poleAzimuth,
@@ -2146,7 +2181,7 @@ function aimTarget(issLook, what = guideTarget) {
   }
   if (what === 'moon') {
     return skyMoonBody
-      ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon' }
+      ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon', phase: skyMoonWords }
       : poleTarget();
   }
   if (what === 'sun') {
@@ -2191,7 +2226,11 @@ function aimTarget(issLook, what = guideTarget) {
  */
 function targetLabel(t) {
   if (!t) return '';
-  return targetIsBelow(t) ? `${t.name} — ${belowHorizonWords(t)}` : t.name;
+  // The Moon carries its phase as well (#264): near new it is drawn all but
+  // unlit, and a ring round a dark disc labelled "Moon" reads as missing.
+  const words = [t.phase, targetIsBelow(t) ? belowHorizonWords(t) : null]
+    .filter(Boolean).join('; ');
+  return words ? `${t.name} — ${words}` : t.name;
 }
 
 function targetIsPainted(t, what = guideTarget) {
@@ -2321,7 +2360,7 @@ function updateSkyMode() {
     // as broken at the exact moment it is being most accurate.
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
     $('skyTarget').textContent =
-      `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
+      `${ringOn.name}${ringOn.phase ? ` (${ringOn.phase})` : ''}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, so the ring is empty and '
       + `the arrow points down at it. It is not missing; it ${belowHorizonWords(ringOn)}.`;
   } else if (ringOn && targetIsBelow(ringOn)) {
@@ -2330,7 +2369,7 @@ function updateSkyMode() {
     // must not say it is.
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
     $('skyTarget').textContent =
-      `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
+      `${ringOn.name}${ringOn.phase ? ` (${ringOn.phase})` : ''}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, drawn through the '
       + `wireframe, and the arrow points down at it. It ${belowHorizonWords(ringOn)}.`;
   } else {

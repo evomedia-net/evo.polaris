@@ -43,41 +43,101 @@ export function sunEclipticLongitude(date) {
   return ((L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) % 360 + 360) % 360;
 }
 
+// THE MOON'S SERIES, FROM MEEUS (Astronomical Algorithms, 2nd ed., ch. 47).
+//
+// It used to be the six largest longitude terms and four latitude terms,
+// good to about a third of a degree -- fine for a phase and a rise time, and
+// not fine for a ring drawn round the Moon: checked against JPL Horizons it
+// missed by 0.15 to 0.34 degrees even once corrected for where you stand
+// (#263), most of a Moon-width. These are Meeus's tables 47.A and 47.B, the
+// truncated ELP-2000/82 he gives, with his three additive corrections and
+// the eccentricity factor E on every term that carries the Sun's anomaly.
+// Each row is [D, M, M', F, coefficient(s)], units of 1e-6 degree for
+// longitude and latitude and 1e-3 km for distance.
+const MOON_LR = [
+  [0, 0, 1, 0, 6288774, -20905355], [2, 0, -1, 0, 1274027, -3699111],
+  [2, 0, 0, 0, 658314, -2955968], [0, 0, 2, 0, 213618, -569925],
+  [0, 1, 0, 0, -185116, 48888], [0, 0, 0, 2, -114332, -3149],
+  [2, 0, -2, 0, 58793, 246158], [2, -1, -1, 0, 57066, -152138],
+  [2, 0, 1, 0, 53322, -170733], [2, -1, 0, 0, 45758, -204586],
+  [0, 1, -1, 0, -40923, -129620], [1, 0, 0, 0, -34720, 108743],
+  [0, 1, 1, 0, -30383, 104755], [2, 0, 0, -2, 15327, 10321],
+  [0, 0, 1, 2, -12528, 0], [0, 0, 1, -2, 10980, 79661],
+  [4, 0, -1, 0, 10675, -34782], [0, 0, 3, 0, 10034, -23210],
+  [4, 0, -2, 0, 8548, -21636], [2, 1, -1, 0, -7888, 24208],
+  [2, 1, 0, 0, -6766, 30824], [1, 0, -1, 0, -5163, -8379],
+  [1, 1, 0, 0, 4987, -16675], [2, -1, 1, 0, 4036, -12831],
+  [2, 0, 2, 0, 3994, -10445], [4, 0, 0, 0, 3861, -11650],
+  [2, 0, -3, 0, 3665, 14403], [0, 1, -2, 0, -2689, -7003],
+  [2, 0, -1, 2, -2602, 0], [2, -1, -2, 0, 2390, 10056],
+  [1, 0, 1, 0, -2348, 6322], [2, -2, 0, 0, 2236, -9884],
+  [0, 1, 2, 0, -2120, 5751], [0, 2, 0, 0, -2069, 0],
+  [2, -2, -1, 0, 2048, -4950], [2, 0, 1, -2, -1773, 4130],
+  [2, 0, 0, 2, -1595, 0], [4, -1, -1, 0, 1215, -3958],
+  [0, 0, 2, 2, -1110, 0], [3, 0, -1, 0, -892, 3258],
+  [2, 1, 1, 0, -810, 2616], [4, -1, -2, 0, 759, -1897],
+  [0, 2, -1, 0, -713, -2117], [2, 2, -1, 0, -700, 2354],
+  [2, 1, -2, 0, 691, 0], [2, -1, 0, -2, 596, 0],
+  [4, 0, 1, 0, 549, -1423], [0, 0, 4, 0, 537, -1117],
+  [4, -1, 0, 0, 520, -1571], [1, 0, -2, 0, -487, -1739],
+  [2, 1, 0, -2, -399, 0], [0, 0, 2, -2, -381, -4421],
+  [1, 1, 1, 0, 351, 0], [3, 0, -2, 0, -340, 0],
+  [4, 0, -3, 0, 330, 0], [2, -1, 2, 0, 327, 0],
+  [0, 2, 1, 0, -323, 1165], [1, 1, -1, 0, 299, 0],
+  [2, 0, 3, 0, 294, 0], [2, 0, -1, -2, 0, 8752],
+];
+const MOON_B = [
+  [0, 0, 0, 1, 5128122], [0, 0, 1, 1, 280602], [0, 0, 1, -1, 277693],
+  [2, 0, 0, -1, 173237], [2, 0, -1, 1, 55413], [2, 0, -1, -1, 46271],
+  [2, 0, 0, 1, 32573], [0, 0, 2, 1, 17198], [2, 0, 1, -1, 9266],
+  [0, 0, 2, -1, 8822], [2, -1, 0, -1, 8216], [2, 0, -2, -1, 4324],
+  [2, 0, 1, 1, 4200], [2, 1, 0, -1, -3359], [2, -1, -1, 1, 2463],
+  [2, -1, 0, 1, 2211], [2, -1, -1, -1, 2065], [0, 1, -1, -1, -1870],
+  [4, 0, -1, -1, 1828], [0, 1, 0, 1, -1794], [0, 0, 0, 3, -1749],
+  [0, 1, -1, 1, -1565], [1, 0, 0, 1, -1491], [0, 1, 1, 1, -1475],
+  [0, 1, 1, -1, -1410], [0, 1, 0, -1, -1344], [1, 0, 0, -1, -1335],
+  [0, 0, 3, 1, 1107], [4, 0, 0, -1, 1021], [4, 0, -1, 1, 833],
+];
+
 /**
- * The Moon's position: ecliptic longitude and latitude, right ascension,
- * declination and distance.
+ * The Moon's position: ecliptic longitude and latitude of date, right
+ * ascension, declination and distance. Geocentric -- see topocentricMoon().
  */
 export function moonPosition(date) {
   const d = daysSinceJ2000(date);
+  const T = d / 36525;
 
-  // Mean elements.
-  const Lp = 218.316 + 13.176396 * d;        // mean longitude
-  const M = (134.963 + 13.064993 * d) * DEG; // mean anomaly
-  const F = (93.272 + 13.229350 * d) * DEG;  // argument of latitude
-  const D = (297.850 + 12.190749 * d) * DEG; // mean elongation from the Sun
-  const Ms = (357.529 + 0.98560028 * d) * DEG; // the Sun's mean anomaly
+  // Mean elements, degrees (Meeus 47.1-47.5).
+  const Lp = 218.3164477 + 481267.88123421 * T;
+  const D = (297.8501921 + 445267.1114034 * T) * DEG;
+  const M = (357.5291092 + 35999.0502909 * T) * DEG;
+  const Mp = (134.9633964 + 477198.8675055 * T) * DEG;
+  const F = (93.2720950 + 483202.0175233 * T) * DEG;
+  const E = 1 - 0.002516 * T - 0.0000074 * T * T;
+  const A1 = (119.75 + 131.849 * T) * DEG;
+  const A2 = (53.09 + 479264.290 * T) * DEG;
+  const A3 = (313.45 + 481266.484 * T) * DEG;
 
-  // The largest periodic terms. The first is the equation of the centre; the
-  // second is evection and the third variation -- the two corrections that
-  // dominate what is left, and without which the error triples.
-  const lon = Lp
-    + 6.289 * Math.sin(M)
-    + 1.274 * Math.sin(2 * D - M)
-    + 0.658 * Math.sin(2 * D)
-    + 0.214 * Math.sin(2 * M)
-    - 0.186 * Math.sin(Ms)
-    - 0.114 * Math.sin(2 * F);
+  let sl = 0, sr = 0, sb = 0;
+  for (const [dD, dM, dMp, dF, cl, cr] of MOON_LR) {
+    const arg = dD * D + dM * M + dMp * Mp + dF * F;
+    const e = dM === 0 ? 1 : (Math.abs(dM) === 1 ? E : E * E);
+    sl += cl * e * Math.sin(arg);
+    sr += cr * e * Math.cos(arg);
+  }
+  for (const [dD, dM, dMp, dF, cb] of MOON_B) {
+    const arg = dD * D + dM * M + dMp * Mp + dF * F;
+    const e = dM === 0 ? 1 : (Math.abs(dM) === 1 ? E : E * E);
+    sb += cb * e * Math.sin(arg);
+  }
+  const LpR = Lp * DEG;
+  sl += 3958 * Math.sin(A1) + 1962 * Math.sin(LpR - F) + 318 * Math.sin(A2);
+  sb += -2235 * Math.sin(LpR) + 382 * Math.sin(A3) + 175 * Math.sin(A1 - F)
+    + 175 * Math.sin(A1 + F) + 127 * Math.sin(LpR - Mp) - 115 * Math.sin(LpR + Mp);
 
-  const lat = 5.128 * Math.sin(F)
-    + 0.281 * Math.sin(M + F)
-    - 0.278 * Math.sin(F - M)
-    - 0.173 * Math.sin(2 * D - F);
-
-  const distanceKm = 385001
-    - 20905 * Math.cos(M)
-    - 3699 * Math.cos(2 * D - M)
-    - 2956 * Math.cos(2 * D)
-    - 570 * Math.cos(2 * M);
+  const lon = Lp + sl / 1e6;
+  const lat = sb / 1e6;
+  const distanceKm = 385000.56 + sr / 1000;
 
   const l = ((lon % 360) + 360) % 360;
   const lam = l * DEG, bet = lat * DEG, eps = obliquity(d) * DEG;
@@ -98,6 +158,50 @@ export function moonPosition(date) {
     ra: ((ra / DEG) % 360 + 360) % 360,
     dec: dec / DEG,
     distanceKm,
+  };
+}
+
+/**
+ * The Moon as seen from where you stand, not from the centre of the Earth.
+ *
+ * WHY THIS EXISTS (#263). moonPosition() is geocentric, and the Moon is close
+ * enough for that to matter: its horizontal parallax is about 0.95 degrees,
+ * so from the surface it sits up to that much LOWER than the geocentric
+ * position -- nearly two Moon-widths at the horizon, half that overhead.
+ * moonRiseSet() already allowed for it (MOONRISE_ALT, below); the sky view
+ * did not, and checked against JPL Horizons its ring missed the Moon by
+ * 0.24 to 0.83 degrees while the Sun and every planet were within 0.08.
+ *
+ * Meeus, Astronomical Algorithms, ch. 11 (the observer's geocentric
+ * position on the WGS84-ish ellipsoid) and ch. 40 (the rigorous shift in
+ * right ascension and declination). The planets and the Sun are far enough
+ * away that the same shift is under 0.01 degree, so they are left alone.
+ *
+ * @param {{ra:number, dec:number, distanceKm:number}} pos  geocentric, degrees
+ * @param {number} lstH    local sidereal time, hours
+ * @param {number} latDeg  geodetic latitude
+ * @param {number} [heightM=0]  height above sea level, metres
+ * @returns {{ra:number, dec:number}} topocentric, degrees
+ */
+export function topocentricMoon(pos, lstH, latDeg, heightM = 0) {
+  const phi = latDeg * DEG;
+  // The observer's geocentric latitude and distance from the centre, in
+  // Earth radii (Meeus 11.1): 0.99664719 is the polar-to-equatorial ratio.
+  const u = Math.atan(0.99664719 * Math.tan(phi));
+  const h = heightM / 6378140;
+  const rhoSin = 0.99664719 * Math.sin(u) + h * Math.sin(phi);
+  const rhoCos = Math.cos(u) + h * Math.cos(phi);
+  const sinPi = 6378.14 / pos.distanceKm;           // equatorial horizontal parallax
+  const ra = pos.ra * DEG, dec = pos.dec * DEG;
+  const H = (lstH * 15) * DEG - ra;                  // hour angle
+  // Meeus 40.2 and 40.3.
+  const dRa = Math.atan2(-rhoCos * sinPi * Math.sin(H),
+                         Math.cos(dec) - rhoCos * sinPi * Math.cos(H));
+  const decTopo = Math.atan2((Math.sin(dec) - rhoSin * sinPi) * Math.cos(dRa),
+                             Math.cos(dec) - rhoCos * sinPi * Math.cos(H));
+  return {
+    ra: (((ra + dRa) / DEG) % 360 + 360) % 360,
+    dec: decTopo / DEG,
   };
 }
 
@@ -169,6 +273,25 @@ export function moonPhase(date) {
   }
 
   return { illuminated, waxing, age, elongation: elong, name, ...moon };
+}
+
+/**
+ * The phase, in the few words the ring's label has room for (#264).
+ *
+ * Kelly, with a screenshot of the ring round an all-but-unlit disc labelled
+ * just "Moon": "'missing' moon should label all stages it goes through, but
+ * for sure 'dark side' as it looks like moon is missing". At new moon the
+ * half facing us is the unlit half, so the words say exactly that; every
+ * other stage gets its name and how much of it is lit.
+ *
+ *   new, dark side facing us        waxing crescent, 12% lit
+ *   first quarter, 50% lit          waxing gibbous, 81% lit
+ *   full, 100% lit                  waning gibbous / last quarter / waning crescent
+ */
+export function moonPhaseWords(phase) {
+  if (phase.illuminated < 0.02) return 'new, dark side facing us';
+  const name = phase.name.replace(/ Moon$/, '').toLowerCase();
+  return `${name}, ${Math.round(phase.illuminated * 100)}% lit`;
 }
 
 /**

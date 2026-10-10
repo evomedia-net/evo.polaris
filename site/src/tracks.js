@@ -42,8 +42,10 @@ export function moonTrack(date, days = 14, stepDays = 0.5) {
   const out = [];
   for (let d = -days; d <= days; d += stepDays) {
     const t = new Date(date.getTime() + d * DAY_MS);
-    const { ra, dec } = moonPosition(t);
-    out.push({ ra, dec, at: t });
+    const { ra, dec, distanceKm } = moonPosition(t);
+    // The distance rides along so the sky view can correct the path for
+    // where you stand, exactly as it does the disc (#263).
+    out.push({ ra, dec, distanceKm, at: t });
   }
   return out;
 }
