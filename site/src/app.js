@@ -45,7 +45,7 @@ import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
 import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
-  moonRiseSet, describeMoonTimes,
+  moonRiseSet, describeMoonTimes, topocentricMoon,
 } from './moon.js';
 import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
@@ -1388,7 +1388,10 @@ function render() {
 
   // --- the Moon, the brightest thing that will ruin an exposure --------------
   const moon = moonPhase(now);
-  const moonHz = equatorialToHorizontal(moon.ra, moon.dec, solution.lst, site.lat);
+  // From where you stand, not from the centre of the Earth (#263): up to
+  // 0.95 degrees lower, which decides "below the horizon" near moonrise.
+  const moonHere = topocentricMoon(moon, solution.lst, site.lat, site.altitude || 0);
+  const moonHz = equatorialToHorizontal(moonHere.ra, moonHere.dec, solution.lst, site.lat);
   $('moonText').textContent =
     `${describeMoon(moon, moonHz.alt)} Bearing ${moonHz.az.toFixed(0)}°, `
     + `${Math.round(moon.distanceKm).toLocaleString()} km away.`;
@@ -1757,6 +1760,9 @@ function refreshSkyVectors() {
   // the same tick rather than cached alongside them. Both go through the same
   // rotation the stars do -- one implementation, so they cannot disagree.
   const ph = moonPhase(when);
+  // The Moon where it is from here (#263). Geocentric, it was drawn up to
+  // 0.95 degrees too high -- the ring missed it by most of a Moon-width.
+  const moonHere = topocentricMoon(ph, lst, site.lat, site.altitude || 0);
   const sunNow = sunEquatorial(when);
   const bodies = buildBodies([
     // THE PHASE IS REAL, even though the face is not. Mercury and Venus show
@@ -1771,7 +1777,7 @@ function refreshSkyVectors() {
       ringTilt: p.name === 'Saturn' ? ringOpening(p) : null,
     })),
     {
-      name: 'Moon', ra: ph.ra, dec: ph.dec,
+      name: 'Moon', ra: moonHere.ra, dec: moonHere.dec,
       illuminated: ph.illuminated,
       brightLimb: brightLimbAngle(ph, sunEquatorial(when)),
       isMoon: true,
@@ -1809,7 +1815,11 @@ function refreshSkyVectors() {
   }
   if (skyShowMoon) {
     skyTracks.push({
-      points: placeTrack(moonTrack(when), lst, site.lat),   // already of date
+      // Already of date; and corrected for where you stand like the disc,
+      // or the line would run most of a degree from the Moon it belongs to.
+      points: placeTrack(moonTrack(when).map((p) => ({
+        ...p, ...topocentricMoon(p, lst, site.lat, site.altitude || 0),
+      })), lst, site.lat),
       ...TRACK_STYLE.moon,
       label: 'Moon',
     });
