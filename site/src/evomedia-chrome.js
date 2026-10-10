@@ -56,7 +56,7 @@ export function mountEvomediaChrome(hostname = window.location.hostname) {
   brand.href = `${HOME}/index.html`;
   // The wordmark going home is the one link people expect to find, and the
   // app's own header below keeps its own identity separate from this one.
-  brand.innerHTML = `${MARK}<span>Evomedia<span class="evo-chrome-tld">.net</span></span>`;
+  brand.innerHTML = `${MARK}<span>evomedia<span class="evo-chrome-tld">.net</span></span>`;
   bar.append(brand);
 
   const nav = document.createElement('nav');
