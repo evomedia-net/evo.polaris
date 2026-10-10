@@ -9,7 +9,7 @@ import {
   equatorialToHorizontal, precessionMatrix,
 } from './astro.js';
 import { declination, modelValidity } from './geomag.js';
-import { drawSkyChart, drawReticle } from './chart.js';
+import { drawSkyChart, drawReticle, POLARIS_HR } from './chart.js';
 import { spellAngle, compassPoint, compassWords, compassSummary } from './words.js';
 import { pointingGuidance, guidanceArrow, guidanceText, signedTurn } from './guide.js';
 import {
@@ -2134,8 +2134,31 @@ function showReadout(az, alt) {
  * plain geometry and points down through the ground quite happily; only the
  * MARKER is held back to the visible sky.
  */
-/** The pole, which is what this app is for and what it falls back to. */
+/**
+ * Polaris in the north, the pole in the south: what this app is for, and
+ * what every other target falls back to.
+ *
+ * THE RING IS ON THE STAR (#262). Kelly: "polaris target a little off". It
+ * was put on the celestial POLE -- altitude equal to the latitude, azimuth
+ * due north -- and labelled "Polaris", and the star is about 0.65 degrees
+ * from the pole: plainly outside the ring at any zoom past the default. So
+ * in the north the ring goes where the star is DRAWN, the same vector the
+ * chart paints the dot from, which is the one place it cannot disagree
+ * with. The pole is still the fallback, before the stars are built or for
+ * a latitude where Polaris is below the horizon.
+ *
+ * In the south there is no pole star worth ringing -- Sigma Octantis is
+ * magnitude 5.5, barely visible -- so the ring stays on the pole and says
+ * so: "South pole".
+ */
 function poleTarget() {
+  if (solution.hemisphere !== 'south' && skyVectors) {
+    const star = skyVectors.find((s) => s.hr === POLARIS_HR);
+    if (star) {
+      const { alt, az } = vectorToAltAz(star.v);
+      return { alt, az, name: 'Polaris' };
+    }
+  }
   return {
     alt: Math.abs(solution.latitudeSetting),
     az: solution.poleAzimuth,
