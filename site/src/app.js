@@ -45,7 +45,7 @@ import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
 import * as quat from './quat.js';
 import {
   moonPhase, describeMoon, sunEquatorial, brightLimbAngle,
-  moonRiseSet, describeMoonTimes, topocentricMoon,
+  moonRiseSet, describeMoonTimes, topocentricMoon, moonPhaseWords,
 } from './moon.js';
 import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
@@ -231,6 +231,7 @@ milkyLayer.ready.then(() => {
 });
 let skyPlanetList = [];
 let skyMoonBody = null;
+let skyMoonWords = null;      // its phase, in words, for the ring's label (#264)
 // The Sun, as a body like the Moon: where it is right now, so the ring and
 // the arrow can point at it whether it is up or not.
 let skySunBody = null;
@@ -422,7 +423,7 @@ function announceTarget(ringOn) {
   // position goes to the reader only; the screen is unchanged.
   if (!text && ringOn && ringOn.alt >= 0) {
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
-    text = `${ringOn.name}: ${az}° round, ${compassWords(az)}, `
+    text = `${ringOn.name}${ringOn.phase ? ` (${ringOn.phase})` : ''}: ${az}° round, ${compassWords(az)}, `
       + `${Math.round(ringOn.alt)}° up.`;
   }
   const key = [guideTarget, ringOn ? (ringOn.alt < 0 ? 'down' : 'up') : '-', targetNote].join('|');
@@ -1788,6 +1789,7 @@ function refreshSkyVectors() {
   ], lst, site.lat, precess);
   skyPlanetList = bodies.filter((b) => !b.isMoon);
   skyMoonBody = bodies.find((b) => b.isMoon) || null;
+  skyMoonWords = moonPhaseWords(ph);
   // The Sun's series is of date, like the Moon's, so it is not precessed
   // again -- the same flag, for the same reason.
   const sunEq = sunEquatorial(appTime());
@@ -2179,7 +2181,7 @@ function aimTarget(issLook, what = guideTarget) {
   }
   if (what === 'moon') {
     return skyMoonBody
-      ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon' }
+      ? { alt: skyMoonBody.alt, az: skyMoonBody.az, name: 'Moon', phase: skyMoonWords }
       : poleTarget();
   }
   if (what === 'sun') {
@@ -2224,7 +2226,11 @@ function aimTarget(issLook, what = guideTarget) {
  */
 function targetLabel(t) {
   if (!t) return '';
-  return targetIsBelow(t) ? `${t.name} — ${belowHorizonWords(t)}` : t.name;
+  // The Moon carries its phase as well (#264): near new it is drawn all but
+  // unlit, and a ring round a dark disc labelled "Moon" reads as missing.
+  const words = [t.phase, targetIsBelow(t) ? belowHorizonWords(t) : null]
+    .filter(Boolean).join('; ');
+  return words ? `${t.name} — ${words}` : t.name;
 }
 
 function targetIsPainted(t, what = guideTarget) {
@@ -2354,7 +2360,7 @@ function updateSkyMode() {
     // as broken at the exact moment it is being most accurate.
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
     $('skyTarget').textContent =
-      `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
+      `${ringOn.name}${ringOn.phase ? ` (${ringOn.phase})` : ''}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, so the ring is empty and '
       + `the arrow points down at it. It is not missing; it ${belowHorizonWords(ringOn)}.`;
   } else if (ringOn && targetIsBelow(ringOn)) {
@@ -2363,7 +2369,7 @@ function updateSkyMode() {
     // must not say it is.
     const az = Math.round(((ringOn.az % 360) + 360) % 360);
     $('skyTarget').textContent =
-      `${ringOn.name}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
+      `${ringOn.name}${ringOn.phase ? ` (${ringOn.phase})` : ''}: ${az}° round and ${Math.round(-ringOn.alt)}° BELOW the `
       + 'horizon — it is under the ground from here, drawn through the '
       + `wireframe, and the arrow points down at it. It ${belowHorizonWords(ringOn)}.`;
   } else {

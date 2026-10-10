@@ -276,6 +276,25 @@ export function moonPhase(date) {
 }
 
 /**
+ * The phase, in the few words the ring's label has room for (#264).
+ *
+ * Kelly, with a screenshot of the ring round an all-but-unlit disc labelled
+ * just "Moon": "'missing' moon should label all stages it goes through, but
+ * for sure 'dark side' as it looks like moon is missing". At new moon the
+ * half facing us is the unlit half, so the words say exactly that; every
+ * other stage gets its name and how much of it is lit.
+ *
+ *   new, dark side facing us        waxing crescent, 12% lit
+ *   first quarter, 50% lit          waxing gibbous, 81% lit
+ *   full, 100% lit                  waning gibbous / last quarter / waning crescent
+ */
+export function moonPhaseWords(phase) {
+  if (phase.illuminated < 0.02) return 'new, dark side facing us';
+  const name = phase.name.replace(/ Moon$/, '').toLowerCase();
+  return `${name}, ${Math.round(phase.illuminated * 100)}% lit`;
+}
+
+/**
  * One sentence on whether the Moon is going to be a problem tonight.
  *
  * A Moon below the horizon does not matter however full it is, and a thin

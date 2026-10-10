@@ -133,7 +133,8 @@ test('a planet that has set is still painted, and named', () => {
 test('the caption says which way it is going, and the status line stops calling the ring empty', () => {
   const label = appJs.slice(appJs.indexOf('function targetLabel('),
     appJs.indexOf('function targetIsPainted('));
-  assert.match(label, /targetIsBelow\(t\) \? `\$\{t\.name\} — \$\{belowHorizonWords\(t\)\}` : t\.name/);
+  assert.match(label, /\[t\.phase, targetIsBelow\(t\) \? belowHorizonWords\(t\) : null\]/);
+  assert.match(label, /return words \? `\$\{t\.name\} — \$\{words\}` : t\.name;/);
   const below = appJs.slice(appJs.indexOf('function targetIsBelow('),
     appJs.indexOf('function belowHorizonWords('));
   assert.match(below, /PLANET_NAMES\.includes\(what\)\) return t\.alt <= PLANET_SET_ALT;/,

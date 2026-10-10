@@ -95,7 +95,7 @@ test('a target above the horizon is told to the reader in degrees and in words',
   const app = readFileSync(fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
   const fn = app.slice(app.indexOf('function announceTarget('), app.indexOf('function setTarget('));
   assert.match(fn, /if \(!text && ringOn && ringOn\.alt >= 0\)/, 'only when nothing is drawn and it is up');
-  assert.match(fn, /`\$\{ringOn\.name\}: \$\{az\}° round, \$\{compassWords\(az\)\}, `/);
+  assert.match(fn, /`\$\{ringOn\.name\}\$\{ringOn\.phase \? ` \(\$\{ringOn\.phase\}\)` : ''\}: \$\{az\}° round, \$\{compassWords\(az\)\}, `/);
   // The drawn line is left alone: the position goes to the reader only.
   assert.doesNotMatch(fn, /\$\('skyTarget'\)\.textContent =/);
 });
