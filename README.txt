@@ -293,8 +293,9 @@ themselves. npm test runs both.
   That last residual is not yet explained. It is most likely that the manual's
   figure was read off a screenshot taken a few minutes from the timestamp it
   quotes (2.4° is 9.5 minutes of clock), or that iOptron apply a refraction
-  correction we don't. **Cross-check against Stellarium before trusting the dial
-  position to better than a few arcminutes.**
+  correction we don't. In practice it is small: 1.6′ of polar error lets a
+  star drift by at most about 0.4″ a minute. If you need alignment to better
+  than a few arcminutes, treat about 2.4° as the dial position's known limit.
 
 Two traps are locked down by tests because both produce output that still looks
 correct:
