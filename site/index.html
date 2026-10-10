@@ -356,6 +356,13 @@
           <li class="leg-row leg-credit" id="legPlanetArt" hidden>Planets: Solar System&nbsp;Scope</li>
           <li class="leg-row leg-credit" id="legFigures" hidden>Figures: James&nbsp;Hedberg</li>
         </ul>
+        <!-- WHAT A SCREEN READER HEARS ABOUT THE RING, INSIDE THE FIGURE (#251).
+             Full screen is this figure alone: while it is up, nothing outside
+             it is drawn, so nothing outside it is in the accessibility tree.
+             The live region used to sit under the map, and every Track press
+             in full screen -- where the Track buttons are -- went unheard
+             until full screen closed. In here it is heard in both views. -->
+        <p class="visually-hidden" id="skyAnnounce" role="status"></p>
         <figcaption class="caption" id="liveSkyDesc">
           A live window on the sky. Hold the phone up and move it around; the
           stars sit where they really are, and the ringed marker is the pole.
@@ -414,9 +421,9 @@
            every pass of the drawing loop, and as a live region that made a
            screen reader restart a forty-word sentence 2.4 times a second
            (#221). What is SAID goes in #skyAnnounce, which app.js writes only
-           when the words are worth hearing (see announce.js). -->
+           when the words are worth hearing (see announce.js), and which
+           lives inside the sky figure for the reason given there. -->
       <p class="status" id="skyTarget"></p>
-      <p class="visually-hidden" id="skyAnnounce" role="status"></p>
       <p class="hint" id="planetsOut"></p>
       <p class="hint" id="issOut">Find the ISS asks a free online tracker,
         wheretheiss.at, where the International Space Station is right now, and
