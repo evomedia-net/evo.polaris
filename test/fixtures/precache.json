@@ -1,5 +1,5 @@
 {
-  "version": "0.0.1.0.58",
+  "version": "0.0.1.0.59",
   "files": {
     "./index.html": "c69388564cf5076f",
     "./manifest.webmanifest": "689c1f37fc6eddb5",
@@ -12,7 +12,7 @@
     "./src/words.js": "48a7b51528d8e623",
     "./src/skyview.js": "24cafff725511e1d",
     "./src/skydraw.js": "e7a5eeec78c6d731",
-    "./src/evomedia-chrome.js": "9df24a6abd574ec9",
+    "./src/evomedia-chrome.js": "34273c65adaa1350",
     "./src/coords.js": "ac98c8ebc8925e13",
     "./src/briefing.js": "a470c942ca1f5385",
     "./src/iss.js": "572725866d381f17",
