@@ -1,13 +1,15 @@
 evo.polaris
 ===========
 
-Free, open-source polar alignment and night-sky guide for star trackers and
-equatorial mounts. Made for astronomers with disabilities, by a disabled astronomer.
+Free, open-source night-sky guide and polar-alignment app.
+One tap finds Polaris, the ISS, the planets, constellations and galaxies,
+and it gives you the numbers to align a star tracker or equatorial mount.
+Made for astronomers with disabilities, by a disabled astronomer.
 Usable by everyone.
 
 It started as a way to find Polaris and has grown into a guide to the whole
-night sky: one tap points you at the International Space Station,
-the planets, the Moon and the Sun, 28 constellations and
+night sky: the International Space Station, the planets,
+the Moon and the Sun, 28 constellations and
 the fifteen brightest galaxies, with the Milky Way drawn behind them.
 
 It is built for people with physical disabilities,
