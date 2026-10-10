@@ -101,9 +101,13 @@ HEADLINE = ["Find Polaris, the ISS, planets", "and galaxies. Align your mount."]
 # WHO IT IS FOR GOES FIRST, AND IN THE BRIGHTER INK. The card said what the app
 # does and never who it was built for, so the one thing that makes it different
 # from every paid alternative was the one thing a shared link left out. The two
-# lines under it are the evidence for the first: without them "made for
-# astronomers with disabilities" is a claim, and with them it is a description.
-PARAGRAPH = ["Made for astronomers with disabilities.",
+# lines under it are the evidence for the first.
+#
+# EVERY ASTRONOMER, DISABLED OR NOT. It said "Made for astronomers with
+# disabilities", which a reader without one takes as "not for me" and scrolls
+# past. Kelly: made for all astronomers, worded so people without a disability
+# do not pass it over on first read.
+PARAGRAPH = ["For every astronomer, disabled or not.",
              "Free and offline. Reads numbers aloud.",
              "Works entirely by single taps."]
 DOMAIN = "polaris.evomedia.net"

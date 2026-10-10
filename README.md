@@ -3,8 +3,9 @@
 Free, open-source night-sky guide and polar-alignment app.
 **One tap finds Polaris, the ISS, the planets, constellations and galaxies**,
 and it gives you the numbers to align a star tracker or equatorial mount.
-**Made for astronomers with disabilities, by a disabled astronomer.**
-**Usable by everyone.**
+**Made for every astronomer**, including astronomers with physical
+disabilities, limited fine motor control or low vision — by a disabled
+astronomer.
 
 It started as a way to find Polaris and has grown into a guide to the whole
 night sky: **the International Space Station**, **the planets**,

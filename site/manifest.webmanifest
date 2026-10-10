@@ -1,7 +1,7 @@
 {
   "name": "evo.polaris — sky guide and polar alignment",
   "short_name": "evo.polaris",
-  "description": "Free, accessible night-sky guide and polar alignment: one tap finds Polaris, the ISS, the planets, constellations and galaxies. Made for astronomers with physical disabilities, limited fine motor control or low vision, and usable by everyone.",
+  "description": "Free, accessible night-sky guide and polar alignment: one tap finds Polaris, the ISS, the planets, constellations and galaxies. Made for every astronomer, including astronomers with physical disabilities, limited fine motor control or low vision — by a disabled astronomer.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
