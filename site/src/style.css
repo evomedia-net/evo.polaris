@@ -1037,9 +1037,16 @@ html[data-night='on'] .map-btn {
  * on the picture in BOTH states, like every other on-map control, so that
  * nothing appears or vanishes as the map fills the screen.
  *
- * pointer-events: none because a key is not a control. It overlaps the sky,
- * and a plate that quietly ate a tap meant for the map would be a bug that
- * only ever showed up outdoors in the dark.
+ * A TAP ON THE KEY LANDS ON THE KEY (#278). It was pointer-events: none, on
+ * the reasoning that a key is not a control and a plate that ate a tap meant
+ * for the map would be a bug found outdoors in the dark. In use it was the
+ * other way round: "the legend is still click through" -- a solid, bordered
+ * plate that lets a press fall through to the sky behind it, and moves the
+ * view, reads as broken. The sky's own handlers are on the canvas, so the
+ * plate drawn over it now simply keeps its taps; everywhere else the sky
+ * responds exactly as before. Full screen it sits one layer UNDER the
+ * on-map controls, so where a long key still reaches one on a short screen
+ * (#179) the control stays on top and pressable.
  */
 /* WINDOWED IT IS A KEY UNDER THE PICTURE; FULL SCREEN IT IS A PLATE ON IT.
  *
@@ -1075,7 +1082,7 @@ html[data-night='on'] .map-btn {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--ink-dim);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 /* Full screen the picture IS the screen, there is room in the corner, and the
@@ -1086,7 +1093,7 @@ html[data-night='on'] .map-btn {
   position: absolute;
   top: max(0.6rem, env(safe-area-inset-top));
   right: max(0.6rem, env(safe-area-inset-right));
-  z-index: 2;
+  z-index: 1;                 /* over the sky, under the controls (#278) */
   margin: 0;
   padding: 0.4rem 0.6rem;
   color: #f2f5fa;
@@ -1698,8 +1705,7 @@ html[data-wcag='on'] .live-sky.full .sky-legend.folded #legMoon { display: none;
    44px of WCAG's AAA target size) and the credits keep the size they have at
    the default setting. Browser zoom still enlarges them, which is what 1.4.4
    asks. The key's own rows, once someone opens it, still grow with A+.
-   The plate ignores the pointer so a drag can start through it; its one
-   button must not. */
+   The plate keeps its own taps (#278), and its one button takes them. */
 html[data-wcag='on'] .live-sky.full .key-fold {
   position: static;
   pointer-events: auto;

@@ -145,14 +145,14 @@ test('the key credits them while they are drawn, and the caption links to the fu
     'both follow the pictures');
 });
 
-test('the key holds no links: it ignores the pointer, so a tap goes through (#275)', () => {
-  // "it does click through it." The key is pointer-events: none on purpose --
-  // a plate that ate a tap meant for the map would be a bug found outdoors in
-  // the dark -- so a link inside it can never be pressed, and it drew in the
-  // browser's link blue, nearly invisible on the plate.
+test('the key credits in words; the link is under the map (#275)', () => {
+  // The galaxy credit was the key's one link: browser link blue, nearly
+  // invisible on the plate, and -- while the key ignored the pointer -- a
+  // press on it fell through to the sky. The credits in the key are words,
+  // like the three above them, and the link lives in the caption.
   const key = html.slice(html.indexOf('id="skyLegend"'), html.indexOf('</ul>', html.indexOf('id="skyLegend"')));
   assert.ok(key.length > 0, 'the key is where it was');
-  assert.doesNotMatch(key, /<a\b/, 'a link in the key cannot be tapped');
+  assert.doesNotMatch(key, /<a\b/, 'the credits in the key are words');
 });
 
 test('drawn by the figures\' layer, before the stars, with no outline over a picture', () => {
