@@ -81,15 +81,16 @@ test('the height it is capped at is the column under the key', () => {
   // The exit sits under the column by the same gap the column keeps.
   assert.match(block('.live-sky.full .full-zoom {'),
     new RegExp(`\\+ ${exitBtn + zoomGap} \\* var\\(--ctl\\)\\);`));
-  // 12rem is the tallest the key measured: all six rows, credits wrapped, at
-  // 1.45 and 1.6 on a 375px phone (11.9rem). A seventh row makes that stale.
-  assert.ok(near(Number(keyAndGaps), 12 + 3 * GAP), `${keyAndGaps}rem for the key and its gaps`);
+  // 14.3rem is the tallest the key measured: all seven rows, credits
+  // wrapped, at 1.45 and 1.6 on a 375px phone (14.23rem; six rows were
+  // 11.92). An eighth row makes that stale.
+  assert.ok(near(Number(keyAndGaps), 14.3 + 3 * GAP), `${keyAndGaps}rem for the key and its gaps`);
   // Rows of the key itself. WCAG Mode's fold (#218) is a list item too, but it
   // is drawn only in WCAG Mode, where it stands in for the three path rows it
-  // folds -- so the tallest plate is still these six.
+  // folds -- so the tallest plate is still these seven.
   const rows = (html.slice(html.indexOf('id="skyLegend"'), html.indexOf('</ul>', html.indexOf('id="skyLegend"')))
     .match(/<li class="leg-row/g) || []).length;
-  assert.equal(rows, 6, 'the key has a new row: measure its height again and move the 12rem');
+  assert.equal(rows, 7, 'the key has a new row: measure its height again and move the 14.3rem');
 });
 
 test('at the floor, the row still fits the narrowest phone at the largest text', () => {
