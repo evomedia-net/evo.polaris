@@ -24,6 +24,24 @@ import { GALAXIES, GALAXY_KEYS, galaxyFor } from '../site/src/data/galaxies.js';
 const root = new URL('../', import.meta.url);
 const fixture = readFileSync(
   fileURLToPath(new URL('test/fixtures/simbad-galaxies.txt', root)), 'utf8');
+// THE SIZES COME FROM RC3, NOT SIMBAD (#267). SIMBAD's galdim is not one kind
+// of measurement across these fifteen -- it had M 110 at 15% of RC3's D25
+// and both Magellanic Clouds at exactly half -- so every major and minor axis
+// is RC3's D25, from a second committed answer, checked the same way.
+const rc3 = readFileSync(
+  fileURLToPath(new URL('test/fixtures/rc3-galaxies.txt', root)), 'utf8');
+
+/** RC3's rows: key, name, how far, log D25, log R25, PA, and the axes. */
+function rc3Rows() {
+  const rows = [];
+  for (const line of rc3.split(/\r?\n/)) {
+    const p = line.split('|');
+    if (p.length !== 8 || p[0] === 'key') continue;
+    rows.push({ key: p[0], name: p[1], r: Number(p[2]), d25: Number(p[3]), r25: Number(p[4]),
+      maj: Number(p[6]), min: Number(p[7]) });
+  }
+  return rows;
+}
 const appJs = readFileSync(fileURLToPath(new URL('site/src/app.js', root)), 'utf8');
 const skydraw = readFileSync(fileURLToPath(new URL('site/src/skydraw.js', root)), 'utf8');
 const html = readFileSync(fileURLToPath(new URL('site/index.html', root)), 'utf8');
@@ -71,9 +89,35 @@ test('every shipped galaxy matches the published row, to the digit', () => {
     assert.equal(got.ra, r.ra, `${want} right ascension`);
     assert.equal(got.dec, r.dec, `${want} declination`);
     assert.equal(got.mag, r.mag, `${want} magnitude`);
-    assert.equal(got.maj, r.maj, `${want} major axis`);
-    assert.equal(got.min, r.min, `${want} minor axis`);
   }
+});
+
+test('every size is RC3\'s D25, worked out from the logs it publishes', () => {
+  const rows = rc3Rows();
+  assert.equal(rows.length, 15, `fifteen RC3 rows, found ${rows.length}`);
+  assert.match(rc3, /VII\/155\/rc3/, 'it says which catalogue');
+  assert.match(rc3, /-out=_r,name,D25,R25,PA/, 'and the query, so it can be re-fetched');
+  for (const r of rows) {
+    const g = GALAXIES.find((x) => x.key === r.key);
+    assert.ok(g, `nothing shipped for ${r.key}`);
+    assert.ok(r.r < 4, `${r.key}: the nearest RC3 entry is ${r.r}' away`);
+    // D25 is log10 of the major axis in 0.1 arcmin; R25 log10 of major/minor.
+    const maj = 10 ** r.d25 / 10, min = maj / 10 ** r.r25;
+    assert.ok(Math.abs(maj - r.maj) < 0.006 && Math.abs(min - r.min) < 0.006,
+      `${r.key}: the fixture's axes are not its own logs`);
+    assert.equal(g.maj, r.maj, `${r.key} major axis`);
+    assert.equal(g.min, r.min, `${r.key} minor axis`);
+  }
+});
+
+test('M 110 and M 32 are drawn at their real size (#267)', () => {
+  // The two that started it: SIMBAD had 3.3' and 3.4'.
+  const m110 = GALAXIES.find((g) => g.key === 'm110');
+  const m32 = GALAXIES.find((g) => g.key === 'm32');
+  assert.ok(m110.maj > 20 && m110.maj < 23, `M 110 is ${m110.maj}'`);
+  assert.ok(m32.maj > 8 && m32.maj < 9.5, `M 32 is ${m32.maj}'`);
+  // And the Large Magellanic Cloud is over ten degrees, not five.
+  assert.ok(GALAXIES.find((g) => g.key === 'lmc').maj / 60 > 10);
 });
 
 test('brightest first, which is the order the button walks', () => {

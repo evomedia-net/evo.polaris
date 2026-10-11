@@ -246,8 +246,9 @@ export function drawSkyView(ctx, o) {
   // are exaggerated because they would otherwise be a fraction of a pixel and
   // the caption says so. These are the opposite problem: Andromeda is three
   // degrees across, SIX TIMES THE WIDTH OF THE MOON, and the Large Magellanic
-  // Cloud is five. An app that draws them as dots is hiding the one fact that
-  // decides whether one fits the frame you are planning.
+  // Cloud is over ten (RC3's D25, #267). An app that draws them as dots is
+  // hiding the one fact that decides whether one fits the frame you are
+  // planning.
   //
   // An outline and not a fill: a filled blob would claim a brightness these
   // do not have, and would hide the stars behind it. The floor is so that the
