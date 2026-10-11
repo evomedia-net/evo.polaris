@@ -3449,7 +3449,7 @@ $('tgtGalaxies').onclick = () => {
 
 // THEY ARE DRAWN AT TRUE SIZE, which is what makes this a real choice rather
 // than clutter: Andromeda is three degrees across and the Large Magellanic
-// Cloud five, so at a narrow field one of them fills the screen.
+// Cloud over ten, so at a narrow field one of them fills the screen.
 function applyGalaxiesLabel() {
   $('skyGalaxies').textContent = skyShowGalaxies
     ? 'Hide the galaxies' : 'Show the galaxies';

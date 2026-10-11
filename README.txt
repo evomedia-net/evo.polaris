@@ -455,7 +455,8 @@ sits near the bottom, 40 arcminutes from the centre. Checked against the
 pixels, the catalogue positions of M 32 and M 110 land on their cores inside
 the Andromeda picture, within a quarter of an arcminute.
 
-The sky is subtracted and each picture fades out in a circle round its galaxy,
+The sky is subtracted and each picture fades out round its galaxy, in a circle
+or, where the frame is too tight for one, the largest oval that fits inside it,
 so no frame shows. In Night Mode they are drawn in red only, like everything
 else. They follow the Galaxies switch.
 
