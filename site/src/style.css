@@ -121,6 +121,13 @@ html[data-night='on'] body::after {
   opacity: 0.3;
   pointer-events: none;
 }
+/* WCAG MODE LIFTS THE VEIL (#283). The veil takes the night palette to 70%:
+   pure red becomes #b30000, about 2.9:1 on black -- under the 4.5:1 WCAG
+   1.4.3 asks of text and the 3:1 of 1.4.11. Every "pure red is 5.25:1" in
+   the WCAG Mode rules below holds only without it. WCAG Mode promises AA, so
+   with it on the night screen is the palette alone: still pure red on black,
+   still nothing but the red channel, at 5.25:1. */
+html[data-wcag='on'][data-night='on'] body::after { content: none; }
 
 /* NOTHING IS FILLED IN NIGHT MODE.
  *
