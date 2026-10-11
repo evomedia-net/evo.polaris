@@ -129,11 +129,30 @@ test('every picture is credited, CC BY 4.0, with its source page, and pinned', (
   }
 });
 
-test('the key credits them while they are drawn, and links to the full list', () => {
-  assert.match(html, /<li class="leg-row leg-credit" id="legGalaxyArt" hidden><a href="https:\/\/github\.com\/evomedia-net\/evo\.polaris#galaxy-pictures"/);
+test('the key credits them while they are drawn, and the caption links to the full list', () => {
+  // Plain words in the key, like the three credits above them.
+  assert.match(html, /<li class="leg-row leg-credit" id="legGalaxyArt" hidden>Galaxies: NOIRLab, ESO, ESA\/Hubble<\/li>/);
+  // The link lives under the map, beside the Milky Way's, where a tap lands.
+  const caption = html.slice(html.indexOf('id="galaxyCredit"'), html.indexOf('</figcaption>'));
+  assert.match(caption, /<a href="https:\/\/github\.com\/evomedia-net\/evo\.polaris#galaxy-pictures"/);
+  assert.match(caption, /CC&nbsp;BY&nbsp;4\.0/);
+  assert.match(html, /class="milky-credit" id="galaxyCredit" hidden/,
+    'the caption credit style, so the link takes the ink and its underline');
   assert.match(readme, /^## Galaxy pictures$/m, 'the anchor the credit links to');
   assert.match(appJs, /const galaxyPics = skyShowGalaxies && galaxyArt\.mode === 'figures';/);
   assert.match(appJs, /if \(galaxyCredit\) galaxyCredit\.hidden = !galaxyPics;/);
+  assert.match(appJs, /if \(galaxyLink\) galaxyLink\.hidden = !galaxyPics;/,
+    'both follow the pictures');
+});
+
+test('the key holds no links: it ignores the pointer, so a tap goes through (#275)', () => {
+  // "it does click through it." The key is pointer-events: none on purpose --
+  // a plate that ate a tap meant for the map would be a bug found outdoors in
+  // the dark -- so a link inside it can never be pressed, and it drew in the
+  // browser's link blue, nearly invisible on the plate.
+  const key = html.slice(html.indexOf('id="skyLegend"'), html.indexOf('</ul>', html.indexOf('id="skyLegend"')));
+  assert.ok(key.length > 0, 'the key is where it was');
+  assert.doesNotMatch(key, /<a\b/, 'a link in the key cannot be tapped');
 });
 
 test('drawn by the figures\' layer, before the stars, with no outline over a picture', () => {

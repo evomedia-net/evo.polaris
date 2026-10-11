@@ -368,10 +368,15 @@ function updateLegend() {
   if (figures) any = true;
   // And the galaxy photographs: credited while they are drawn, which is
   // while the galaxies are on and the atlas has arrived. Each picture's full
-  // credit and licence is in README.md, which the line links to.
+  // credit and licence is in README.md, and the link to it is in the caption
+  // under the map, beside the Milky Way's -- NOT in the key (#275). The key
+  // ignores the pointer, so a tap on a link there went through to the sky,
+  // and it showed in the browser's link blue, nearly invisible on the plate.
   const galaxyPics = skyShowGalaxies && galaxyArt.mode === 'figures';
   const galaxyCredit = $('legGalaxyArt');
   if (galaxyCredit) galaxyCredit.hidden = !galaxyPics;
+  const galaxyLink = $('galaxyCredit');
+  if (galaxyLink) galaxyLink.hidden = !galaxyPics;
   if (galaxyPics) any = true;
   $('skyLegend').hidden = !any;
 }
