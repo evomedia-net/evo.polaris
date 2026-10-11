@@ -439,7 +439,8 @@ the map beside the Milky Way:
 Thirteen of the fifteen galaxies are drawn as photographs: natural colour, at
 their true size, and turned the way they sit in the sky. M 32 and M 110 have
 no picture of their own, because both are inside the Andromeda picture, which
-shows them where they are.
+shows them where they are; each is outlined at its size, turned to the
+position angle RC3 gives it.
 
 Each one is placed from the sky mapping stored inside its own file (AVM
 metadata), not from its web page. A page's "Position" is the mapping's

@@ -282,8 +282,14 @@ export function drawSkyView(ctx, o) {
       // its shape, the right way round, which the ellipse never was.
       const pictured = o.galaxyArt && o.pictured && o.pictured.has(g.key);
       if (!pictured) {
+        // TURNED TO ITS POSITION ANGLE (#272). Level, it was wrong by up to a
+        // right angle, which nobody saw while it was a few pixels -- framed,
+        // M 110's ran crosswise to the galaxy in the photograph behind it.
+        let turn = 0;
+        const qp = g.pv ? projectToScreen(g.pv, basis, focal) : null;
+        if (qp) turn = Math.atan2(qp.y - q.y, qp.x - q.x);
         ctx.beginPath();
-        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y, rx, ry, turn, 0, Math.PI * 2);
         ctx.stroke();
       }
       if (g.name !== ringName) nameText(g.name, x + rx + 5, y);

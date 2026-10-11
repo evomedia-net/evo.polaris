@@ -7,6 +7,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { GALAXIES, GALAXY_KEYS, galaxyFor } from '../site/src/data/galaxies.js';
+import { drawSkyView } from '../site/src/skydraw.js';
+import { altAzToVector } from '../site/src/skyview.js';
 
 // THE FIFTEEN BRIGHTEST GALAXIES, CHECKED AGAINST THE QUERY THEY CAME FROM.
 //
@@ -38,7 +40,7 @@ function rc3Rows() {
     const p = line.split('|');
     if (p.length !== 8 || p[0] === 'key') continue;
     rows.push({ key: p[0], name: p[1], r: Number(p[2]), d25: Number(p[3]), r25: Number(p[4]),
-      maj: Number(p[6]), min: Number(p[7]) });
+      pa: p[5].trim() === '' ? null : Number(p[5]), maj: Number(p[6]), min: Number(p[7]) });
   }
   return rows;
 }
@@ -107,7 +109,44 @@ test('every size is RC3\'s D25, worked out from the logs it publishes', () => {
       `${r.key}: the fixture's axes are not its own logs`);
     assert.equal(g.maj, r.maj, `${r.key} major axis`);
     assert.equal(g.min, r.min, `${r.key} minor axis`);
+    // And the angle the outline is turned to, null where RC3 has none (#272).
+    assert.equal(g.pa, r.pa, `${r.key} position angle`);
   }
+  // The two that are always outlines have one.
+  for (const key of ['m32', 'm110']) {
+    assert.equal(GALAXIES.find((g) => g.key === key).pa, 170, `${key} has no angle to turn to`);
+  }
+});
+
+test('an outline is turned to its position angle on screen (#272)', () => {
+  // The renderer, driven: a galaxy straight ahead with its long-axis step
+  // straight UP the screen is a vertical ellipse; with the step along the
+  // horizon, a level one. The angle comes from the sky, not from a constant.
+  const ellipses = [];
+  const ctx = new Proxy({}, {
+    get: (t, k) => (k === 'ellipse' ? (...a) => ellipses.push(a)
+      : k === 'measureText' ? (s) => ({ width: String(s).length * 6 })
+      : k.startsWith('create') ? () => ({ addColorStop() {} })
+      : k in t ? t[k] : () => {}),
+    set: (t, k, v) => { t[k] = v; return true; },
+  });
+  const galaxy = (pv) => ({ key: 'm110', name: 'M 110', maj: 21.88, min: 10.96,
+    v: altAzToVector(45, 0), pv });
+  const draw = (g) => drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, tracks: null,
+    planets: null, moon: null, iss: null, galaxies: [g],
+    aim: { az: 0, alt: 45 }, alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: null, targetAz: null, targetName: null,
+    w: 800, h: 800, fov: 1, night: false,
+  });
+  draw(galaxy(altAzToVector(45.1, 0)));
+  draw(galaxy(altAzToVector(45, 0.1)));
+  draw(galaxy(null));
+  assert.equal(ellipses.length, 3);
+  const turn = (e) => Math.abs(((e[4] % Math.PI) + Math.PI) % Math.PI);
+  assert.ok(Math.abs(turn(ellipses[0]) - Math.PI / 2) < 0.01, `up the screen: ${ellipses[0][4]}`);
+  assert.ok(Math.min(turn(ellipses[1]), Math.PI - turn(ellipses[1])) < 0.01, `along the horizon: ${ellipses[1][4]}`);
+  assert.equal(ellipses[2][4], 0, 'no angle, no turn');
 });
 
 test('M 110 and M 32 are drawn at their real size (#267)', () => {

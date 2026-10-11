@@ -1789,6 +1789,13 @@ function refreshSkyVectors() {
   skyGalaxies = GALAXIES.map((g) => ({
     ...g,
     v: equatorialToVector(g.ra, g.dec, lst, site.lat, precess),
+    // A tenth of a degree along the long axis, so the outline can be turned
+    // to it (#272): its direction on screen IS the position angle as the sky
+    // sits now, precession, latitude and the turn of the view all included.
+    // East is +RA, so the step in RA is stretched by the declination.
+    pv: g.pa == null ? null : equatorialToVector(
+      g.ra + 0.1 * Math.sin(g.pa * Math.PI / 180) / Math.cos(g.dec * Math.PI / 180),
+      g.dec + 0.1 * Math.cos(g.pa * Math.PI / 180), lst, site.lat, precess),
   }));
 
   // Same slow tick as the stars: the band turns with the sky, not with you.
