@@ -164,9 +164,12 @@ test('the corners are rotated into the horizontal frame with the stars, and keep
   // from J2000 against a horizontal basis, so the figures drifted with the
   // time of night and the latitude, away from the stars they were drawn
   // around -- "that orion image isn't even close to the reference."
-  const start = appJs.indexOf('skyFigureCorners = FIGURES.map');
+  // One conversion, shared by the figures and the galaxy photographs.
+  const start = appJs.indexOf('const toSky = (v) => {');
   assert.ok(start > 0, 'the corners are rebuilt on the slow tick');
-  const block = appJs.slice(start, appJs.indexOf('}));', start));
+  const block = appJs.slice(start, appJs.indexOf('};', start));
+  assert.match(appJs, /skyFigureCorners = FIGURES\.map\(\(f\) => \(\{ i: f\.i, c: f\.c\.map\(toSky\) \}\)\);/);
+  assert.match(appJs, /skyGalaxyCorners = GALAXY_ART\.map\(\(g\) => \(\{ i: g\.i, c: g\.c\.map\(toSky\) \}\)\);/);
   assert.match(block, /equatorialToVector\(/, 'each corner makes the journey every star makes');
   assert.match(block, /lst, site\.lat, precess/, 'with the same sidereal time, latitude and precession');
   assert.match(block, /Math\.hypot\(v\[0\], v\[1\], v\[2\]\)/, 'the length is measured');
@@ -319,7 +322,7 @@ test('a figure drawn small takes the half-size atlas, and a large one does not',
     'Night Mode keeps the full tinted atlas');
   assert.match(draw, /const shrink = sheetNow === mip \? 0\.5 : 1;/,
     'and the source coordinates follow the atlas that is actually being read');
-  assert.match(draw, /\(sx \+ \(ix \/ cells\) \* FIGURE_TILE\) \* shrink/);
+  assert.match(draw, /\(sx \+ \(ix \/ cells\) \* tile\) \* shrink/);
 });
 
 test('the half-size atlas is built once, and never at the cost of drawing at all', () => {

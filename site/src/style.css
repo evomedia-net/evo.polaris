@@ -944,17 +944,19 @@ html[data-night='on'] .live-sky canvas { background: #000; }
    *
    * AND THE COLUMN HAS TO FIT UNDER THE KEY. Down the right edge are the key
    * and, under it, the column: four 4-unit buttons and the 4-unit way out
-   * with four 0.6 gaps between them, 22.4 units. The key's six rows, with
+   * with four 0.6 gaps between them, 22.4 units. The key's seven rows, with
    * their credits wrapped to stay clear of the Track column, are at most
-   * 12rem tall; with three 0.6rem gaps that is 13.8rem of the height that
-   * the column may not have.
+   * 14.3rem tall -- measured at 1.45 and 1.6 on a 375px phone, 14.23rem,
+   * when the galaxy photographs' credit made it seven (it was 11.92 with
+   * six). With three 0.6rem gaps that is 16.1rem of the height that the
+   * column may not have.
    *
    * 100vw and 100svh rather than the overlay's own size because a container
    * query would make this figure the containing block for everything fixed
    * inside it, which is the #64 bug again. svh is the height with the
    * browser's bars showing, so the buttons do not change size when the bars
    * slide away. */
-  --ctl: max(var(--base), min(1rem, (100vw - 1.8rem) / 14.9, (100svh - 13.8rem) / 22.4));
+  --ctl: max(var(--base), min(1rem, (100vw - 1.8rem) / 14.9, (100svh - 16.1rem) / 22.4));
 }
 /* THE BROWSER HANDS THE MAP THE POINTER WHILE A HAND IS STEERING, in either
    size. It was full screen only, so that a finger across the windowed map

@@ -254,6 +254,14 @@ export function drawSkyView(ctx, o) {
   // small ones are still a target rather than a sub-pixel smudge at a narrow
   // field.
   if (o.galaxies) {
+    // THE PHOTOGRAPHS FIRST, where there is one. Hung by the same layer as
+    // the constellation figures, from corners on each picture's own sky
+    // plane, so its rotation, scale and position come from the picture's
+    // own mapping. Additive, so a dark sky adds nothing and the stars and
+    // the Milky Way behind still show.
+    if (o.galaxyArt) {
+      o.galaxyArt.draw(ctx, { figures: o.galaxyPictures, basis, focal, cx, cy, w, h, night });
+    }
     ctx.save();
     ctx.lineWidth = 1.2;
     ctx.strokeStyle = night ? '#8b0000' : '#9aa6bd';
@@ -268,9 +276,14 @@ export function drawSkyView(ctx, o) {
       const rx = Math.max(3, Math.tan((g.maj / 120) * Math.PI / 180) * focal);
       const ry = Math.max(2, Math.tan((g.min / 120) * Math.PI / 180) * focal);
       if (x < -rx - 40 || x > w + rx + 40 || y < -ry - 40 || y > h + ry + 40) continue;
-      ctx.beginPath();
-      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      // A galaxy with its picture on screen needs no outline: the picture is
+      // its shape, the right way round, which the ellipse never was.
+      const pictured = o.galaxyArt && o.pictured && o.pictured.has(g.key);
+      if (!pictured) {
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       if (g.name !== ringName) nameText(g.name, x + rx + 5, y);
     }
     ctx.restore();

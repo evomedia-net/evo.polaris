@@ -161,7 +161,7 @@ function corner(c, u, v) {
  * a narrow field it is the honest answer: a figure wider than the view
  * needs no more cells than the view can show.
  */
-function cellsFor(c, basis, focal, cx, cy) {
+function cellsFor(c, basis, focal, cx, cy, tile = FIGURE_TILE) {
   const p = [];
   for (const v of c) {
     const q = projectToScreen(v, basis, focal);
@@ -183,7 +183,7 @@ function cellsFor(c, basis, focal, cx, cy) {
     cells: Math.max(MIN_CELLS, Math.min(MAX_CELLS, n)),
     // How big the tile lands compared with how it is stored: under 1 is a
     // downscale, which is where the filter matters.
-    scale: span / (FIGURE_TILE * Math.SQRT2),
+    scale: span / (tile * Math.SQRT2),
   };
 }
 
@@ -225,7 +225,18 @@ function triangle(ctx, img, s0, s1, s2, d0, d1, d2) {
  * The figure layer. draw() paints whatever is on screen and answers how many
  * figures it managed; zero is a perfectly good answer and never an error.
  */
-export function createConstellationArt({ forceOff = false } = {}) {
+/**
+ * A layer of pictures hung on the sky by their four corners.
+ *
+ * Written for the constellation figures, and used for the galaxy
+ * photographs too: `src`, `tile` and `cols` name a different atlas
+ * laid out the same way, and everything below -- the mesh, the level of
+ * detail, the lighten-then-add composite, the red Night Mode copy -- is the
+ * same, because the problem is the same one. Defaults are the figures'.
+ */
+export function createConstellationArt({
+  forceOff = false, src = SRC, tile = FIGURE_TILE, cols = FIGURE_COLS,
+} = {}) {
   const layer = { mode: 'loading', ready: null };
   let img = null;
   let red = null;
@@ -263,7 +274,7 @@ export function createConstellationArt({ forceOff = false } = {}) {
       resolve(true);
     };
     el.onerror = () => { layer.mode = 'off'; resolve(false); };
-    el.src = SRC;
+    el.src = src;
   });
 
   /**
@@ -372,7 +383,7 @@ export function createConstellationArt({ forceOff = false } = {}) {
       // exactly like artwork that does not line up with its stars. Reported
       // as "do these look aligned to you?" -- they were not, because the
       // aligned one was not being drawn at all.
-      const { cells, scale } = cellsFor(fig.c, basis, focal, cx, cy);
+      const { cells, scale } = cellsFor(fig.c, basis, focal, cx, cy, tile);
       // Small on screen: the half-size atlas, and the filter that holds a
       // downscale together. Large: every pixel the atlas has, and no filter.
       const small = scale < SMALL_SCALE;
@@ -393,11 +404,11 @@ export function createConstellationArt({ forceOff = false } = {}) {
       }
       if (!anyOn) continue;                       // nothing of it is on screen
 
-      const col = fig.i % FIGURE_COLS, row = Math.floor(fig.i / FIGURE_COLS);
-      const sx = col * FIGURE_TILE, sy = row * FIGURE_TILE;
+      const col = fig.i % cols, row = Math.floor(fig.i / cols);
+      const sx = col * tile, sy = row * tile;
       const at = (ix, iy) => pts[iy * (cells + 1) + ix];
-      const src = (ix, iy) => [(sx + (ix / cells) * FIGURE_TILE) * shrink,
-                               (sy + (iy / cells) * FIGURE_TILE) * shrink];
+      const src = (ix, iy) => [(sx + (ix / cells) * tile) * shrink,
+                               (sy + (iy / cells) * tile) * shrink];
 
       for (let iy = 0; iy < cells; iy++) {
         for (let ix = 0; ix < cells; ix++) {
