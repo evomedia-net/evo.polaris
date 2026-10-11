@@ -42,7 +42,7 @@ test('with the art on, on a phone, never wider than +4', () => {
 
 test('zooming out stops at the limit that applies now', () => {
   const wider = appJs.slice(appJs.indexOf("$('skyWider').onclick"), appJs.indexOf("$('skyNarrower').onclick"));
-  assert.match(wider, /skyFov = Math\.min\(maxFov\(\), skyFov \+ FOV_STEP\);/);
+  assert.match(wider, /: Math\.min\(maxFov\(\), skyFov \+ FOV_STEP\);/);
   // The full-screen button is the same action, so it obeys the same limit.
   assert.match(appJs, /\$\('fullOut'\)\.onclick = \(\) => \$\('skyWider'\)\.click\(\);/);
 });
@@ -72,7 +72,8 @@ test('a zoom button with nowhere to go looks spent, in both places', () => {
   // buttons that would cross a limit grey out. The app's + zooms in, so at
   // the tightest field it is the zoom-in pair, and at the widest the zoom-out.
   const fn = appJs.slice(appJs.indexOf('function updateZoomButtons()'), appJs.indexOf("$('skyWider').onclick"));
-  assert.match(fn, /const atMin = skyFov <= FOV_MIN;/);
+  // The tightest that applies now: below +0 only on a framed galaxy (#271).
+  assert.match(fn, /const atMin = skyFov <= minFov\(\);/);
   assert.match(fn, /const atMax = skyFov >= maxFov\(\);/, 'the widest limit that applies now, art and all');
   assert.match(fn, /for \(const id of \['fullIn', 'skyNarrower'\]\)/);
   assert.match(fn, /for \(const id of \['fullOut', 'skyWider'\]\)/);

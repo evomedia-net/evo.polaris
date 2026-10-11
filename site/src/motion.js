@@ -42,3 +42,26 @@ export function holdSpeed(elapsed, { ramp = 600, cruise = 0.06 } = {}) {
   const s = t * t * (3 - 2 * t);
   return cruise * s;
 }
+
+/**
+ * The field part way, `t` from 0 to 1, through a journey that zooms (#271).
+ *
+ * BY THE LOGARITHM. A straight line from twenty degrees to a third of one
+ * spends nine-tenths of the journey wider than two degrees and then lurches
+ * the last fiftyfold in a blink; in logarithms every stretch of the journey
+ * is the same KIND of step.
+ *
+ * AND THE TURN BEFORE THE ZOOM, going in. A field narrowed early turns the
+ * rest of the journey into sky streaming past at fifty times the speed, so
+ * going in the zoom is eased IN -- it waits for the turn to be nearly done --
+ * and coming out it is eased out, so the view opens up before it travels.
+ */
+export function fovAlong(from, to, t) {
+  const u = Math.max(0, Math.min(1, t));
+  // The ends EXACTLY: a field one rounding past +0 is not at +0, and the zoom
+  // buttons compare against it.
+  if (u >= 1 || from === to) return to;
+  if (u <= 0) return from;
+  const z = to < from ? u * u * u : 1 - ((1 - u) ** 3);
+  return Math.exp(Math.log(from) + (Math.log(to) - Math.log(from)) * z);
+}

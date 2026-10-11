@@ -40,7 +40,7 @@ import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation
 import { createStarGlow } from './starglow.js';
 import { FIGURES } from './data/figures.js';
 import { GALAXY_ART, GALAXY_TILE, GALAXY_COLS } from './data/galaxy-art.js';
-import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
+import { easeOutCubic, easeInOutCubic, holdSpeed, fovAlong } from './motion.js';
 import { nextStop } from './walk.js';
 import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
 import * as quat from './quat.js';
@@ -122,6 +122,17 @@ const FOV_MIN = 10, FOV_STEP = 5;
 const FOV_START = FOV_MIN + 2 * FOV_STEP;            // +2
 const FOV_MAX = FOV_MIN + 7 * FOV_STEP;              // +7
 const FOV_MAX_ART_PHONE = FOV_MIN + 4 * FOV_STEP;    // +4
+// BELOW +0, AND ONLY ON A GALAXY (#271). "first two galaxies looks good, rest
+// are tiny dots, andromeda has none." Drawn at their true size, even at +0 M
+// 94 was fifteen pixels and the Sombrero eleven, and the target ring sat on
+// Andromeda's photograph. So a galaxy the Galaxies button lands on is FRAMED:
+// the field is set so its long axis spans FRAME_SHARE of the view's short
+// side, which is below +0 for every galaxy but the Magellanic Clouds. Only
+// while a galaxy is the target and the view is steered by hand -- a phone
+// followed at a third of a degree is a picture of a hand shaking, not of the
+// sky. The size stays true; it is the field that comes in to meet it.
+const FOV_FLOOR = 0.25;      // the tightest field: M 32, 8.7', framed, with room
+const FRAME_SHARE = 0.4;     // a framed galaxy's long axis, as a share of the short side
 const COARSE_POINTER = typeof matchMedia === 'function'
   && matchMedia('(pointer: coarse)').matches;
 let skyFov = FOV_START;
@@ -480,6 +491,10 @@ function setTarget(what, { keepCycle = false } = {}) {
   updateSkipButtons();
   updateSkyMode();
   drawLiveSky();
+  // Letting go of a framed galaxy -- the end of the walk, or any other target
+  // -- comes back out to +0 (#271). A journey that follows takes this over
+  // and does the same on its way.
+  if (skyFov < minFov()) glideTo(skyAim.az, skyAim.alt);
 }
 
 /**
@@ -2076,6 +2091,8 @@ function drawLiveSky() {
     // at an empty ring, and a bare "Moon" there is the app naming something
     // it has not drawn.
     targetName: targetLabel(target),
+    // A galaxy's size, so the ring goes round it rather than over it (#271).
+    targetMaj: target && target.maj ? target.maj : null,
     // THE RETICLE IS THE SAME SIZE ON SCREEN IN EVERY MODE.
     //
     // It used to be min(canvas)/14, which grows when the canvas does: on this
@@ -2220,7 +2237,7 @@ function aimTarget(issLook, what = guideTarget) {
     const found = g && skyGalaxies.find((s) => s.key === g.key);
     if (found) {
       const { alt, az } = vectorToAltAz(found.v);
-      return { alt, az, name: g.name };
+      return { alt, az, name: g.name, maj: g.maj };
     }
     return poleTarget();
   }
@@ -2635,9 +2652,10 @@ function flingFrom(vAz, vAlt) {
 function cancelGlide(arrive = false) {
   if (glide === null) return;
   cancelAnimationFrame(glide.raf);
-  const { to } = glide;
+  const { to, fov } = glide;
   glide = null;
   if (arrive) {
+    if (fov != null) skyFov = fov;
     setQuat(quat.fromAim(to.az, to.alt));
     updateSkyMode();
     drawLiveSky();
@@ -2651,7 +2669,7 @@ function cancelGlide(arrive = false) {
  * clockwise, not three hundred and forty the other way, and getting that
  * wrong sends the whole sky the long way past everything.
  */
-function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic } = {}) {
+function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic, fov = null } = {}) {
   cancelGlide();
   // The destination is clamped HERE as well as in setQuat, and not by
   // accident: the journey has to know where it is going before it starts, or
@@ -2663,11 +2681,21 @@ function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic } = {}) {
   const dAz = signedTurn(from.az, to.az);
   const dAlt = to.alt - from.alt;
   skyFollow = false;
+  // THE FIELD TRAVELS TOO (#271). Asked for, it is the field that frames a
+  // galaxy. Not asked for, the view keeps the field it has -- unless that is
+  // tighter than the target now allows, which is how leaving a framed galaxy
+  // for anything else comes back out to +0 instead of stranding the next
+  // target at a third of a degree. After skyFollow, because minFov() asks it.
+  const fromFov = skyFov;
+  const toFov = Math.min(maxFov(), Math.max(minFov(), fov ?? skyFov));
+  const zooms = Math.abs(Math.log(toFov / fromFov)) > 0.01;
   // Already there, asked to hold still, or nobody is looking: no animation to
   // run. A hidden tab gets no animation frames at all, so starting a journey
   // in one only strands the view until it comes back.
   if (wantsStill() || document.hidden
-      || (Math.abs(dAz) < 0.5 && Math.abs(dAlt) < 0.5)) {
+      || (Math.abs(dAz) < 0.5 && Math.abs(dAlt) < 0.5 && !zooms)) {
+    skyFov = toFov;
+    updateZoomButtons();
     setQuat(quat.fromAim(to.az, to.alt));
     updateSkyMode();
     drawLiveSky();
@@ -2686,11 +2714,13 @@ function glideTo(az, alt, { ms = GLIDE_MS, ease = easeOutCubic } = {}) {
     // should not lurch. Constant speed reads as a machine moving the sky.
     const e = ease(t);
     setQuat(quat.slerp(fromQ, toQ, e));
+    if (zooms) skyFov = fovAlong(fromFov, toFov, t);
     updateSkyMode();
     drawLiveSky();
-    glide = t < 1 ? { raf: requestAnimationFrame(step), to } : null;
+    glide = t < 1 ? { raf: requestAnimationFrame(step), to, fov: zooms ? toFov : null } : null;
+    if (t >= 1 && zooms) updateZoomButtons();
   };
-  glide = { raf: requestAnimationFrame(step), to };
+  glide = { raf: requestAnimationFrame(step), to, fov: zooms ? toFov : null };
 }
 
 function pan(dAz, dAlt) {
@@ -2720,7 +2750,16 @@ const HOLD_RAMP_MS = 600;     // "slowly accelerate"
 const HOLD_CRUISE = 0.06;     // deg/ms once ramped: a full field in about a second
 const TAP_HOLD_MS = 220;      // shorter than this, the press was a tap, not a hold
 
+/** 1 at +0 and wider; below it, the field's share of +0 (#271). */
+function panScale() {
+  return Math.min(1, skyFov / FOV_MIN);
+}
+
 function nudge(dAz, dAlt) {
+  // Below +0 a press is a share of the FIELD (#271): fifteen degrees at a
+  // framed galaxy's third of a degree would be forty screens in one press.
+  const k = panScale();
+  dAz *= k; dAlt *= k;
   glideTo(skyAim.az + dAz, skyAim.alt + dAlt,
           { ms: NUDGE_MS, ease: easeInOutCubic });
 }
@@ -2737,7 +2776,7 @@ function holdStart(dAz, dAlt) {
     if (!hold) return;
     const dt = Math.min(now - hold.prev, 50);     // a dropped frame must not jump
     hold.prev = now;
-    const speed = holdSpeed(now - hold.t0, { ramp: HOLD_RAMP_MS, cruise: HOLD_CRUISE });
+    const speed = holdSpeed(now - hold.t0, { ramp: HOLD_RAMP_MS, cruise: HOLD_CRUISE }) * panScale();
     hold.v = { az: hold.dAz * speed, alt: hold.dAlt * speed };
     pan(hold.v.az * dt, hold.v.alt * dt);
     hold.raf = requestAnimationFrame(step);
@@ -3020,6 +3059,10 @@ $('modeBtn').onclick = () => {
     // off. It leaves alone a compass the Align side asked for.
     stopCompass();
   }
+  // Following the phone comes back out to +0 (#271): below it is a framed
+  // galaxy's field, and a phone held in the hand at a third of a degree is a
+  // blur.
+  if (skyFollow && skyFov < FOV_MIN) { cancelGlide(); skyFov = FOV_MIN; updateZoomButtons(); }
   updateSkyMode();
   drawLiveSky();
 };
@@ -3294,6 +3337,25 @@ function maxFov() {
   return skyFigures && COARSE_POINTER ? FOV_MAX_ART_PHONE : FOV_MAX;
 }
 
+/** The tightest the view may go right now: below +0 only on a galaxy, by hand. */
+function minFov() {
+  return guideTarget.startsWith('gal:') && !skyFollow ? FOV_FLOOR : FOV_MIN;
+}
+
+/**
+ * The field that frames a galaxy (#271): its long axis across FRAME_SHARE of
+ * the view's SHORT side, so it fits whichever way the phone is held and
+ * however the galaxy is turned. The field is measured across the canvas
+ * width, hence the ratio of the two.
+ */
+function frameFov(g) {
+  const c = $('liveSky');
+  const w = c.width || 1, h = c.height || w;
+  const half = Math.tan((g.maj / 120) * Math.PI / 180);
+  const fov = 2 * Math.atan(half * w / (FRAME_SHARE * Math.min(w, h))) * 180 / Math.PI;
+  return Math.min(maxFov(), Math.max(FOV_FLOOR, fov));
+}
+
 /**
  * A zoom button that has nowhere to go says so.
  *
@@ -3309,7 +3371,7 @@ function maxFov() {
  * nothing -- the handlers clamp regardless.
  */
 function updateZoomButtons() {
-  const atMin = skyFov <= FOV_MIN;
+  const atMin = skyFov <= minFov();
   const atMax = skyFov >= maxFov();
   for (const id of ['fullIn', 'skyNarrower']) {
     const b = $(id);
@@ -3320,11 +3382,24 @@ function updateZoomButtons() {
     if (b) b.setAttribute('aria-disabled', atMax ? 'true' : 'false');
   }
 }
+// BELOW +0 A PRESS HALVES OR DOUBLES (#271). Five degrees is a framed
+// galaxy's whole field twenty times over, so under +0 the steps are ratios,
+// and coming out lands on +0 exactly, back on the steps everyone tested. A
+// press during a journey that zooms finishes that journey first, or its next
+// frame would put back the field the press just changed.
 $('skyWider').onclick = () => {
-  skyFov = Math.min(maxFov(), skyFov + FOV_STEP); updateZoomButtons(); drawLiveSky();
+  if (glide && glide.fov != null) cancelGlide(true);
+  skyFov = skyFov < FOV_MIN
+    ? Math.min(FOV_MIN, skyFov * 2)
+    : Math.min(maxFov(), skyFov + FOV_STEP);
+  updateZoomButtons(); drawLiveSky();
 };
 $('skyNarrower').onclick = () => {
-  skyFov = Math.max(FOV_MIN, skyFov - FOV_STEP); updateZoomButtons(); drawLiveSky();
+  if (glide && glide.fov != null) cancelGlide(true);
+  skyFov = skyFov > FOV_MIN
+    ? Math.max(FOV_MIN, skyFov - FOV_STEP)
+    : Math.max(minFov(), skyFov / 2);
+  updateZoomButtons(); drawLiveSky();
 };
 updateZoomButtons();
 // The full-screen corner buttons are the same two actions under a glyph. One
@@ -3371,7 +3446,8 @@ applyTrackOpen(store.get('trackOpen', false) === true);
 function goToTarget(what, opts) {
   setTarget(what, opts);
   const t = aimTarget(issNow());
-  if (t) glideTo(t.az, t.alt);
+  // A galaxy is FRAMED as well as reached (#271): see FRAME_SHARE.
+  if (t) glideTo(t.az, t.alt, t.maj ? { fov: frameFov(t) } : {});
 }
 
 // PRESS THE ACTIVE TARGET AGAIN AND IT LETS GO. "When you select a target,

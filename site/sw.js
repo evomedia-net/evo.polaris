@@ -21,7 +21,7 @@
 //
 // This is a CACHE KEY, not the release stamp. build-version.json stays where
 // it is; the build advances once per release on the default branch.
-const VERSION = '0.0.1.0.65';
+const VERSION = '0.0.1.0.66';
 const CACHE = `evo-polaris-${VERSION}`;
 
 const ASSETS = [

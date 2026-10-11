@@ -97,7 +97,7 @@ test('a press is a nudge: the old step, travelled, within the hand limits', () =
 });
 
 test('glideTo takes its duration and curve from the caller', () => {
-  assert.match(appJs, /function glideTo\(az, alt, \{ ms = GLIDE_MS, ease = easeOutCubic \} = \{\}\)/,
+  assert.match(appJs, /function glideTo\(az, alt, \{ ms = GLIDE_MS, ease = easeOutCubic, fov = null \} = \{\}\)/,
     'the journey keeps its defaults; a nudge overrides them');
   const body = appJs.slice(appJs.indexOf('function glideTo('), appJs.indexOf('function pan('));
   assert.match(body, /const e = ease\(t\);/);
