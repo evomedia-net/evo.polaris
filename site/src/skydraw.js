@@ -62,6 +62,7 @@ export const SUN_MIN_ALT = -0.8;
  * @param {number} o.targetAlt  the pole's altitude
  * @param {number} o.targetAz   the pole's azimuth, 0 or 180
  * @param {string} o.targetName
+ * @param {number} [o.targetMaj] a galaxy target's long axis, arcmin: the ring goes round it
  * @param {number} o.w
  * @param {number} o.h
  * @param {number} [o.fov]      horizontal field of view, degrees
@@ -100,7 +101,7 @@ export function limbAngleOnScreen(body, q, basis, focal) {
 
 export function drawSkyView(ctx, o) {
   const { sky, alpha, beta, gamma, declination, targetAlt, targetAz,
-          targetName, reticleR, w, h, fov = 65, night = false } = o;
+          targetName, targetMaj = null, reticleR, w, h, fov = 65, night = false } = o;
 
   const ink = night ? '#ff0000' : '#e8ecf4';
   const dim = night ? '#8b0000' : '#5b6b86';
@@ -281,8 +282,14 @@ export function drawSkyView(ctx, o) {
       // its shape, the right way round, which the ellipse never was.
       const pictured = o.galaxyArt && o.pictured && o.pictured.has(g.key);
       if (!pictured) {
+        // TURNED TO ITS POSITION ANGLE (#272). Level, it was wrong by up to a
+        // right angle, which nobody saw while it was a few pixels -- framed,
+        // M 110's ran crosswise to the galaxy in the photograph behind it.
+        let turn = 0;
+        const qp = g.pv ? projectToScreen(g.pv, basis, focal) : null;
+        if (qp) turn = Math.atan2(qp.y - q.y, qp.x - q.x);
         ctx.beginPath();
-        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y, rx, ry, turn, 0, Math.PI * 2);
         ctx.stroke();
       }
       if (g.name !== ringName) nameText(g.name, x + rx + 5, y);
@@ -558,7 +565,12 @@ export function drawSkyView(ctx, o) {
     // drew it at 1.6x the windowed size. The caller measures the window,
     // which full screen does not change. Falls back to the old rule only if
     // nobody said -- and a test holds the app to passing it.
-    const r = reticleR || ref / 14;
+    // NEVER INSIDE THE GALAXY IT MARKS (#271). Still screen-locked: this is
+    // the clamp the note above allows, from below. A framed galaxy is most of
+    // the view's short side, and a reticle drawn on top of it hid the very
+    // photograph it was pointing at.
+    const r = Math.max(reticleR || ref / 14,
+      targetMaj ? Math.tan((targetMaj / 120) * Math.PI / 180) * focal * 1.15 : 0);
     ctx.strokeStyle = accent;
     ctx.lineWidth = 2.5;
     ctx.beginPath();

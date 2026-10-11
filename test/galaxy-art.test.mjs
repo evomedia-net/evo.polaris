@@ -141,7 +141,7 @@ test('drawn by the figures\' layer, before the stars, with no outline over a pic
   assert.match(appJs, /galaxyArt: skyShowGalaxies && galaxyArt\.mode === 'figures' \? galaxyArt : null,/, 'they follow the Galaxies switch');
   const art = skydraw.indexOf('o.galaxyArt.draw(ctx');
   assert.ok(art > 0 && art < skydraw.indexOf('// STARS, IN THREE PASSES.'), 'before the stars');
-  assert.ok(art < skydraw.indexOf('ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);'), 'and before the outlines');
+  assert.ok(art < skydraw.indexOf('ctx.ellipse(x, y, rx, ry, turn, 0, Math.PI * 2);'), 'and before the outlines');
   assert.match(skydraw, /const pictured = o\.galaxyArt && o\.pictured && o\.pictured\.has\(g\.key\);/);
 });
 

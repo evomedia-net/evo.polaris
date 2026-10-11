@@ -4,6 +4,10 @@
 
 // THE FIFTEEN BRIGHTEST GALAXIES, FROM SIMBAD AND RC3.
 //
+// pa is RC3's position angle of the long axis, degrees east of north, and
+// null where RC3 gives none. It turns the outline drawn for a galaxy with no
+// photograph of its own (#272); a photograph is turned by its own mapping.
+//
 // Positions and magnitudes came from one SIMBAD TAP query on 2026-09-25,
 // committed at test/fixtures/simbad-galaxies.txt. SIZES come from RC3's D25
 // (VizieR VII/155), committed at test/fixtures/rc3-galaxies.txt: SIMBAD's
@@ -39,35 +43,35 @@
 
 export const GALAXIES = [
   { key: 'lmc', id: 'LMC', name: 'Large Magellanic Cloud',
-    ra: 80.89416666666666, dec: -69.75611111111111, mag: 0.4, maj: 645.65, min: 549.54 },
+    ra: 80.89416666666666, dec: -69.75611111111111, mag: 0.4, maj: 645.65, min: 549.54, pa: 170 },
   { key: 'smc', id: 'SMC', name: 'Small Magellanic Cloud',
-    ra: 13.158333333333333, dec: -72.80027777777778, mag: 2.2, maj: 316.23, min: 186.21 },
+    ra: 13.158333333333333, dec: -72.80027777777778, mag: 2.2, maj: 316.23, min: 186.21, pa: 45 },
   { key: 'm31', id: 'M 31', name: 'Andromeda Galaxy',
-    ra: 10.684708333333333, dec: 41.268750000000004, mag: 3.44, maj: 190.55, min: 61.66 },
+    ra: 10.684708333333333, dec: 41.268750000000004, mag: 3.44, maj: 190.55, min: 61.66, pa: 35 },
   { key: 'm33', id: 'M 33', name: 'Triangulum Galaxy',
-    ra: 23.46206906218, dec: 30.660175111980003, mag: 5.72, maj: 70.79, min: 41.69 },
+    ra: 23.46206906218, dec: 30.660175111980003, mag: 5.72, maj: 70.79, min: 41.69, pa: 23 },
   { key: 'cena', id: 'NGC 5128', name: 'Centaurus A',
-    ra: 201.36506337683332, dec: -43.019112508083325, mag: 6.84, maj: 25.7, min: 19.95 },
+    ra: 201.36506337683332, dec: -43.019112508083325, mag: 6.84, maj: 25.7, min: 19.95, pa: 35 },
   { key: 'm81', id: 'M 81', name: "Bode's Galaxy",
-    ra: 148.88821939854, dec: 69.06529514038, mag: 6.94, maj: 26.92, min: 14.13 },
+    ra: 148.88821939854, dec: 69.06529514038, mag: 6.94, maj: 26.92, min: 14.13, pa: 157 },
   { key: 'm83', id: 'M 83', name: 'Southern Pinwheel',
-    ra: 204.25383, dec: -29.865761111111112, mag: 7.52, maj: 12.88, min: 11.48 },
+    ra: 204.25383, dec: -29.865761111111112, mag: 7.52, maj: 12.88, min: 11.48, pa: null },
   { key: 'm101', id: 'M 101', name: 'Pinwheel Galaxy',
-    ra: 210.80242916666668, dec: 54.34875, mag: 7.86, maj: 28.84, min: 26.92 },
+    ra: 210.80242916666668, dec: 54.34875, mag: 7.86, maj: 28.84, min: 26.92, pa: null },
   { key: 'ngc55', id: 'NGC 55', name: 'NGC 55',
-    ra: 3.7233416666666663, dec: -39.19662777777777, mag: 7.87, maj: 32.36, min: 5.62 },
+    ra: 3.7233416666666663, dec: -39.19662777777777, mag: 7.87, maj: 32.36, min: 5.62, pa: 108 },
   { key: 'm104', id: 'M 104', name: 'Sombrero Galaxy',
-    ra: 189.99763274591663, dec: -11.623054494444448, mag: 8.0, maj: 8.71, min: 3.55 },
+    ra: 189.99763274591663, dec: -11.623054494444448, mag: 8.0, maj: 8.71, min: 3.55, pa: 90 },
   { key: 'm110', id: 'M 110', name: 'M 110',
-    ra: 10.09190514583, dec: 41.68541867226, mag: 8.07, maj: 21.88, min: 10.96 },
+    ra: 10.09190514583, dec: 41.68541867226, mag: 8.07, maj: 21.88, min: 10.96, pa: 170 },
   { key: 'm32', id: 'M 32', name: 'M 32',
-    ra: 10.67427, dec: 40.86517, mag: 8.08, maj: 8.71, min: 6.46 },
+    ra: 10.67427, dec: 40.86517, mag: 8.08, maj: 8.71, min: 6.46, pa: 170 },
   { key: 'ngc6822', id: 'NGC 6822', name: "Barnard's Galaxy",
-    ra: 296.2341625, dec: -14.797580555555559, mag: 8.1, maj: 15.49, min: 13.49 },
+    ra: 296.2341625, dec: -14.797580555555559, mag: 8.1, maj: 15.49, min: 13.49, pa: null },
   { key: 'ngc300', id: 'NGC 300', name: 'NGC 300',
-    ra: 13.722694015959998, dec: -37.68421344511, mag: 8.13, maj: 21.88, min: 15.49 },
+    ra: 13.722694015959998, dec: -37.68421344511, mag: 8.13, maj: 21.88, min: 15.49, pa: 111 },
   { key: 'm94', id: 'M 94', name: 'M 94',
-    ra: 192.72114082143, dec: 41.12025024573, mag: 8.24, maj: 11.22, min: 9.12 },
+    ra: 192.72114082143, dec: 41.12025024573, mag: 8.24, maj: 11.22, min: 9.12, pa: 105 },
 ];
 
 /** The walk's stops, in the order the button visits them: brightest first. */

@@ -68,7 +68,10 @@ menu points you at something with one tap:
 - The fifteen brightest galaxies, brightest first, each drawn at its true
   size, the Andromeda Galaxy three degrees across, and shown as a photograph
   of itself, turned the way it sits in the sky (see
-  Galaxy pictures (#galaxy-pictures)).
+  Galaxy pictures (#galaxy-pictures)). Each one is framed when you go to it:
+  the view zooms until the galaxy spans nearly half the screen, down to a
+  quarter of a degree for the smallest, and goes back to the usual zoom steps
+  when you move on.
 
 A switch skips planets and constellations that are below the horizon. With the
 compass on, arrows tell you which way to turn. Without it, Manual Mode moves
@@ -446,7 +449,8 @@ Galaxy pictures
 Thirteen of the fifteen galaxies are drawn as photographs: natural colour, at
 their true size, and turned the way they sit in the sky. M 32 and M 110 have
 no picture of their own, because both are inside the Andromeda picture, which
-shows them where they are.
+shows them where they are; each is outlined at its size, turned to the
+position angle RC3 gives it.
 
 Each one is placed from the sky mapping stored inside its own file (AVM
 metadata), not from its web page. A page's "Position" is the mapping's

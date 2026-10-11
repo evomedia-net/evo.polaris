@@ -147,11 +147,50 @@ test('the short side is the ruler, and it is used everywhere', () => {
 test('the angular ring does not come back', () => {
   const block = skydraw.slice(skydraw.indexOf('// The target:'),
     skydraw.indexOf('// The ISS,'));
-  assert.ok(!/RING_DEG|Math\.tan/.test(block),
+  assert.ok(!/RING_DEG/.test(block),
     'the angular ring is back — see the note at the top of this file');
+  // The reticle is still the screen-locked radius, and only that.
   const line = block.split('\n').find((l) => /const r =/.test(l));
-  assert.ok(line && !line.includes('focal'),
-    `the radius must not be derived from the focal length: ${line}`);
+  assert.match(line, /const r = Math\.max\(reticleR \|\| ref \/ 14,$/,
+    `the reticle must stay screen-locked: ${line}`);
+  // ONE ANGULAR TERM, AND IT IS A FLOOR UNDER IT, FOR A GALAXY ONLY (#271).
+  // A framed galaxy fills most of the short side, and a reticle drawn on top
+  // of it hid the photograph it pointed at. The ring may grow to go ROUND
+  // the thing it marks; it never shrinks with the zoom, and for every other
+  // target there is no angular term at all -- see the next test.
+  assert.equal((block.match(/Math\.tan\(/g) || []).length, 1, 'one angular term');
+  assert.match(block,
+    /targetMaj \? Math\.tan\(\(targetMaj \/ 120\) \* Math\.PI \/ 180\) \* focal \* 1\.15 : 0\);/,
+    'and only when the target is a galaxy');
+});
+
+/** The ring's radius at a field, with a galaxy of `maj` arcmin as the target. */
+function galaxyRing(fov, maj) {
+  const ctx = stubCtx();
+  drawSkyView(ctx, {
+    sky: [], constellations: null, milkyWay: null, tracks: null,
+    planets: null, moon: null, iss: null,
+    aim: { az: 0, alt: 45 }, alpha: 0, beta: 90, gamma: 0, declination: 0,
+    targetAlt: 45, targetAz: 0, targetName: 'Andromeda Galaxy', targetMaj: maj,
+    reticleR: 28, w: 780, h: 520, fov, night: false,
+  });
+  return ctx.arcs.find((a) => String(a.stroke).toLowerCase() === ACCENT.toLowerCase()).r;
+}
+
+test('round a galaxy, never over it -- and the reticle size whenever it is small (#271)', () => {
+  // Small on screen -- M 94 at the opening field -- the reticle, unchanged.
+  assert.equal(galaxyRing(20, 11.2), 28);
+  // Andromeda framed: the ring goes round its long axis with a margin.
+  const focal = 390 / Math.tan(3 * Math.PI / 180);
+  const galaxyR = Math.tan((190.55 / 120) * Math.PI / 180) * focal;
+  const r = galaxyRing(6, 190.55);
+  assert.ok(r > galaxyR && r < galaxyR * 1.2, `ring ${r.toFixed(1)}px round a ${galaxyR.toFixed(1)}px galaxy`);
+  // Zoomed back out, the galaxy shrinks under it and the ring stops at the
+  // reticle: never smaller than every other target's. Triangulum at the
+  // widest field is twenty pixels across -- inside the reticle again.
+  assert.equal(galaxyRing(45, 70.8), 28);
+  // Andromeda at the widest field is still fifty, so the ring stays round it.
+  assert.ok(galaxyRing(45, 190.55) > 28);
 });
 
 // --- the off-screen pointer --------------------------------------------------

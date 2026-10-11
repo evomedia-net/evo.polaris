@@ -106,7 +106,7 @@ test('the journey is short enough to be a move, not a wait', () => {
 test('the animation ends, and cleans up after itself', () => {
   // A frame left scheduled forever is a battery leak on a phone held up in a
   // field, which is exactly the situation this app is for.
-  assert.match(glideBody, /glide = t < 1 \? \{ raf: requestAnimationFrame\(step\), to \} : null;/,
+  assert.match(glideBody, /glide = t < 1 \? \{ raf: requestAnimationFrame\(step\), to, fov: zooms \? toFov : null \} : null;/,
     'the last frame must clear the handle rather than queue another');
   const cancel = appJs.slice(appJs.indexOf('function cancelGlide('),
     appJs.indexOf('function glideTo('));

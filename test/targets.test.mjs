@@ -149,7 +149,7 @@ test('picking a target travels to it', () => {
   // that moved off screen would leave only an arrow and no reason for it.
   const fn = appJs.slice(appJs.indexOf('function goToTarget('),
     appJs.indexOf('function goToTarget(') + 300);
-  assert.match(fn, /glideTo\(t\.az, t\.alt\)/, 'the view must travel to it');
+  assert.match(fn, /glideTo\(t\.az, t\.alt, t\.maj \? \{ fov: frameFov\(t\) \} : \{\}\)/, 'the view must travel to it');
   assert.match(fn, /if \(t\)/, 'and must not try to travel to nothing');
 });
 
