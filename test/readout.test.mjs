@@ -53,12 +53,15 @@ test('the numbers come from the draw, so they are right in Auto Mode too', () =>
   assert.match(show, /el\.hidden = false;/, 'shown on the first paint');
 });
 
-test('the plate is a plate, and lets a drag through', () => {
+test('the plate is a plate, and keeps its own taps', () => {
   const b = block('.sky-readout {');
   assert.match(b, /position: absolute/);
   assert.match(b, /bottom: max\(0\.6rem, env\(safe-area-inset-bottom\)\)/, 'clear of the home bar');
   assert.match(b, /font-variant-numeric: tabular-nums/, 'a 9 becoming a 10 must not shift the plate');
-  assert.match(b, /pointer-events: none/, 'a drag that starts on the numbers is a drag on the sky');
+  // "yes, do the Az/Alt box too" (#281): like the key (#278), a tap on the
+  // plate lands on the plate and never reaches the sky's canvas behind it.
+  assert.match(b, /pointer-events: auto/, 'a tap on the numbers must not move the sky');
+  assert.doesNotMatch(b, /pointer-events: none/);
   // The key's own plate, so the two read as one family. That plate is the
   // full-screen one now: windowed, the key is text under the picture.
   const key = block('.live-sky.full .sky-legend {');

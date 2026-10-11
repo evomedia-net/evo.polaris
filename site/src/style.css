@@ -1154,8 +1154,9 @@ html[data-night='on'] .live-sky.full .sky-legend {
 /* WHERE THE VIEW IS POINTING, AS NUMBERS. Windowed it sits bottom centre,
    where nothing else is. The same plate as the key, so the two read as one
    family. Tabular digits, because a 9 turning into a 10 must not shift the
-   plate every frame, and no pointer events, because a drag that starts on
-   the numbers is a drag on the sky. */
+   plate every frame. A tap on it lands on the plate, like a tap on the key
+   (#278, #281): it had no pointer events, so a drag starting on the numbers
+   was a drag on the sky -- and a tap on the plate moved the view behind it. */
 .sky-readout {
   position: absolute;
   left: 50%;
@@ -1176,7 +1177,7 @@ html[data-night='on'] .live-sky.full .sky-legend {
   border: 1px solid rgba(232, 236, 244, 0.45);
   border-radius: 0.9rem;
   box-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  pointer-events: auto;
 }
 .sky-readout .rd-key {
   font-size: 0.7rem;
