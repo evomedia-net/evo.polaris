@@ -263,7 +263,10 @@ export function starRadius(mag, limitMag = 5.5) {
 
 /** Star colour from B-V, matching the circumpolar chart. */
 export function starColour(bv, night) {
-  if (night) return '#cc0000';
+  // Full red, the night palette's one ink (#282). #cc0000, under the 30%
+  // night veil, was about #8f0000: 2.2:1 on black, and the stars -- the thing
+  // the view is for -- were near invisible even at the brightest setting.
+  if (night) return '#ff0000';
   if (bv < -0.1) return '#a8c8ff';
   if (bv < 0.3) return '#ffffff';
   if (bv < 0.6) return '#fff6e0';
