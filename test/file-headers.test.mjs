@@ -26,7 +26,8 @@ const L2 = 'Created by Kelly Michels · dev@evomedia.net';
 const L3 = 'Licensed under the MIT License. See LICENSE.';
 const L3_DATA = "The code is MIT-licensed (see LICENSE). The data's source and terms are named below and in README.md.";
 const DATA = new Set(['site/src/data/wmm2025.js', 'site/src/data/figures.js',
-  'site/src/data/galaxies.js', 'site/src/data/southern-zones.js']);
+  'site/src/data/galaxies.js', 'site/src/data/southern-zones.js',
+  'site/src/data/galaxy-art.js']);
 // Not ours to annotate: reference data kept byte for byte as published, and
 // the release packages.
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'releases', join('test', 'fixtures')]);
