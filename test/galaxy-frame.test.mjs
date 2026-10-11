@@ -154,3 +154,16 @@ test('a zooming journey turns first and zooms last, by the logarithm', () => {
     prev = f;
   }
 });
+
+test('a framed galaxy stays framed as the sky turns', () => {
+  // The 20-second tick steps the sky by up to five arcminutes, a quarter of a
+  // framed field. Below +0 the view turns by what the tick moved the galaxy.
+  const tick = appJs.slice(appJs.indexOf('// A FRAMED GALAXY STAYS FRAMED'), appJs.indexOf('}, 20000);'));
+  assert.match(tick, /skyFov < FOV_MIN && !skyFollow && guideTarget\.startsWith\('gal:'\)/);
+  assert.match(tick, /glide === null && fling === null && hold === null && drag === null/,
+    'never while anything else is moving the view');
+  assert.ok(tick.indexOf('aimTarget(null) : null;') < tick.indexOf('refreshSkyVectors();'),
+    'measured before the refresh');
+  assert.match(tick, /setQuat\(quat\.fromAim\(skyAim\.az \+ signedTurn\(held\.az, now\.az\), skyAim\.alt \+ \(now\.alt - held\.alt\)\)\);/);
+  assert.ok(tick.indexOf('setQuat(') < tick.indexOf('drawLiveSky();'), 'and drawn already turned');
+});

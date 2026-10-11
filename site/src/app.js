@@ -3569,7 +3569,25 @@ $('tgtUpOnly').onclick = () => {
 
 // The sky turns a quarter of a degree a minute, so the expensive half is on a
 // slow timer while the projection runs per orientation event.
-setInterval(() => { if (skyOn) { refreshSkyVectors(); drawLiveSky(); } }, 20000);
+//
+// A FRAMED GALAXY STAYS FRAMED (#271). Each tick steps the sky by up to five
+// arcminutes -- invisible at twenty degrees, a quarter of the screen at a
+// framed galaxy's third of one, which walked out of view inside two minutes.
+// So below +0, steered by hand and with nothing else moving the view, the
+// view turns with the galaxy: by however far the tick moved it, so a framing
+// nudged off-centre on purpose stays exactly as it was nudged.
+setInterval(() => {
+  if (!skyOn) return;
+  const held = skyFov < FOV_MIN && !skyFollow && guideTarget.startsWith('gal:')
+    && glide === null && fling === null && hold === null && drag === null
+    ? aimTarget(null) : null;
+  refreshSkyVectors();
+  const now = held ? aimTarget(null) : null;
+  if (now) {
+    setQuat(quat.fromAim(skyAim.az + signedTurn(held.az, now.az), skyAim.alt + (now.alt - held.alt)));
+  }
+  drawLiveSky();
+}, 20000);
 
 // The station crosses the whole sky in minutes, so a target locked to it needs
 // recomputing orders of magnitude more often than the stars do. Only while it
