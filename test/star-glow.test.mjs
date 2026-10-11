@@ -118,8 +118,13 @@ test('Night Mode keeps the red channel and nothing else', () => {
     assert.ok(r >= 0 && r <= 255);
   }
   // The spikes too: their ink and their fade are both red at night.
-  assert.match(glowJs, /const ink = night \? '#cc0000' : colour;/);
-  assert.match(glowJs, /const clear = night \? 'rgba\(204, 0, 0, 0\)' : 'rgba\(0, 0, 0, 0\)';/);
+  assert.match(glowJs, /const ink = night \? '#ff0000' : colour;/);
+  assert.match(glowJs, /const clear = night \? 'rgba\(255, 0, 0, 0\)' : 'rgba\(0, 0, 0, 0\)';/);
+  // AND AT FULL RED (#282): the fade is alpha, never a dimmer red. Every night
+  // stop is 255 -- 204 under the veil was near invisible.
+  for (const stop of night.match(/rgba\([^)]*\)/g) || []) {
+    assert.equal(Number(stop.replace(/rgba\(|\)/g, '').split(',')[0]), 255, `${stop} is a dimmer red`);
+  }
   // And the white core is day-only -- it is the one part that could not be red.
   const day = glowJs.slice(glowJs.indexOf('} else {'), glowJs.indexOf('g.fillStyle = rg;'));
   assert.match(day, /addColorStop\(0, '#ffffff'\)/);

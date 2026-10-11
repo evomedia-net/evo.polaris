@@ -116,3 +116,17 @@ test('links are underlined and the credits drawn at full ink (1.4.1, 1.4.3)', ()
   assert.match(WCAG_SECTION, /html\[data-wcag='on'\] a:not\(\.icon-btn\) \{ text-decoration: underline; \}/);
   assert.match(WCAG_SECTION, /html\[data-wcag='on'\] \.leg-credit,\s*html\[data-wcag='on'\] \.milky-credit \{ opacity: 1; \}/);
 });
+
+test('in Night Mode, WCAG Mode lifts the veil, or its own contrast is false (#283)', () => {
+  // The night veil is 30% black over everything: pure red to #b30000, 2.9:1
+  // on black. Every night figure WCAG Mode quotes (5.25:1) assumes no veil.
+  const css = readFileSync(fileURLToPath(new URL('../site/src/style.css', import.meta.url)), 'utf8');
+  assert.match(css, /html\[data-wcag='on'\]\[data-night='on'\] body::after \{ content: none; \}/);
+  assert.ok(css.indexOf("html[data-wcag='on'][data-night='on'] body::after")
+    > css.indexOf("html[data-night='on'] body::after {"), 'after the veil, so it wins');
+  // The arithmetic, so the reason is checked rather than quoted.
+  const lum = (v) => { const c = v / 255; return 0.2126 * (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); };
+  const ratio = (r) => (lum(r) + 0.05) / 0.05;
+  assert.ok(ratio(255 * 0.7) < 3, `veiled red is ${ratio(255 * 0.7).toFixed(2)}:1`);
+  assert.ok(ratio(255) >= 4.5, `pure red is ${ratio(255).toFixed(2)}:1`);
+});

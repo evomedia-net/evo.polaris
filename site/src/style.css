@@ -121,6 +121,13 @@ html[data-night='on'] body::after {
   opacity: 0.3;
   pointer-events: none;
 }
+/* WCAG MODE LIFTS THE VEIL (#283). The veil takes the night palette to 70%:
+   pure red becomes #b30000, about 2.9:1 on black -- under the 4.5:1 WCAG
+   1.4.3 asks of text and the 3:1 of 1.4.11. Every "pure red is 5.25:1" in
+   the WCAG Mode rules below holds only without it. WCAG Mode promises AA, so
+   with it on the night screen is the palette alone: still pure red on black,
+   still nothing but the red channel, at 5.25:1. */
+html[data-wcag='on'][data-night='on'] body::after { content: none; }
 
 /* NOTHING IS FILLED IN NIGHT MODE.
  *
@@ -1154,8 +1161,9 @@ html[data-night='on'] .live-sky.full .sky-legend {
 /* WHERE THE VIEW IS POINTING, AS NUMBERS. Windowed it sits bottom centre,
    where nothing else is. The same plate as the key, so the two read as one
    family. Tabular digits, because a 9 turning into a 10 must not shift the
-   plate every frame, and no pointer events, because a drag that starts on
-   the numbers is a drag on the sky. */
+   plate every frame. A tap on it lands on the plate, like a tap on the key
+   (#278, #281): it had no pointer events, so a drag starting on the numbers
+   was a drag on the sky -- and a tap on the plate moved the view behind it. */
 .sky-readout {
   position: absolute;
   left: 50%;
@@ -1176,7 +1184,7 @@ html[data-night='on'] .live-sky.full .sky-legend {
   border: 1px solid rgba(232, 236, 244, 0.45);
   border-radius: 0.9rem;
   box-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
-  pointer-events: none;
+  pointer-events: auto;
 }
 .sky-readout .rd-key {
   font-size: 0.7rem;

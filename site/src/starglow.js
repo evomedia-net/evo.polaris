@@ -85,10 +85,12 @@ function sprite(colour, night) {
   const R = m * 0.62;
   const rg = g.createRadialGradient(m, m, 0, m, m, R);
   if (night) {
+    // Full red throughout, the fade carried by alpha alone (#282): the glow
+    // was 204, a dimmer red than the night palette uses anywhere else.
     rg.addColorStop(0, 'rgba(255, 0, 0, 1)');
-    rg.addColorStop(0.14, 'rgba(204, 0, 0, 0.95)');
-    rg.addColorStop(0.45, 'rgba(204, 0, 0, 0.25)');
-    rg.addColorStop(1, 'rgba(204, 0, 0, 0)');
+    rg.addColorStop(0.14, 'rgba(255, 0, 0, 0.95)');
+    rg.addColorStop(0.45, 'rgba(255, 0, 0, 0.25)');
+    rg.addColorStop(1, 'rgba(255, 0, 0, 0)');
   } else {
     // THE WHITE CORE IS A POINT, NOT A DISC. At 0.14 it swallowed the star's
     // own colour: Dubhe is visibly orange as a dot and came out white as a
@@ -104,8 +106,8 @@ function sprite(colour, night) {
   g.beginPath(); g.arc(m, m, R, 0, Math.PI * 2); g.fill();
 
   const L = m * 0.92;
-  const ink = night ? '#cc0000' : colour;
-  const clear = night ? 'rgba(204, 0, 0, 0)' : 'rgba(0, 0, 0, 0)';
+  const ink = night ? '#ff0000' : colour;
+  const clear = night ? 'rgba(255, 0, 0, 0)' : 'rgba(0, 0, 0, 0)';
   g.globalAlpha = 0.85;
   for (const a of [0, Math.PI / 2]) {
     const x0 = m - L * Math.cos(a), y0 = m - L * Math.sin(a);
