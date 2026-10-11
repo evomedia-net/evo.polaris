@@ -66,7 +66,9 @@ menu points you at something with one tap:
 - 28 constellations, the same way, each drawn as a stick figure, with
   James Hedberg's artwork behind it if you want it.
 - The fifteen brightest galaxies, brightest first, each drawn at its true
-  size, the Andromeda Galaxy three degrees across.
+  size, the Andromeda Galaxy three degrees across, and shown as a photograph
+  of itself, turned the way it sits in the sky (see
+  Galaxy pictures (#galaxy-pictures)).
 
 A switch skips planets and constellations that are below the horizon. With the
 compass on, arrows tell you which way to turn. Without it, Manual Mode moves
@@ -426,11 +428,58 @@ credit appears on the map wherever the picture does, because the licence puts
 it there. scripts/build-milkyway.py makes the texture from the original and
 records how its orientation was checked against the Magellanic Clouds.
 
-Two more pictures ship with it, both CC BY 4.0 and both credited on the map
-beside the Milky Way:
+Three more sets of pictures ship with it, all CC BY 4.0 and all credited on
+the map beside the Milky Way:
 
 - Planet surfaces — Solar System Scope (https://www.solarsystemscope.com/textures/)
   (INOVE), built from NASA imagery. scripts/build-planet-textures.py.
 - Constellation figures — James Hedberg (CUNY-CCNY), *Drawing the 88
   constellations*, jameshedberg.com (http://jameshedberg.com).
   scripts/build-constellation-art.py.
+- Galaxy photographs — thirteen pictures from NOIRLab, ESO and
+  ESA/Hubble, each credited in Galaxy pictures (#galaxy-pictures) below.
+  scripts/build-galaxy-art.py.
+
+Galaxy pictures
+---------------
+
+Thirteen of the fifteen galaxies are drawn as photographs: natural colour, at
+their true size, and turned the way they sit in the sky. M 32 and M 110 have
+no picture of their own, because both are inside the Andromeda picture, which
+shows them where they are.
+
+Each one is placed from the sky mapping stored inside its own file (AVM
+metadata), not from its web page. A page's "Position" is the mapping's
+reference point, and that is not the middle of the picture: for Andromeda it
+sits near the bottom, 40 arcminutes from the centre. Checked against the
+pixels, the catalogue positions of M 32 and M 110 land on their cores inside
+the Andromeda picture, within a quarter of an arcminute.
+
+The sky is subtracted and each picture fades out in a circle round its galaxy,
+so no frame shows. In Night Mode they are drawn in red only, like everything
+else. They follow the Galaxies switch.
+
+All thirteen are licensed
+CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), resized and
+recoloured as described above:
+
+| Galaxy | Credit | Source |
+| --- | --- | --- |
+| Large Magellanic Cloud | CTIO/NOIRLab/NSF/AURA/SMASH/D. Nidever (Montana State University); image processing: Travis Rector (University of Alaska Anchorage), Mahdi Zamani & Davide de Martin | noirlab2030a (https://noirlab.edu/public/images/noirlab2030a/) |
+| Small Magellanic Cloud | CTIO/NOIRLab/NSF/AURA/SMASH/D. Nidever (Montana State University); image processing: Travis Rector (University of Alaska Anchorage), Mahdi Zamani & Davide de Martin | noirlab2030b (https://noirlab.edu/public/images/noirlab2030b/) |
+| Andromeda Galaxy (with M 32 and M 110) | Bill Schoening, Vanessa Harvey/REU program/NOIRLab/NSF/AURA | noao0001a (https://noirlab.edu/public/images/noao0001a/) |
+| Triangulum Galaxy | ESO | eso1424a (https://www.eso.org/public/images/eso1424a/) |
+| Centaurus A | ESO | eso1221a (https://www.eso.org/public/images/eso1221a/) |
+| Bode's Galaxy | N.A.Sharp/NOIRLab/NSF/AURA | noao-m81 (https://noirlab.edu/public/images/noao-m81/) |
+| Southern Pinwheel | CTIO/NOIRLab/DOE/NSF/AURA; image processing: T.A. Rector (University of Alaska Anchorage/NSF NOIRLab), D. de Martin (NSF NOIRLab) & M. Zamani (NSF NOIRLab) | noirlab2429a (https://noirlab.edu/public/images/noirlab2429a/) |
+| Pinwheel Galaxy | T.A. Rector (University of Alaska Anchorage) and H. Schweiker (WIYN and NOIRLab/NSF/AURA) | noao-m101ubviha (https://noirlab.edu/public/images/noao-m101ubviha/) |
+| NGC 55 | ESO | eso0914a (https://www.eso.org/public/images/eso0914a/) |
+| Sombrero Galaxy | ESA/Hubble & NASA, K. Noll | heic2506a (https://esahubble.org/images/heic2506a/) |
+| Barnard's Galaxy | ESO | eso0938a (https://www.eso.org/public/images/eso0938a/) |
+| NGC 300 | ESO | eso1037a (https://www.eso.org/public/images/eso1037a/) |
+| M 94 | Hillary Mathis, N.A.Sharp/NOIRLab/NSF/AURA | noao-m94 (https://noirlab.edu/public/images/noao-m94/) |
+
+scripts/build-galaxy-art.py downloads each one and checks it against the
+sha256 pinned in scripts/galaxy-art-sources.json, so a picture that has
+changed upstream fails the build rather than quietly moving the sky. It writes
+site/src/data/galaxies.webp and site/src/data/galaxy-art.js.

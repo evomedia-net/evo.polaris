@@ -39,6 +39,7 @@ import { createPlanetArt, CREDIT as PLANET_CREDIT } from './planet-art.js';
 import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation-art.js';
 import { createStarGlow } from './starglow.js';
 import { FIGURES } from './data/figures.js';
+import { GALAXY_ART, GALAXY_TILE, GALAXY_COLS } from './data/galaxy-art.js';
 import { easeOutCubic, easeInOutCubic, holdSpeed } from './motion.js';
 import { nextStop } from './walk.js';
 import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
@@ -178,6 +179,7 @@ let skyFigures = store.get('figures', true);
 // every star makes -- twenty-five figures, four corners, a hundred rotations
 // a tick and none at all per frame.
 let skyFigureCorners = [];
+let skyGalaxyCorners = [];   // the galaxy photographs' corners, in the same frame
 let skyMilkyWay = true;
 // The drawing speed, off by default: a number for judging a change rather
 // than for finding the pole. Remembered like every other visual switch.
@@ -215,6 +217,19 @@ const figureArt = createConstellationArt({
   forceOff: new URLSearchParams(location.search).get('nofig') === '1',
 });
 figureArt.ready.then(() => { updateLegend(); if (skyOn) drawLiveSky(); });
+// THE GALAXIES AS PHOTOGRAPHS. Thirteen CC BY 4.0 pictures from NOIRLab, ESO
+// and ESA/Hubble, hung on the sky by their four corners exactly as the
+// figures are -- the same layer, a different atlas. They follow the
+// Galaxies switch. ?nogal=1 forces them off without touching the setting.
+const galaxyArt = createConstellationArt({
+  forceOff: new URLSearchParams(location.search).get('nogal') === '1',
+  src: './src/data/galaxies.webp', tile: GALAXY_TILE, cols: GALAXY_COLS,
+});
+galaxyArt.ready.then(() => { updateLegend(); if (skyOn) drawLiveSky(); });
+// The ones with a picture of their own. M 32 and M 110 are not among them:
+// both are inside the Andromeda picture, so they keep their outline only.
+const GALAXY_PICTURED = new Set(GALAXY_ART.map((g) => g.k));
+const GALAXY_CREDIT = 'Galaxies: NOIRLab, ESO, ESA/Hubble';
 // The bright stars as a glow with crossed spikes rather than a flat disc.
 // Nothing to load -- the sprites are drawn on a canvas the first time a star
 // of that colour is on screen -- so there is no ready() to wait on.
@@ -340,6 +355,13 @@ function updateLegend() {
     figureCredit.hidden = !figures;
   }
   if (figures) any = true;
+  // And the galaxy photographs: credited while they are drawn, which is
+  // while the galaxies are on and the atlas has arrived. Each picture's full
+  // credit and licence is in README.md, which the line links to.
+  const galaxyPics = skyShowGalaxies && galaxyArt.mode === 'figures';
+  const galaxyCredit = $('legGalaxyArt');
+  if (galaxyCredit) galaxyCredit.hidden = !galaxyPics;
+  if (galaxyPics) any = true;
   $('skyLegend').hidden = !any;
 }
 
@@ -1726,24 +1748,25 @@ function refreshSkyVectors() {
   const precess = precessionMatrix(jd);
   skyVectors = buildSkyVectors(stars, lst, site.lat, 5.5, precess);
   // The artwork turns with the sky, exactly as the stars do.
-  skyFigureCorners = FIGURES.map((f) => ({
-    i: f.i,
-    c: f.c.map((v) => {
-      // A corner is NOT a unit vector: it sits at its true distance on the
-      // figure's plane, which OpenSpace tilts up to 28 degrees from the line
-      // of sight. Rotating its direction and giving the length back keeps
-      // the four a plane, so the layer's blend of them lands on the drawing
-      // exactly. Normalise here and the middle of Pegasus moves six degrees
-      // while its corners stay put.
-      const m = Math.hypot(v[0], v[1], v[2]);
-      const d = equatorialToVector(
-        Math.atan2(v[1], v[0]) * 180 / Math.PI,
-        Math.asin(Math.max(-1, Math.min(1, v[2] / m))) * 180 / Math.PI,
-        lst, site.lat, precess,
-      );
-      return [d[0] * m, d[1] * m, d[2] * m];
-    }),
-  }));
+  //
+  // A corner is NOT a unit vector: it sits at its true distance on the
+  // picture's plane -- the plane OpenSpace tilts a figure on, up to 28
+  // degrees from the line of sight, or the plane tangent to the sky that a
+  // galaxy photograph's own mapping is defined on. Rotating its direction
+  // and giving the length back keeps the four a plane, so the layer's blend
+  // of them lands on the picture exactly. Normalise here and the middle of
+  // Pegasus moves six degrees while its corners stay put.
+  const toSky = (v) => {
+    const m = Math.hypot(v[0], v[1], v[2]);
+    const d = equatorialToVector(
+      Math.atan2(v[1], v[0]) * 180 / Math.PI,
+      Math.asin(Math.max(-1, Math.min(1, v[2] / m))) * 180 / Math.PI,
+      lst, site.lat, precess,
+    );
+    return [d[0] * m, d[1] * m, d[2] * m];
+  };
+  skyFigureCorners = FIGURES.map((f) => ({ i: f.i, c: f.c.map(toSky) }));
+  skyGalaxyCorners = GALAXY_ART.map((g) => ({ i: g.i, c: g.c.map(toSky) }));
   // The galaxies are catalogue objects like the stars -- J2000, fixed
   // against the sky -- so they go through the same rotation and the same
   // precession matrix. Their sizes are carried along untouched: an angular
@@ -2074,6 +2097,9 @@ function drawLiveSky() {
     // Stars are sized in CSS pixels: the same density the canvas uses (#204).
     dpr: Math.min(window.devicePixelRatio || 1, 2),
     galaxies: skyShowGalaxies ? skyGalaxies : null,
+    galaxyArt: skyShowGalaxies && galaxyArt.mode === 'figures' ? galaxyArt : null,
+    galaxyPictures: skyGalaxyCorners,
+    pictured: GALAXY_PICTURED,
     figureArt: skyFigures && figureArt.mode === 'figures' ? figureArt : null,
     figures: skyFigureCorners,
     milkyWay: skyMilkyWay ? milkyWay : null,
