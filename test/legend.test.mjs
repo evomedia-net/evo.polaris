@@ -93,11 +93,27 @@ test('the key is real text in the corner, not paint on the canvas', () => {
     'each swatch must be hidden from assistive tech, leaving the word');
 });
 
-test('the key never eats a tap meant for the map', () => {
+test('a tap on the key lands on the key, not the sky behind it (#278)', () => {
+  // "the legend is still click through." It was pointer-events: none, so a
+  // press on the plate fell through to the sky and moved the view.
   const rule = css.slice(css.indexOf('\n.sky-legend {'),
     css.indexOf('}', css.indexOf('\n.sky-legend {')));
-  assert.match(rule, /pointer-events:\s*none/,
-    'a key is not a control — it must not take presses');
+  assert.match(rule, /pointer-events:\s*auto/, 'the plate keeps its own taps');
+  assert.doesNotMatch(rule, /pointer-events:\s*none/);
+  // Which is enough because the sky listens on the canvas, not on the box the
+  // plate is in: a press on the plate never reaches the canvas at all.
+  const app = readFileSync(fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
+  assert.match(app, /\$\('liveSky'\)\.addEventListener\('pointerdown',/);
+  // Full screen, over the sky and UNDER the controls, so a long key that still
+  // reaches one on a short screen (#179) never takes its press.
+  const full = css.slice(css.indexOf('.live-sky.full .sky-legend {'),
+    css.indexOf('}', css.indexOf('.live-sky.full .sky-legend {')));
+  assert.match(full, /z-index: 1;/);
+  for (const sel of ['.map-btn {', '.live-sky.full .full-targets {', '.live-sky.full .full-zoom {',
+    '.live-sky.full .full-pan:not([hidden]) {']) {
+    const r = css.slice(css.indexOf(sel), css.indexOf('}', css.indexOf(sel)));
+    assert.match(r, /z-index: 2;/, `${sel} must stay above the key`);
+  }
 });
 
 test('windowed the key is under the picture, and out of the picture box', () => {
