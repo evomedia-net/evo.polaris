@@ -44,7 +44,12 @@ WHAT IS DONE TO THE PIXELS
       and a little more: the layer draws additively, and a grey sky would
       brighten a square round every galaxy -- turned with the sky, a diamond.
     * Each picture fades out in a circle round ITS GALAXY: whole within 1.15
-      of the galaxy's radius, black by 1.6. The galaxy's place in the frame
+      of the galaxy's radius, black by 1.6. Where that circle would run past
+      the frame it is squeezed, across and down separately, into the largest
+      oval that fits inside the frame round the galaxy -- so the fade never
+      shows the frame's square, and a long galaxy in a short frame (the
+      Sombrero) keeps its length. Sizes are RC3's D25 (#267), which run to a
+      faint isophote and are often wider than the picture. The galaxy's place in the frame
       comes from running the picture's own mapping backwards, so a galaxy
       that is not in the middle of its picture (the Large Magellanic Cloud
       fills the top half of its) keeps its fade round itself. Nothing of a
@@ -222,12 +227,16 @@ def prepare(data: bytes, m: dict, gal: tuple) -> Image.Image:
     f = max(2, int(min(w, h) * FEATHER))
     ramp = lambda n: np.minimum(1.0, np.minimum(np.arange(n) + 0.5, n - np.arange(n) - 0.5) / f)
     fade = (0.5 - 0.5 * np.cos(np.pi * ramp(h)))[:, None] * (0.5 - 0.5 * np.cos(np.pi * ramp(w)))[None, :]
-    # A circle round the galaxy itself.
+    # Round the galaxy itself, and inside the frame: a circle where it fits,
+    # squeezed across and down separately into the frame where it does not.
     gx, gy = (v / k for v in pixel_of(m, gal[0], gal[1]))
     radius = (gal[2] / 2 / 60) / abs(m["scale"][0]) / k
+    ax = max(1.0, min(GONE * radius, gx, w - gx))
+    ay = max(1.0, min(GONE * radius, gy, h - gy))
     yy, xx = np.mgrid[0:h, 0:w]
-    rr = np.hypot(xx + 0.5 - gx, yy + 0.5 - gy) / radius
-    t = np.clip((rr - KEEP) / (GONE - KEEP), 0, 1)
+    q = np.hypot((xx + 0.5 - gx) / ax, (yy + 0.5 - gy) / ay)
+    start = KEEP / GONE                     # whole to here, black at the oval
+    t = np.clip((q - start) / (1 - start), 0, 1)
     fade = fade * (0.5 + 0.5 * np.cos(np.pi * t))
     a = a * fade[:, :, None]
     return Image.fromarray(a.astype(np.uint8), "RGB")
