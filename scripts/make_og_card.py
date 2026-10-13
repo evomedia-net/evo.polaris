@@ -107,9 +107,15 @@ HEADLINE = ["Find Polaris, the ISS, planets", "and galaxies. Align your mount."]
 # disabilities", which a reader without one takes as "not for me" and scrolls
 # past. Kelly: made for all astronomers, worded so people without a disability
 # do not pass it over on first read.
+#
+# TAPS DO EVERYTHING; THE GESTURES ARE THERE TOO (#289). "Works entirely by
+# single taps" read as "no gestures", and the app now pinches as well as drags:
+# Kelly asked for "...and multi-touch". The README's own rule, in its own
+# words: single taps reach everything, and pinch and drag are shortcuts.
 PARAGRAPH = ["For every astronomer, disabled or not.",
              "Free and offline. Reads numbers aloud.",
-             "Works entirely by single taps."]
+             "Single taps reach everything.",
+             "Pinch and drag too."]
 DOMAIN = "polaris.evomedia.net"
 
 
@@ -217,7 +223,7 @@ def build(shot: Path | None = None) -> Image.Image:
 
     # Wordmark, with the dot in the accent colour exactly as the page's <h1>.
     f_title = font(SANS_BOLD, 62 * SS)
-    x, y = PAD * SS, 128 * SS
+    x, y = PAD * SS, 88 * SS
     draw.text((x, y), "evo", font=f_title, fill=INK)
     x += draw.textlength("evo", font=f_title)
     draw.text((x, y), ".", font=f_title, fill=ACCENT)
@@ -225,15 +231,16 @@ def build(shot: Path | None = None) -> Image.Image:
     draw.text((x, y), "polaris", font=f_title, fill=INK)
 
     f_head = font(SANS_SEMIBOLD, 35 * SS)
-    y = 238 * SS
+    y = 198 * SS
     for line in HEADLINE:
         draw.text((PAD * SS, y), line, font=f_head, fill=INK)
         y += 46 * SS
 
-    # Three lines now rather than two, so the block starts higher: 338 + three
-    # 40s ends at 458, which still clears the accent rule at 478.
+    # Four lines now (#289), so the whole block -- wordmark, headline and
+    # paragraph -- moved up 40: 298 + four 40s ends at 458, which still clears
+    # the accent rule at 478, and the text now spans the chart's own height.
     f_para = font(SANS, 29 * SS)
-    y = 338 * SS
+    y = 298 * SS
     for index, line in enumerate(PARAGRAPH):
         draw.text((PAD * SS, y), line, font=f_para,
                   fill=INK if index == 0 else DIM)
