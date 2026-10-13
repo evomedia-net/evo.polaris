@@ -56,6 +56,31 @@ export function holdSpeed(elapsed, { ramp = 600, cruise = 0.06 } = {}) {
  * going in the zoom is eased IN -- it waits for the turn to be nearly done --
  * and coming out it is eased out, so the view opens up before it travels.
  */
+/**
+ * The field during a pinch (#289): the fingers' spread scales the view the
+ * way it scales a photo -- twice as far apart, half the field -- measured
+ * from where the pinch began, so it never drifts. Clamped to the limits the
+ * + and - buttons keep.
+ */
+export function pinchFov(fov0, d0, d, min, max) {
+  if (!(d0 > 0) || !(d > 0)) return Math.min(max, Math.max(min, fov0));
+  return Math.min(max, Math.max(min, (fov0 * d0) / d));
+}
+
+/**
+ * The field after one wheel event (#289). A trackpad pinch reaches a page as
+ * wheel events with ctrlKey set and small deltas; a mouse wheel as about 100
+ * a notch. Each event is capped, so one notch is a step, not a leap: about
+ * x1.2 for a plain wheel and x1.65 with Ctrl, and a pinch's stream of small
+ * deltas glides. Down -- a positive delta -- widens the field, as it does
+ * in every map.
+ */
+export function wheelFov(fov, deltaY, deltaMode, ctrl, min, max) {
+  const px = deltaY * (deltaMode === 1 ? 16 : deltaMode === 2 ? 400 : 1);
+  const step = Math.max(-50, Math.min(50, px));
+  return Math.min(max, Math.max(min, fov * Math.exp(step * (ctrl ? 0.01 : 0.004))));
+}
+
 export function fovAlong(from, to, t) {
   const u = Math.max(0, Math.min(1, t));
   // The ends EXACTLY: a field one rounding past +0 is not at +0, and the zoom
