@@ -183,6 +183,9 @@ test('the README and the link card state the same rule as the app', () => {
   }
   assert.match(readme, /Single taps reach everything/,
     'the README must state the rule: taps reach everything, gestures are shortcuts');
-  assert.match(card, /"Works entirely by single taps\."/,
+  // Since #289 it names the gestures too, in the README's words.
+  assert.match(readme, /Single taps reach everything/);
+  assert.match(readme, /drag or pinch the sky/);
+  assert.match(card, /"Single taps reach everything\.",\s*"Pinch and drag too\."/,
     'the card line must stay a README claim');
 });
