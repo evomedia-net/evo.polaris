@@ -46,10 +46,16 @@ test('it comes after every rule it overrides, or it loses', () => {
 });
 
 test('the right-hand column goes two by two, and the key steps beside it', () => {
-  assert.match(block, /\.live-sky\.full \.full-zoom \{\s*display: grid;\s*grid-template-columns: repeat\(2, calc\(4 \* var\(--ctl\)\)\);/);
+  // Two by two in BOTH orientations now (#179): the grid is the base rule,
+  // and on its side it never needs the lift a narrow upright pad asks for.
+  const css = readFileSync(fileURLToPath(new URL('../site/src/style.css', import.meta.url)), 'utf8');
+  const base = css.slice(css.indexOf('.live-sky.full .full-zoom {'), css.indexOf('}', css.indexOf('.live-sky.full .full-zoom {')));
+  assert.match(base, /display: grid;\s*grid-template-columns: repeat\(2, calc\(4 \* var\(--ctl\)\)\);/);
+  assert.match(block, /\.live-sky\.full \.full-zoom \{[^}]*--zoom-lift: 0px;/);
   // Two 4-unit columns and their 0.6 gap is 8.6 units of the controls' own
-  // size (#147), plus the key's own gap, which is a plate's and so in rem.
-  assert.match(block, /\.live-sky\.full \.sky-legend \{\s*right: calc\(max\(0\.6rem, env\(safe-area-inset-right\)\) \+ 8\.6 \* var\(--ctl\) \+ 0\.6rem\);/);
+  // size (#147), plus the key's own gap, which is a plate's and so in rem --
+  // less the whole step when the key is squeezed above the grid instead.
+  assert.match(block, /\.live-sky\.full \.sky-legend \{[^}]*right: calc\(max\(0\.6rem, env\(safe-area-inset-right\)\) \+ 8\.6 \* var\(--ctl\) \+ 0\.6rem\s*- clamp\(0px, \(10rem - var\(--key-gap\)\) \* 1000, 8\.6 \* var\(--ctl\) \+ 0\.6rem\)\);/);
 });
 
 test('the pad and the Az/Alt plate move beside the Track column', () => {
