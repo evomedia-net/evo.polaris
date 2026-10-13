@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<!-- evomedia.net evo.polaris — https://github.com/evomedia-net/evo.polaris
+     Created by Kelly Michels · dev@evomedia.net
+     Licensed under the MIT License. See LICENSE. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — evo.polaris — evomedia.net</title>
+<meta name="description" content="What evo.polaris sends, to whom, and when: your position stays on your device; two optional lookups; no accounts, no cookies, no ads.">
+<link rel="canonical" href="https://polaris.evomedia.net/privacy.html">
+<meta name="color-scheme" content="dark light">
+<style>
+  :root {
+    --bg: #05070d;
+    --ink: #e8ecf4;
+    --dim: #aab4c8;
+    --rule: #26304a;
+    --accent: #7cffb2;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f7f8fb;
+      --ink: #121722;
+      --dim: #3d4a63;
+      --rule: #cfd6e4;
+      --accent: #0b6b3a;
+    }
+  }
+  html { background: var(--bg); color: var(--ink); }
+  body {
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+    font: 1.0625rem/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 42rem; margin: 0 auto; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.25rem; margin: 2rem 0 0.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+  p, li { max-width: 65ch; }
+  .lede { color: var(--dim); margin-top: 0; }
+  a { color: var(--accent); text-decoration: underline; }
+  a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.6rem 0.5rem 0; border-bottom: 1px solid var(--rule); }
+  th { color: var(--dim); font-weight: 600; }
+  .wrap { overflow-x: auto; }
+  .back { display: inline-block; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">Back to evo.polaris</a>
+  <h1>Privacy</h1>
+  <p class="lede">evo.polaris, at polaris.evomedia.net and in the Google Play and App Store apps. Last updated 12 October 2026.</p>
+
+  <p><strong>In short:</strong> there are no accounts, no cookies, no advertising and no third-party analytics. Your position stays on your device. The app asks two outside services for something only when a feature needs it, and it tells you which, here and in the code.</p>
+
+  <h2>Your position</h2>
+  <p>If you allow it, your device tells the app where you are. The app uses that position on your device to work out where the stars, the Moon, the planets and the pole are, and the magnetic declination for where you stand. It is not sent to us or to anyone else, with one exception you start yourself: the elevation button, below.</p>
+  <p>The compass and motion sensors are read the same way: on your device, to turn the sky with your phone, and nowhere else.</p>
+
+  <h2>What the app asks other services for</h2>
+  <div class="wrap">
+  <table>
+    <thead><tr><th scope="col">Service</th><th scope="col">When</th><th scope="col">What it is sent</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a></td>
+        <td>Only when you press the button that looks up your ground elevation.</td>
+        <td>The latitude and longitude in the location boxes, to return the elevation there.</td>
+      </tr>
+      <tr>
+        <td><a href="https://wheretheiss.at/" rel="noopener">wheretheiss.at</a></td>
+        <td>When the sky view or the Find the ISS button needs the space station's position.</td>
+        <td>Nothing about you: the request asks where the ISS is at a list of times.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Like any website, each service sees the network address the request comes from. Their own privacy terms apply to what they do with it.</p>
+
+  <h2>What stays on your device</h2>
+  <p>Your settings, such as text size, Night Mode, WCAG Mode, which layers are shown and the location you last used, typed in or from your device, are kept in your browser's or the app's own storage on your device, so they are still there next time. They are never sent anywhere. Clearing the site's data, or uninstalling the app, removes them.</p>
+
+  <h2>The website</h2>
+  <p>polaris.evomedia.net is served by our own server, which keeps a standard access log: the network address, the browser's name, the page asked for and the time. When you leave the page, the website also reports how many whole seconds you used it, to that same server: one number, with no identifier and no cookie, and not at all for visits under ten seconds. It does not run if your browser sends Do Not Track or Global Privacy Control, and it never runs offline.</p>
+  <p>We use these logs to see whether the app is used, and nothing is sold or shared.</p>
+
+  <h2>The Google Play and App Store apps</h2>
+  <p>The apps carry the whole website inside them and run it from your phone, so they work with no signal at all. They make no request to our server: the usage-time report has nowhere to go and sends nothing, and the only requests that leave your phone are the two in the table above, when you use those features. The Documentation button opens docs.evomedia.net in your browser, which is an ordinary website visit.</p>
+
+  <h2>Who we are, and asking us</h2>
+  <p>evo.polaris is made by Kelly Michels and published by Evomedia.net LLC. It is free and open source; everything above can be checked in <a href="https://github.com/evomedia-net/evo.polaris" rel="noopener">the source code on GitHub</a>. For any question about this page, email <a href="mailto:dev@evomedia.net">dev@evomedia.net</a>.</p>
+  <p>If this changes, this page will say what changed and when.</p>
+</main>
+</body>
+</html>

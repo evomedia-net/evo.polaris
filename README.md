@@ -153,6 +153,12 @@ carries on without noticing. Visits shorter than ten seconds are not reported.
 The code is `site/src/dwell.js`; it is about sixty lines and says exactly what
 it sends.
 
+All of this, for the website and for the Google Play and App Store apps, is
+written up as the privacy policy at
+[polaris.evomedia.net/privacy.html](https://polaris.evomedia.net/privacy.html),
+and `test/privacy-page.test.mjs` fails if the code starts asking anything the
+page does not name.
+
 It is also honestly a convenience rather than an accuracy fix: altitude shifts
 magnetic declination by **under 0.01° even at 3000 m**, against a good polar
 alignment of about 0.1°. Leaving it at sea level costs you nothing. The reason
