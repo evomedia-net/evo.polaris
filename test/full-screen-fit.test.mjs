@@ -72,15 +72,19 @@ test('the width it is capped at is the pad and the column side by side', () => {
   assert.ok(near(Number(insets), 3 * GAP), `${insets}rem of gaps; three are ${3 * GAP}`);
 });
 
-test('the height it is capped at is the column under the key', () => {
-  // Down the right edge: the key, then the column -- its buttons and the way
-  // out, with a gap between each.
+test('the height it is capped at is still the one-column budget, so no button grows (#179)', () => {
+  // Down the right edge it was the key, then a column of four and the way
+  // out. The column is two by two now (8.6 units, not 18.4), but the cap still
+  // divides by the old column on purpose: re-budgeting it would make every
+  // control bigger at large text on tall phones, and the room two by two gives
+  // back is meant for the key, not the buttons.
   const [, , , keyAndGaps, perUnit] = CTL;
   const column = zoomCount * zoomBtn + exitBtn + zoomCount * zoomGap;
-  assert.ok(near(Number(perUnit), column), `cap divides by ${perUnit}; the column is ${column}`);
-  // The exit sits under the column by the same gap the column keeps.
+  assert.ok(near(Number(perUnit), column), `cap divides by ${perUnit}; the one-column budget is ${column}`);
+  // The exit sits under the grid by the same gap the grid keeps, plus the
+  // lift beside a narrow pad.
   assert.match(block('.live-sky.full .full-zoom {'),
-    new RegExp(`\\+ ${exitBtn + zoomGap} \\* var\\(--ctl\\)\\);`));
+    new RegExp(`\\+ ${exitBtn + zoomGap} \\* var\\(--ctl\\) \\+ var\\(--zoom-lift\\)\\);`));
   // 14.3rem is the tallest the key measured: all seven rows, credits
   // wrapped, at 1.45 and 1.6 on a 375px phone (14.23rem; six rows were
   // 11.92). An eighth row makes that stale.

@@ -37,7 +37,9 @@ test('the Night Mode button is announced by the words it shows (#224)', () => {
 const html = read('../site/index.html');
 
 /** What a sighted person reads on the control: the words, not the glyphs. */
-const visibleWords = (inner) => norm(inner.replace(/<[^>]+>/g, ' ').replace(/&[#\w]+;/g, ' ')
+// A soft hyphen is where a long word MAY break (#180), not a gap between two
+// words: "Constel&shy;lations" shows "Constellations" until it has to wrap.
+const visibleWords = (inner) => norm(inner.replace(/<[^>]+>/g, ' ').replace(/&shy;|\u00ad/g, '').replace(/&[#\w]+;/g, ' ')
   .replace(/[^\p{L}\p{N}' -]/gu, ' '));
 
 test('every button and link in the page is named with the words it shows', () => {

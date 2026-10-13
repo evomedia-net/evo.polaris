@@ -35,3 +35,17 @@ test('a picture becomes its alt text, whether written as markdown or as an HTML 
   assert.ok(txt.includes('The sky in red'), 'HTML image -> alt text');
   assert.ok(!txt.includes('<img') && !txt.includes('b.png'), 'no tag or path should remain');
 });
+
+test('bold that wraps onto the next line loses its markers too (#254)', () => {
+  // README.txt kept "**Global" / "Privacy Control**": each line held one
+  // marker, and the stripper only ever matched a pair on one line.
+  const txt = render('It honours **Global\nPrivacy Control** and **SkyTracker\nPro** both.\n');
+  assert.ok(!txt.includes('**'), `markers survived:\n${txt}`);
+  assert.ok(txt.includes('Global\nPrivacy Control') && txt.includes('SkyTracker\nPro'));
+  // A same-line pair beside it is still stripped, and code keeps its stars.
+  const mixed = render('**one** and **two\nthree**\n\n```\na ** b\n```\n');
+  assert.ok(mixed.includes('one and two\nthree'), mixed);
+  assert.ok(mixed.includes('    a ** b'), 'inside a fence nothing is touched');
+  // An unclosed marker never reaches across a blank line into the next paragraph.
+  assert.ok(render('a **b\n\nc** d\n').includes('**'), 'paragraphs are not joined');
+});

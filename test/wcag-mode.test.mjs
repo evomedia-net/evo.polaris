@@ -89,10 +89,18 @@ test('folded, the plate is locked to --base so A+ cannot grow it into the contro
   assert.match(WCAG_SECTION, /\.live-sky\.full \.leg-credit \{ font-size: calc\(0\.68 \* var\(--base\)\); \}/);
 });
 
-test('the full-screen Track labels wrap rather than being cut off (#180)', () => {
-  assert.match(WCAG_SECTION, /html\[data-wcag='on'\] \.live-sky\.full \.tgt-btn \{[^}]*white-space: normal;[^}]*overflow-wrap: anywhere;/);
+test('the full-screen Track labels wrap rather than being cut off (#180), in every mode', () => {
+  // WCAG Mode had this alone; the default mode cut "Constellations" from text
+  // size 1.15 on a 375px phone. The rule is the default now, not a WCAG one.
+  const css = readFileSync(fileURLToPath(new URL('../site/src/style.css', import.meta.url)), 'utf8');
+  const rule = css.slice(css.indexOf('.live-sky.full .tgt-btn {'), css.indexOf('}', css.indexOf('.live-sky.full .tgt-btn {')));
+  assert.match(rule, /white-space: normal;/);
+  assert.match(rule, /overflow-wrap: anywhere;/);
+  assert.doesNotMatch(WCAG_SECTION, /html\[data-wcag='on'\] \.live-sky\.full \.tgt-btn \{/,
+    'no second copy that only WCAG Mode gets');
+  const html = readFileSync(fileURLToPath(new URL('../site/index.html', import.meta.url)), 'utf8');
+  assert.match(html, />Constel&shy;lations<\/button>/, 'the one word that must break says where');
 });
-
 test('focus is kept clear of the pinned bar, by padding and by script (2.4.11)', () => {
   assert.match(WCAG_SECTION, /html\[data-wcag='on'\] \{ scroll-padding-top: calc\(var\(--bar-h, 0px\) \+ 0\.5rem\); \}/);
   assert.match(app, /setProperty\('--bar-h', tall \? '0px' : `\$\{Math\.ceil\(h\)\}px`\)/);
