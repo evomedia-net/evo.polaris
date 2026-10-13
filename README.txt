@@ -154,8 +154,8 @@ arrives while the page loads, so nothing in it can say whether the app was used
 for ten seconds or an hour. That is worth knowing and there was no honest way
 to infer it.
 
-It does not run at all if your browser sends Do Not Track or **Global
-Privacy Control**, and it never runs offline — the send fails and the app
+It does not run at all if your browser sends Do Not Track or Global
+Privacy Control, and it never runs offline — the send fails and the app
 carries on without noticing. Visits shorter than ten seconds are not reported.
 The code is site/src/dwell.js; it is about sixty lines and says exactly what
 it sends.
@@ -322,8 +322,8 @@ Which mounts this helps
 It computes numbers, so it helps with any polar-aligned mount. It is written
 against the iOptron AccuAlign reticle specifically.
 
-Worth knowing if you own an iOptron tracker: the SkyTracker and **SkyTracker
-Pro** have no data port at all — the micro-USB is charge-only, and their manual
+Worth knowing if you own an iOptron tracker: the SkyTracker and SkyTracker
+Pro have no data port at all — the micro-USB is charge-only, and their manual
 lists only a power switch, a rate switch and a N/S switch. No app can control
 them. The SkyGuider Pro adds an ST-4 guide port and an HBX hand-controller
 port; the SkyHunter speaks iOptron's V3 protocol over WiFi and can be driven

@@ -64,9 +64,34 @@ function inline(text) {
     .replace(/`([^`]+)`/g, "$1"); // inline code
 }
 
+/**
+ * Bold that wraps onto the next line (#254). inline() works one line at a
+ * time, so a phrase like `**Global` / `Privacy Control**` kept both markers:
+ * neither line holds a pair. A line with an odd number of `**` opens a phrase
+ * the next such line closes; this drops that one pair, outside code fences,
+ * and leaves every same-line pair to inline().
+ */
+function unwrapBold(lines) {
+  const out = [...lines];
+  let inFence = false;
+  let open = -1; // the line whose last `**` is still unclosed
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].trimStart().startsWith("```")) { inFence = !inFence; open = -1; continue; }
+    if (inFence) continue;
+    if (out[i].trim() === "") { open = -1; continue; } // a phrase never crosses a paragraph
+    if ((out[i].match(/\*\*/g) || []).length % 2 === 0) continue;
+    if (open === -1) { open = i; continue; }
+    const last = out[open].lastIndexOf("**");
+    out[open] = out[open].slice(0, last) + out[open].slice(last + 2);
+    out[i] = out[i].replace("**", "");
+    open = -1;
+  }
+  return out;
+}
+
 /** Render one markdown document to its plain-text form. */
 export function render(md) {
-  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const lines = unwrapBold(md.replace(/\r\n/g, "\n").split("\n"));
   const out = [];
   let i = 0;
 
