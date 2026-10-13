@@ -1,10 +1,10 @@
 {
-  "version": "0.0.1.0.71",
+  "version": "0.0.1.0.72",
   "files": {
     "./index.html": "f71b8bf2aede0a65",
     "./manifest.webmanifest": "a3619deeccc43751",
     "./src/style.css": "0ff017ba32812677",
-    "./src/app.js": "d00c6f67c1b4ebe0",
+    "./src/app.js": "e99b049af74739dc",
     "./src/astro.js": "6707c12d4794db5b",
     "./src/geomag.js": "ddbaae47354712d9",
     "./src/chart.js": "6089dd2842e5c050",
@@ -27,7 +27,7 @@
     "./src/data/icon.svg": "00169e1cd1b90353",
     "./src/milkyway.js": "112dbb0217d77cd9",
     "./src/data/milkyway.webp": "11b49f853279a90a",
-    "./src/motion.js": "19e742e8dfb9920b",
+    "./src/motion.js": "664daba659190d6b",
     "./src/quat.js": "bb423cf53b087ba2",
     "./src/walk.js": "b96bd194e484dd9d",
     "./src/textsize.js": "731f9ccbe02cb0a5",

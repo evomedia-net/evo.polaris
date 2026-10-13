@@ -40,7 +40,7 @@ import { createConstellationArt, CREDIT as FIGURE_CREDIT } from './constellation
 import { createStarGlow } from './starglow.js';
 import { FIGURES } from './data/figures.js';
 import { GALAXY_ART, GALAXY_TILE, GALAXY_COLS } from './data/galaxy-art.js';
-import { easeOutCubic, easeInOutCubic, holdSpeed, fovAlong } from './motion.js';
+import { easeOutCubic, easeInOutCubic, holdSpeed, fovAlong, pinchFov, wheelFov } from './motion.js';
 import { nextStop } from './walk.js';
 import { SCALE_MIN, SCALE_STEP, SCALE_MAX, clampScale } from './textsize.js';
 import * as quat from './quat.js';
@@ -2993,6 +2993,72 @@ window.addEventListener('pointerup', (e) => {
 // case working as intended, and it must not land as a tap on release.
 window.addEventListener('pointercancel', () => { drag = null; });
 
+// --- pinching the sky (#289) -------------------------------------------------
+//
+// "it should support pinch zoom +/-, that's excluding how a lot of users are
+// used to naturally" -- "it's common muscle memory". So two fingers zoom the
+// sky the way they zoom a photo. The + and - buttons stay, and stay the zoom
+// for any hand that cannot pinch: a two-finger gesture always needs a
+// single-pointer twin (WCAG 2.5.1), and nothing here needs a pinch.
+//
+// WHERE THE SKY OWNS THE TOUCH, AND NOWHERE ELSE. Full screen, or steering by
+// hand, the canvas is touch-action: none, and a pinch is the sky's. Windowed
+// in Auto Mode the page still scrolls through the map, and a pinch there is
+// still the browser's own page zoom -- which people who enlarge pages by hand
+// rely on, and which this must not take away.
+//
+// REGISTERED AFTER THE DRAG, ON PURPOSE. The drag's pointerdown above starts
+// a drag for every finger; when a second lands, this one runs next and
+// cancels it, so the first finger was never a drag and its lift is never a
+// tap.
+const touches = new Map();           // pointerId -> { x, y }, fingers on the sky
+let pinch = null;                    // { d0, fov0 } while two are down
+const spread = () => {
+  const [a, b] = [...touches.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+};
+const skyOwnsTouch = () => getComputedStyle($('liveSky')).touchAction === 'none';
+
+$('liveSky').addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2 && skyOwnsTouch()) {
+    drag = null;
+    cancelGlide(true);
+    cancelFling();
+    pinch = { d0: spread(), fov0: skyFov };
+  }
+});
+window.addEventListener('pointermove', (e) => {
+  const t = touches.get(e.pointerId);
+  if (!t) return;
+  t.x = e.clientX;
+  t.y = e.clientY;
+  if (!pinch || touches.size < 2) return;
+  skyFov = pinchFov(pinch.fov0, pinch.d0, spread(), minFov(), maxFov());
+  updateZoomButtons();
+  drawLiveSky();
+});
+const liftTouch = (e) => {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
+};
+window.addEventListener('pointerup', liftTouch);
+window.addEventListener('pointercancel', liftTouch);
+
+// A TRACKPAD PINCH, AND THE WHEEL IN FULL SCREEN. Browsers hand a trackpad
+// pinch to the page as Ctrl + wheel, so that is a zoom wherever it lands on
+// the sky. A plain wheel zooms only in full screen: windowed, it scrolls the
+// page, and taking that would be the "it will not scroll" bug again.
+$('liveSky').addEventListener('wheel', (e) => {
+  if (!e.ctrlKey && !document.querySelector('.live-sky.full')) return;
+  e.preventDefault();
+  if (glide && glide.fov != null) cancelGlide(true);
+  skyFov = wheelFov(skyFov, e.deltaY, e.deltaMode, e.ctrlKey, minFov(), maxFov());
+  updateZoomButtons();
+  drawLiveSky();
+}, { passive: false });
+
 document.addEventListener('visibilitychange', () => {
   // A hidden tab does not run requestAnimationFrame, so a frame scheduled just
   // before the switch is still pending on the way back and blocks every later
@@ -3105,7 +3171,7 @@ window.addEventListener('keyup', (e) => {
 // job was to reveal the thing you had just navigated to was one press of
 // ceremony in front of the feature people come for.
 
-// Zoom by button. Pinching is a two-finger gesture and this app uses none.
+// Zoom by button, or by pinching the sky (#289: see "pinching the sky").
 // The one networked feature, so it is a button rather than something that
 // happens on its own -- and it says what it talked to.
 // THE STATION IS FETCHED WHEN THE SKY OPENS, NOT ONLY WHEN ASKED.
