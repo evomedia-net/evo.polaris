@@ -1113,6 +1113,22 @@ html[data-night='on'] .map-btn {
      the space between them, and this plate's own inset). At 1.6 on a 375px
      phone the key ran 91..359 and the column 16..144. */
   max-width: calc(66% - 1.8rem);
+  /* AND NEVER DOWN INTO THE BUTTONS UNDER IT (#179). Upright, that is the
+     two-by-two grid: its top is the exit (4.6 units), the grid's two rows
+     (8.6) and the lift it takes beside a narrow pad (see .full-zoom), plus a
+     0.6rem gap. Where even that leaves too little room -- the smallest
+     phones at the largest text -- the plate scrolls within itself, as the
+     Track column does, rather than covering a control: the credits stay on
+     it, on the picture, a scroll away. */
+  max-height: calc(100% - max(0.6rem, env(safe-area-inset-top))
+    - max(0.6rem, env(safe-area-inset-bottom)) - 13.2 * var(--ctl)
+    - clamp(0px, (1.8rem + 19.5 * var(--ctl) - 100vw) * 1000, 6.9 * var(--ctl)) - 0.6rem);
+  overflow-y: auto;
+  /* Never sideways: the rows wrap, and the 2px a thin scrollbar takes must
+     not turn into a horizontal scroll. */
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 @supports (backdrop-filter: blur(3px)) {
   .live-sky.full .sky-legend { backdrop-filter: blur(3px); }
@@ -1123,6 +1139,10 @@ html[data-night='on'] .map-btn {
    push the plate into the Track column. */
 .live-sky:not(.full) .leg-row,
 .live-sky.full .leg-credit { white-space: normal; }
+/* A path row's word drops under its swatch rather than being cut (#179):
+   the plate is capped now, so what would once have spilled past its edge is
+   clipped -- "Planets" lost its "s" at 1.6 on a 320px phone. */
+.live-sky.full .leg-row { flex-wrap: wrap; }
 .leg-row {
   display: flex;
   align-items: center;
@@ -1450,14 +1470,25 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
    would cover the sky they are meant to show. */
 .full-zoom, .full-pan { display: none; }
 .live-sky.full .full-zoom {
-  display: flex;
-  flex-direction: column;
+  /* TWO BY TWO, UPRIGHT TOO (#179). One column of four reached 22.4 units up
+     the right edge, and on a short phone the key above it came down over Art
+     and Horizon -- at 1.6 on a 320x568 phone, over all four. Two by two is
+     8.6 units tall, as it already was on its side, and the space it gives
+     back is the key's. */
+  display: grid;
+  grid-template-columns: repeat(2, calc(4 * var(--ctl)));
   gap: calc(0.6 * var(--ctl));
   position: absolute;
   right: max(0.6rem, env(safe-area-inset-right));
   /* Clear of the 4-unit exit button below, with the same 0.6 gap the
-     column keeps between its own buttons. */
-  bottom: calc(max(0.6rem, env(safe-area-inset-bottom)) + 4.6 * var(--ctl));
+     column keeps between its own buttons -- AND clear of the pad. Two
+     across is 8.6 units wide, and beside the 10.9-unit pad that only fits
+     when the screen is 19.5 units plus three 0.6rem gaps wide; on a 320px
+     phone, or at large text, it is not. --zoom-lift is then the 6.9 units
+     that put the grid above the pad's top instead: a step, made of clamp()
+     with a large factor, since CSS has no if. */
+  --zoom-lift: clamp(0px, (1.8rem + 19.5 * var(--ctl) - 100vw) * 1000, 6.9 * var(--ctl));
+  bottom: calc(max(0.6rem, env(safe-area-inset-bottom)) + 4.6 * var(--ctl) + var(--zoom-lift));
   z-index: 2;
 }
 .live-sky.full .map-zoom-btn {
@@ -1548,12 +1579,32 @@ html[data-skyfull='on'] .mode-btn:not([role='tab']) { position: static; }
  * the pad is placed by it: 9.5rem, against the 9.06 it measures on its own. */
 @media (orientation: landscape) {
   .live-sky.full .full-zoom {
-    display: grid;
-    grid-template-columns: repeat(2, calc(4 * var(--ctl)));
-    gap: calc(0.6 * var(--ctl));
+    /* Two by two in both orientations now (#179); on its side the pad sits
+       beside the Track column, so the grid never needs the lift. */
+    --zoom-lift: 0px;
   }
   .live-sky.full .sky-legend {
-    right: calc(max(0.6rem, env(safe-area-inset-right)) + 8.6 * var(--ctl) + 0.6rem);
+    /* ON ITS SIDE THE KEY KEEPS RIGHT OF THE PAD (#179). Left of it are the
+       Track column (9.5rem) and the pad (10.9 units) with the Az/Alt plate
+       above it; right of it the two-by-two grid (8.6 units). The gap between
+       them -- --key-gap, 100% less 12.5rem and 19.5 units -- is the key's,
+       at the full height.
+
+       SQUEEZED, IT GOES ABOVE THE GRID INSTEAD. On a small phone at large
+       text that gap shrinks to a sliver (30px at 1.6 on a 667x375 phone), and
+       a key held to it was one row tall. The roomy space then is top right,
+       over the grid: right of the Az/Alt plate (5rem wide, beside the 9.5rem
+       column) and above the grid's top (13.2 units up). --key-squeeze is 0
+       while the gap is 10rem or more and 1 below it -- a clamp() step, as for
+       the grid's lift -- and moves the key, its width and its height between
+       the two. */
+    --key-gap: calc(100vw - 12.5rem - 19.5 * var(--ctl));
+    right: calc(max(0.6rem, env(safe-area-inset-right)) + 8.6 * var(--ctl) + 0.6rem
+      - clamp(0px, (10rem - var(--key-gap)) * 1000, 8.6 * var(--ctl) + 0.6rem));
+    max-width: calc(var(--key-gap)
+      + clamp(0px, (10rem - var(--key-gap)) * 1000, 19.5 * var(--ctl) - 4.4rem));
+    max-height: calc(100% - 1.2rem
+      - clamp(0px, (10rem - var(--key-gap)) * 1000, 13.2 * var(--ctl) + 0.6rem));
   }
   .live-sky.full .full-targets,
   .live-sky.full:has(#rdCostRow:not([hidden])) .full-targets,

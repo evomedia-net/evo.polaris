@@ -89,7 +89,8 @@ test('the zoom column clears the exit button with a gap', () => {
   // `max(0.6rem, env(safe-area-inset-bottom))` nests parentheses, so the
   // offset is taken from the trailing `+ <n> * var(--ctl))` rather than by
   // matching the inside of max().
-  const m = block.match(/bottom:\s*calc\(.*\+\s*([\d.]+) \* var\(--ctl\)\)/);
+  // (#179: a lift beside a narrow pad may follow it; it only ever adds.)
+  const m = block.match(/bottom:\s*calc\(.*\+\s*([\d.]+) \* var\(--ctl\)(?: \+ var\(--zoom-lift\))?\)/);
   assert.ok(m, 'the zoom column must be offset above the exit button');
   const offset = Number(m[1]);
   const exit = unitsOf('.map-full {', 'height');
