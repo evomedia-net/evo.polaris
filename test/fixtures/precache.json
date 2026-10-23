@@ -1,15 +1,15 @@
 {
-  "version": "0.0.1.0.73",
+  "version": "0.0.1.0.74",
   "files": {
     "./index.html": "f7c55b1267962905",
     "./manifest.webmanifest": "a3619deeccc43751",
     "./src/style.css": "0ff017ba32812677",
-    "./src/app.js": "e99b049af74739dc",
+    "./src/app.js": "78fbde8f3c2a21bb",
     "./src/astro.js": "6707c12d4794db5b",
     "./src/geomag.js": "ddbaae47354712d9",
     "./src/chart.js": "6089dd2842e5c050",
     "./src/guide.js": "f17ae18f8e9f5175",
-    "./src/words.js": "48a7b51528d8e623",
+    "./src/words.js": "3a9c4bebfff71f9f",
     "./src/skyview.js": "50ab363ff37301fd",
     "./src/skydraw.js": "866b50d16fcb9c82",
     "./src/evomedia-chrome.js": "34273c65adaa1350",
@@ -40,6 +40,7 @@
     "./src/data/galaxies.webp": "40c021f7636b4689",
     "./src/data/galaxy-art.js": "9928f56da7270537",
     "./src/data/southern-zones.js": "73fc26cc5fcb8289",
-    "./src/announce.js": "86f018c1f1e1cdc5"
+    "./src/announce.js": "86f018c1f1e1cdc5",
+    "./src/compass.js": "76fa5670471d79ca"
   }
 }
