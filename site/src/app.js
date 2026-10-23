@@ -53,6 +53,7 @@ import { spokenBriefing } from './briefing.js';
 import { resolveCoordinate, hemisphereFor, validate, formPosition, isSouthernZone } from './coords.js';
 import { VERSION } from './version.js';
 import { nextAnnouncement } from './announce.js';
+import { createNorthAnchor } from './compass.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -279,7 +280,10 @@ let issFix = null;           // {alt, az, aboveHorizon, sunlit} from the fetch
 let sAlpha = null, sBeta = null, sGamma = null;
 let skyFrame = null;                 // pending requestAnimationFrame
 let sawSensor = false;
-let sensorInfo = { event: null, absolute: null, screen: 0 };
+let sensorInfo = { event: null, absolute: null, screen: 0, anchor: null };
+// An iPhone's alpha starts wherever the phone faced; this ties it to the
+// compass that arrives beside it (#295; see compass.js).
+const northAnchor = createNorthAnchor();
 let lastOnTarget = false;
 
 // --- which of the two jobs is on screen -------------------------------------
@@ -1470,6 +1474,10 @@ function stopCompass() {
   // worse than admitting there is no compass.
   heading = null; tilt = null; roll = null; rawAlpha = null;
   sAlpha = sBeta = sGamma = null;
+  // An iPhone restarts its reckoning when the listener does, from wherever it
+  // faces then, so an offset carried over would be measured from the old zero.
+  northAnchor.reset();
+  sensorInfo.anchor = null;
   sawSensor = false;
   skyFollow = false;                        // fall back to the pad
   $('compassBtn').textContent = 'Turn on the compass';
@@ -1612,7 +1620,24 @@ function onOrientation(e) {
   // without a usable compass, and the altitude half is still worth having.
   if (typeof e.beta === 'number' && !Number.isNaN(e.beta)) tilt = e.beta;
   if (typeof e.gamma === 'number' && !Number.isNaN(e.gamma)) roll = e.gamma;
-  if (typeof e.alpha === 'number' && !Number.isNaN(e.alpha)) rawAlpha = e.alpha;
+  if (typeof e.alpha === 'number' && !Number.isNaN(e.alpha)) {
+    // ON AN IPHONE, ALPHA IS NOT A BEARING (#295). It is measured from
+    // wherever the phone faced when listening began, so the sky view drew the
+    // sky turned by that much -- "180 degrees off axis" for someone who
+    // started out facing the Moon. The compass arrives beside it as
+    // webkitCompassHeading, and only there; Android's alpha is absolute
+    // already and passes straight through.
+    if (typeof e.webkitCompassHeading === 'number') {
+      rawAlpha = northAnchor.update({
+        alpha: e.alpha, beta: e.beta, gamma: e.gamma,
+        heading: e.webkitCompassHeading, accuracy: e.webkitCompassAccuracy,
+      }) ?? e.alpha;
+      sensorInfo.anchor = northAnchor.offset === null ? null
+        : { offset: northAnchor.offset, provisional: northAnchor.provisional };
+    } else {
+      rawAlpha = e.alpha;
+    }
+  }
 
   sAlpha = smoothAngle(sAlpha, rawAlpha ?? 0);
   sBeta = smoothAngle(sBeta, tilt ?? 0);
@@ -1637,10 +1662,14 @@ function onOrientation(e) {
     skyFrame = requestAnimationFrame(() => { skyFrame = null; drawLiveSky(); });
   }
   if (e.alpha == null) { updateGuide(); return; }
-  const magnetic = e.webkitCompassHeading != null
-    ? e.webkitCompassHeading                    // already true north on iOS
-    : (360 - e.alpha) % 360;
-  heading = e.webkitCompassHeading != null || !site
+  // ONE RULE ON EVERY PHONE, AND IT IS MAGNETIC (#295). This used to take
+  // webkitCompassHeading as-is on an iPhone, "already true north on iOS". It
+  // is not: WebKit fills it from CLHeading.magneticHeading and corrects
+  // nothing, so the arrows on an iPhone were off by the declination -- two
+  // degrees in Texas, fifteen and more in parts of the US. rawAlpha is now
+  // measured from magnetic north on both platforms, so both get the same sum.
+  const magnetic = (360 - rawAlpha) % 360;
+  heading = !site
     ? magnetic
     : (magnetic + (solution?.declination ?? 0) + 360) % 360;
   updateGuide();
@@ -3098,6 +3127,10 @@ function updateSensorReadout() {
     `${sensorInfo.event || 'no'} event · absolute ${abs === null ? 'unstated' : abs}`
     + ` · alpha ${Math.round(sAlpha ?? 0)}° beta ${Math.round(sBeta ?? 0)}°`
     + ` gamma ${Math.round(sGamma ?? 0)}° · screen ${sensorInfo.screen}°`
+    // On an iPhone, how alpha was tied to the compass (#295). "provisional"
+    // means the phone has not yet passed through the tilt where that is sure.
+    + (sensorInfo.anchor ? ` · compass offset ${Math.round(sensorInfo.anchor.offset)}°`
+      + (sensorInfo.anchor.provisional ? ' (provisional)' : '') : '')
     // Auto Mode rewrites this line every frame; the breadcrumb rides on it.
     + (canvasLosses ? ` · canvas context lost ${canvasLosses}×` : '');
   $('sensorToggle').hidden = false;

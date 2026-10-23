@@ -107,11 +107,19 @@ export function compassWords(deg) {
  */
 export function compassSummary(sensor, heading) {
   if (!sensor.event) return '';
-  if (sensor.event === 'deviceorientation' && sensor.absolute !== true) {
+  // An iPhone's event is never absolute, but its compass rides beside it and
+  // ties it to north (#295) -- which is what sensor.anchor records. Telling
+  // every iPhone it had no compass was wrong as well as discouraging.
+  if (sensor.event === 'deviceorientation' && sensor.absolute !== true && !sensor.anchor) {
     return 'This phone did not offer a compass that knows where north is, so '
       + 'the sky may be turned the wrong way. Use the arrow buttons instead.';
   }
   if (!Number.isFinite(heading)) return 'Compass working — waiting for a heading.';
   const d = Math.round(((heading % 360) + 360) % 360) % 360;
-  return `Compass working — the phone is pointing ${d}° ${compassPoint(d)}.`;
+  const line = `Compass working — the phone is pointing ${d}° ${compassPoint(d)}.`;
+  // Not yet tied down: the phone has only been held where the compass's
+  // answer is in doubt. Holding it as if reading it settles that.
+  return sensor.anchor && sensor.anchor.provisional
+    ? `${line} To be sure of north, hold it as if reading it for a moment.`
+    : line;
 }
