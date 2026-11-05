@@ -8,6 +8,8 @@ and the release moves them under its version.
 
 ## Unreleased
 
+## v0.0.1.0.74
+
 ### Fixed
 
 - **site:** the position readout shows 95.3698° W, not -95.3698° W: a minus sign in front of a hemisphere said the opposite side ([#301](https://github.com/evomedia-net/evo.polaris/pull/301))
