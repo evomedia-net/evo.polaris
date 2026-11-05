@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { resolveCoordinate, hemisphereFor, validate, formPosition } from '../site/src/coords.js';
+import { resolveCoordinate, hemisphereFor, validate, formPosition, formatCoordinate } from '../site/src/coords.js';
 
 test('the button supplies the sign, so no minus has to be typed', () => {
   // The whole point: 33.8688 with S selected is Sydney, not Lebanon.
@@ -126,4 +126,24 @@ test('the altitude lookup asks about that signed position, not the bare boxes', 
   assert.ok(!/parseFloat\(\$\('in(Lat|Lon)'\)/.test(handler),
     'reading a box on its own drops its hemisphere');
   assert.match(handler, /latitude=\$\{encodeURIComponent\(lat\)\}&longitude=\$\{encodeURIComponent\(lon\)\}/);
+});
+
+test('a readout never puts a minus sign in front of a hemisphere (#300)', () => {
+  // The hemisphere IS the sign. "-95.3698° W" reads as minus-west, which is
+  // east, so a readout carries the magnitude and the letter, never both signs.
+  assert.equal(formatCoordinate(-95.3698, 4, 'E', 'W'), '95.3698° W');
+  assert.equal(formatCoordinate(-33.8688, 4, 'N', 'S'), '33.8688° S');
+  assert.equal(formatCoordinate(29.7604, 4, 'N', 'S'), '29.7604° N');
+  assert.equal(formatCoordinate(151.2093, 2, 'E', 'W'), '151.21° E');
+});
+
+test('every coordinate the page writes goes through formatCoordinate (#300)', () => {
+  // The bug was two hand-written formats: the summary line had Math.abs and
+  // the readout did not. One function for both, and nothing formatting a raw
+  // signed value beside it.
+  const app = readFileSync(fileURLToPath(new URL('../site/src/app.js', import.meta.url)), 'utf8');
+  assert.doesNotMatch(app, /site\.(lat|lon)\.toFixed\(/,
+    'app.js formats a signed site coordinate by hand; use formatCoordinate');
+  assert.doesNotMatch(app, /Math\.abs\(site\.(lat|lon)\)\.toFixed\(/,
+    'app.js formats a site coordinate by hand; use formatCoordinate');
 });

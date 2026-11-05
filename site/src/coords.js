@@ -48,6 +48,15 @@ export function hemisphereFor(value, positive, negative) {
   return value < 0 ? negative : positive;
 }
 
+/**
+ * A coordinate as a person reads it: the magnitude, then its hemisphere.
+ * The hemisphere is the sign, so a minus in front of it says the opposite
+ * side -- "-95.3698° W" reads as east (#300).
+ */
+export function formatCoordinate(value, digits, positive, negative) {
+  return `${Math.abs(value).toFixed(digits)}° ${hemisphereFor(value, positive, negative)}`;
+}
+
 /** Latitude must be within +/-90, longitude within +/-180. */
 export function validate(value, limit) {
   return Number.isFinite(value) && Math.abs(value) <= limit;
