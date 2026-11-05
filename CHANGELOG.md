@@ -8,6 +8,10 @@ and the release moves them under its version.
 
 ## Unreleased
 
+### Fixed
+
+- **site:** the position readout shows 95.3698° W, not -95.3698° W: a minus sign in front of a hemisphere said the opposite side ([#301](https://github.com/evomedia-net/evo.polaris/pull/301))
+
 ### Documentation
 
 - **changelog:** the fleet format, evo.polaris's with no date on version headings; the .txt twins underline a third-level heading with ~ ([#299](https://github.com/evomedia-net/evo.polaris/pull/299))

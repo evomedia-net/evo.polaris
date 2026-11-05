@@ -50,7 +50,7 @@ import {
 } from './moon.js';
 import { planetPositions, describePlanets, PLANET_NAMES, ringOpening } from './planets.js';
 import { spokenBriefing } from './briefing.js';
-import { resolveCoordinate, hemisphereFor, validate, formPosition, isSouthernZone } from './coords.js';
+import { resolveCoordinate, hemisphereFor, validate, formPosition, isSouthernZone, formatCoordinate } from './coords.js';
 import { VERSION } from './version.js';
 import { nextAnnouncement } from './announce.js';
 import { createNorthAnchor } from './compass.js';
@@ -773,9 +773,7 @@ function placeSummary() {
   // there and not here, because it moves the magnetic declination by under
   // 0.01 degrees even at 3000 m, and spelling it out on this line pushed the
   // button onto a second row.
-  const la = `${Math.abs(site.lat).toFixed(2)}° ${site.lat >= 0 ? 'N' : 'S'}`;
-  const lo = `${Math.abs(site.lon).toFixed(2)}° ${site.lon >= 0 ? 'E' : 'W'}`;
-  return `${la}, ${lo}`;
+  return `${formatCoordinate(site.lat, 2, 'N', 'S')}, ${formatCoordinate(site.lon, 2, 'E', 'W')}`;
 }
 
 /**
@@ -815,8 +813,8 @@ function setSite(next, note) {
   site = next;
   store.set('site', site);
   $('siteReadout').hidden = false;
-  $('outLat').textContent = `${site.lat.toFixed(4)}° ${site.lat >= 0 ? 'N' : 'S'}`;
-  $('outLon').textContent = `${site.lon.toFixed(4)}° ${site.lon >= 0 ? 'E' : 'W'}`;
+  $('outLat').textContent = formatCoordinate(site.lat, 4, 'N', 'S');
+  $('outLon').textContent = formatCoordinate(site.lon, 4, 'E', 'W');
   $('outAlt').textContent = Number.isFinite(site.altitude)
     ? `${Math.round(site.altitude)} m` : 'not supplied';
   $('locateStatus').textContent = note;
